@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>定制球鞋利润计算器</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  color: #333;
+}
+.container { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 24px 0 16px;
+  color: #fff;
+}
+.header h1 { font-size: 24px; letter-spacing: 1px; }
+.header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+  gap: 2px;
+}
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 11px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.8);
+  transition: all 0.25s;
+  font-weight: 500;
+}
+.tab.active { background: #fff; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.tab:hover:not(.active) { color: #fff; }
+
+/* Cards */
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title .icon { font-size: 20px; }
+
+/* Form */
+.form-group { margin-bottom: 14px; }
+.form-label {
+  display: block;
+  font-size: 12px;
+  color: #999;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.form-row { display: flex; gap: 10px; align-items: flex-end; }
+.form-row > div { flex: 1; }
+
+input, select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #e8e8e8;
+  border-radius: 10px;
+  font-size: 15px;
+  transition: all 0.2s;
+  background: #fafafa;
+  font-family: inherit;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: #667eea;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+}
+input[type=number] { font-variant-numeric: tabular-nums; }
+input.input-main {
+  background: #fffbf0;
+  border-color: #f0c040;
+}
+input.input-main:focus {
+  border-color: #e0a800;
+  box-shadow: 0 0 0 3px rgba(240,192,64,0.15);
+}
+
+select {
+  cursor: pointer;
+  appearance: none;
+  background: #fafafa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 12px center;
+  padding-right: 36px;
+}
+
+/* Fixed costs inline */
+.fixed-costs {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #888;
+  align-items: center;
+  flex-wrap: wrap;
+  background: #f8f9fa;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-top: 6px;
+}
+.fixed-costs input {
+  width: 56px;
+  padding: 4px 8px;
+  font-size: 13px;
+  text-align: center;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* Results */
+.result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.result-item {
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.3s;
+}
+.result-item .value { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+.result-item .label { font-size: 11px; margin-top: 4px; font-weight: 500; }
+
+.result-income { background: #f0f4ff; }
+.result-income .value { color: #4a6cf7; }
+.result-income .label { color: #7b93db; }
+
+.result-fixed { background: #f5f5f5; }
+.result-fixed .value { color: #555; }
+.result-fixed .label { color: #999; }
+
+.result-total { background: #fff7ed; }
+.result-total .value { color: #ea580c; }
+.result-total .label { color: #c2784a; }
+
+.result-profit { background: #f0fdf4; }
+.result-profit .value { color: #16a34a; }
+.result-profit .label { color: #6aaa7c; }
+.result-profit.loss { background: #fef2f2; }
+.result-profit.loss .value { color: #dc2626; }
+.result-profit.loss .label { color: #c26a6a; }
+.result-profit.warn { background: #fffbeb; }
+.result-profit.warn .value { color: #d97706; }
+.result-profit.warn .label { color: #b08c4a; }
+
+/* Status badge */
+.status-row { text-align: center; margin-top: 14px; }
+.status-badge {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.badge-loss { background: #fef2f2; color: #dc2626; border: 1.5px solid #fecaca; }
+.badge-low { background: #fffbeb; color: #d97706; border: 1.5px solid #fde68a; }
+.badge-good { background: #f0fdf4; color: #16a34a; border: 1.5px solid #bbf7d0; }
+
+/* Reference section */
+.ref-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+.ref-item {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+.ref-item .val { font-size: 18px; font-weight: 700; color: #4a6cf7; }
+.ref-item .lbl { font-size: 11px; color: #999; margin-top: 2px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+.btn-save { background: #10b981; color: #fff; width: 100%; font-size: 15px; padding: 14px; }
+.btn-save:hover { background: #059669; }
+.btn-outline {
+  background: #fff;
+  color: #666;
+  border: 1.5px solid #e0e0e0;
+}
+.btn-outline:hover { background: #f5f5f5; border-color: #ccc; }
+.btn-danger { color: #ef4444; border-color: #fecaca; }
+.btn-danger:hover { background: #fef2f2; }
+.btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 8px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Section toggle */
+.section { display: none; }
+.section.active { display: block; }
+
+/* Table */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th {
+  background: #f0f4ff;
+  padding: 10px 6px;
+  text-align: center;
+  font-weight: 700;
+  color: #555;
+  border-bottom: 2px solid #e0e0e0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.data-table td { padding: 6px 4px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+.data-table input {
+  width: 100%;
+  padding: 7px 6px;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+}
+.data-table input:focus { border-color: #667eea; }
+.data-table .col-result { background: #f0fdf4; font-weight: 700; color: #16a34a; }
+.data-table tr:hover td { background: #fafafa; }
+.data-table tr:hover .col-result { background: #dcfce7; }
+
+/* Compare grid */
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+}
+.compare-item {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.compare-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.compare-item .ci-price { font-size: 17px; font-weight: 800; }
+.compare-item .ci-profit { font-size: 13px; font-weight: 700; margin-top: 2px; }
+.compare-item.ci-loss { background: #fef2f2; }
+.compare-item.ci-loss .ci-profit { color: #dc2626; }
+.compare-item.ci-low { background: #fffbeb; }
+.compare-item.ci-low .ci-profit { color: #d97706; }
+.compare-item.ci-good { background: #f0fdf4; }
+.compare-item.ci-good .ci-profit { color: #16a34a; }
+
+/* History */
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 2px;
+}
+.history-item:hover { background: #f8f9fa; border-left-color: #667eea; }
+.history-item .hi-name { font-weight: 600; font-size: 14px; }
+.history-item .hi-detail { font-size: 11px; color: #999; margin-top: 2px; }
+.history-item .hi-profit { font-weight: 700; font-size: 16px; text-align: right; }
+.history-item .hi-rate { font-size: 11px; color: #999; }
+.history-empty { text-align: center; padding: 40px; color: #ccc; font-size: 14px; }
+
+/* Tips */
+.tip {
+  background: #f0f4ff;
+  border-left: 3px solid #667eea;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #555;
+  line-height: 1.7;
+  margin-top: 12px;
+}
+
+/* Mobile */
+@media (max-width: 500px) {
+  .container { padding: 10px; }
+  .header h1 { font-size: 20px; }
+  .card { padding: 16px; border-radius: 12px; }
+  .form-row { flex-direction: column; gap: 6px; }
+  .result-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .result-item { padding: 12px 8px; }
+  .result-item .value { font-size: 20px; }
+  .ref-grid { grid-template-columns: 1fr; }
+  .tabs { gap: 1px; }
+  .tab { font-size: 11px; padding: 10px 3px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>定制球鞋利润计算器</h1>
+  <p>输入原鞋成本 & 售价 → 秒出利润 | 数据保存在浏览器</p>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('calc')">💰 计算器</button>
+  <button class="tab" onclick="switchTab('reverse')">🔍 成本倒推</button>
+  <button class="tab" onclick="switchTab('batch')">📋 批量倒推</button>
+  <button class="tab" onclick="switchTab('compare')">📈 定价对比</button>
+</div>
+
+<!-- ==================== 利润计算器 ==================== -->
+<div id="section-calc" class="section active">
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📝</span>商品信息</div>
+    <div class="form-row">
+      <div><div class="form-label">商品名称</div><input type="text" id="productName" placeholder="如：棉花喵喵"></div>
+      <div><div class="form-label">商品货号</div><input type="text" id="productCode" placeholder="如：DV5456-131"></div>
+    </div>
+    <div class="form-row">
+      <div><div class="form-label">尺码</div><input type="text" id="productSize" placeholder="如：38"></div>
+      <div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">✏️ 成本与售价</div>
+    <div class="form-row">
+      <div><div class="form-label">原鞋成本（进货价）</div><input type="number" id="shoeCost" class="input-main" placeholder="0.00" oninput="calcProfit()" step="0.01"></div>
+      <div><div class="form-label">售价 / 出价</div><input type="number" id="sellPrice" class="input-main" placeholder="0.00" oninput="calcProfit()" step="0.01"></div>
+    </div>
+    <div class="form-row">
+      <div>
+        <div class="form-label">定制费（人工费）</div>
+        <input type="number" id="customFee" class="input-main" placeholder="0.00" oninput="calcProfit()" step="0.01">
+      </div>
+      <div>
+        <div class="form-label">快速选择款式</div>
+        <select id="customFeeSelect" onchange="setCustomFee()">
+          <option value="">-- 选择款式自动填定制费 --</option>
+        </select>
+      </div>
+    </div>
+    <div class="fixed-costs">
+      固定成本：
+      材料费 <input id="materialFee" type="number" value="5" oninput="calcProfit()"> 元
+      + 邮费 <input id="shippingFee" type="number" value="12" oninput="calcProfit()"> 元
+      + 推广退货 <input id="promoFee" type="number" value="30" oninput="calcProfit()"> 元
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 计算结果</div>
+    <div class="result-grid">
+      <div class="result-item result-income">
+        <div class="value" id="resIncome">¥0.00</div>
+        <div class="label">到手收入（售价×0.8）</div>
+      </div>
+      <div class="result-item result-fixed">
+        <div class="value" id="resFixedCost">¥47.00</div>
+        <div class="label">固定成本小计</div>
+      </div>
+      <div class="result-item result-total">
+        <div class="value" id="resTotalCost">¥0.00</div>
+        <div class="label">总成本</div>
+      </div>
+      <div class="result-item result-profit" id="resProfitBox">
+        <div class="value" id="resProfit">¥0.00</div>
+        <div class="label">利润</div>
+      </div>
+    </div>
+    <div class="status-row">
+      <span id="resStatus" class="status-badge" style="display:none;"></span>
+      <span style="font-size:14px;margin-left:8px;font-weight:600;">利润率 <span id="resRate" style="font-size:18px;">0.0%</span></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💡 参考售价</div>
+    <div class="ref-grid">
+      <div class="ref-item"><div class="val" id="resBreakEven">¥0</div><div class="lbl">保本售价</div></div>
+      <div class="ref-item"><div class="val" id="resSuggest10">¥0</div><div class="lbl">10%利润售价</div></div>
+      <div class="ref-item"><div class="val" id="resSuggest15">¥0</div><div class="lbl">15%利润售价</div></div>
+    </div>
+  </div>
+
+  <button class="btn btn-save" onclick="saveRecord()">💾 保存这条记录</button>
+
+  <!-- History -->
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title">📋 历史记录 <span style="font-size:12px;color:#999;font-weight:400;">点击可重新加载</span></div>
+    <div id="historyList"><div class="history-empty">暂无记录，计算后点击"保存"</div></div>
+    <div class="btn-row" id="historyActions" style="display:none;margin-top:10px;">
+      <button class="btn btn-outline btn-sm" onclick="exportData()">📤 导出数据</button>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('importFile').click()">📥 导入数据</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="btn btn-outline btn-sm btn-danger" onclick="clearHistory()">🗑 清空记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 成本倒推 ==================== -->
+<div id="section-reverse" class="section">
+  <div class="card">
+    <div class="card-title">🔍 从单品收入反推原鞋进货价上限</div>
+    <div style="font-size:13px;color:#888;margin-bottom:14px;">填入得物后台的"当前单品收入"，反推你最多能出多少进货价</div>
+    <div class="form-row">
+      <div><div class="form-label">商品名称</div><input type="text" id="revName" placeholder="如：棉花喵喵"></div>
+      <div><div class="form-label">单品收入 / 到手价 (元)</div><input type="number" id="revIncome" class="input-main" placeholder="后台单品收入" oninput="calcReverse()" step="0.01"></div>
+    </div>
+    <div class="form-row">
+      <div><div class="form-label">定制费 (元)</div><input type="number" id="revCustomFee" class="input-main" placeholder="参考工资单" oninput="calcReverse()" step="0.01"></div>
+      <div><div class="form-label">售价 / 出价 (元)</div><input type="number" id="revPrice" class="input-main" placeholder="平台售价" oninput="calcReverse()" step="0.01"></div>
+    </div>
+    <div style="font-size:12px;color:#999;">固定成本 = <span id="revFixedDisplay">47</span> 元</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 倒推结果</div>
+    <div class="ref-grid">
+      <div class="ref-item"><div class="val" id="revBreakEvenCost">¥0</div><div class="lbl">保本原鞋成本</div></div>
+      <div class="ref-item"><div class="val" id="rev10pCost">¥0</div><div class="lbl">10%利润成本</div></div>
+      <div class="ref-item"><div class="val" id="rev15pCost">¥0</div><div class="lbl">15%利润成本</div></div>
+    </div>
+    <div class="tip">
+      <strong>怎么用：</strong><br>
+      • <strong>保本原鞋成本</strong> — 进货价 ≤ 这个数，至少不亏<br>
+      • <strong>10%利润成本</strong> — 进货价 ≤ 这个数，利润率 ≥ 10%<br>
+      • <strong>15%利润成本</strong> — 进货价 ≤ 这个数，利润率 ≥ 15%
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 批量倒推 ==================== -->
+<div id="section-batch" class="section">
+  <div class="card">
+    <div class="card-title">📋 批量原鞋成本倒推</div>
+    <div style="font-size:13px;color:#888;margin-bottom:10px;">一次算多个商品的进货价上限，绿色列自动计算</div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>商品名称</th><th>单品收入</th><th>定制费</th><th>售价</th>
+            <th>保本成本</th><th>10%利润成本</th><th>15%利润成本</th><th>合理性</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="batchBody"></tbody>
+      </table>
+    </div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn btn-outline btn-sm" onclick="addBatchRow()">＋ 添加一行</button>
+      <button class="btn btn-outline btn-sm" onclick="autoFillDemo()">📋 填入示例</button>
+      <button class="btn btn-outline btn-sm btn-danger" onclick="clearBatch()">清空</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 定价对比 ==================== -->
+<div id="section-compare" class="section">
+  <div class="card">
+    <div class="card-title">📈 定价方案对比</div>
+    <div class="form-row">
+      <div><div class="form-label">原鞋成本 (元)</div><input type="number" id="cmpShoeCost" class="input-main" value="270" oninput="genCompare()" step="0.01"></div>
+      <div><div class="form-label">定制费 (元)</div><input type="number" id="cmpCustomFee" class="input-main" value="45" oninput="genCompare()" step="0.01"></div>
+    </div>
+    <div style="text-align:center;font-size:13px;color:#888;margin:8px 0;">
+      总成本：<strong id="cmpTotalCost" style="font-size:16px;">362</strong> 元
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:13px;margin:10px 0;">
+      售价范围：
+      <input type="range" id="cmpRangeMin" min="200" max="2000" value="350" oninput="genCompare()" style="flex:1;">
+      <span style="font-weight:600;" id="cmpRangeLabel">350 ~ 700</span>
+      <input type="range" id="cmpRangeMax" min="200" max="2000" value="700" oninput="genCompare()" style="flex:1;">
+    </div>
+    <div class="compare-grid" id="compareGrid"></div>
+    <div style="display:flex;gap:16px;justify-content:center;margin-top:12px;font-size:12px;">
+      <span>🟢 盈利</span><span>🟡 低利润</span><span>🔴 亏损</span>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ========== 定制费参考表 ==========
+const customFeeTable = [
+  {name:'蓝色传说',fee:85},{name:'奇幻之境',fee:80},{name:'夏日冰淇淋',fee:75},
+  {name:'彩虹',fee:75},{name:'晨曦',fee:75},{name:'梦时',fee:75},
+  {name:'爱情神话',fee:75},{name:'玉润冰肌',fee:75},{name:'夏日午后',fee:70},
+  {name:'蓝山',fee:70},{name:'蓝山之恋',fee:70},{name:'天使之翼',fee:65},
+  {name:'山海经',fee:65},{name:'月夜',fee:65},{name:'月夜漫步',fee:65},
+  {name:'水蓝幻影',fee:65},{name:'江南',fee:65},{name:'海洋之心',fee:65},
+  {name:'海洋奇缘',fee:65},{name:'爱琴海',fee:65},{name:'爱琴海之蓝',fee:65},
+  {name:'粉妆',fee:65},{name:'粉色',fee:65},{name:'绿野仙踪',fee:65},
+  {name:'自由旷野',fee:65},{name:'航海时代',fee:65},{name:'花间一壶酒',fee:65},
+  {name:'蓝色妖姬',fee:65},{name:'雪山',fee:65},{name:'雪山飞狐',fee:65},
+  {name:'夏日圆舞曲',fee:60},{name:'春日',fee:60},{name:'春日物语',fee:60},
+  {name:'木棉',fee:60},{name:'木棉奇遇记',fee:60},{name:'木棉花开',fee:60},
+  {name:'渔舟唱晚',fee:60},{name:'爱丽丝',fee:60},{name:'爱丽丝梦游仙境',fee:60},
+  {name:'真实',fee:60},{name:'卡布奇诺',fee:55},{name:'古香茶',fee:55},
+  {name:'海星',fee:55},{name:'烟雨',fee:55},{name:'秋日童话',fee:55},
+  {name:'迷雾之森',fee:55},{name:'东方故事',fee:50},{name:'东隅旧事',fee:50},
+  {name:'加州阳光',fee:50},{name:'告白',fee:50},{name:'处子秀',fee:50},
+  {name:'夏日清凉',fee:50},{name:'天空之城',fee:50},{name:'恋空',fee:50},
+  {name:'星空蓝',fee:50},{name:'星空蓝之上',fee:50},{name:'星语星愿',fee:50},
+  {name:'春日时光',fee:50},{name:'玫瑰与疯狂',fee:50},{name:'瑰丽',fee:50},
+  {name:'秋日私语',fee:50},{name:'绿野寻芳',fee:50},{name:'芒种',fee:50},
+  {name:'远方',fee:50},{name:'迷雾',fee:50},{name:'鹿语',fee:50},
+  {name:'城堡之恋',fee:45},{name:'射手座',fee:45},{name:'摩羯座',fee:45},
+  {name:'摩羯座之吻',fee:45},{name:'星语心愿',fee:45},{name:'梦幻城堡',fee:45},
+  {name:'深海之谜',fee:45},{name:'牛仔很忙',fee:45},{name:'粉色甜心',fee:45},
+  {name:'粉色芝士',fee:45},{name:'造梦者',fee:45},{name:'黑白迷途',fee:45},
+  {name:'黑白配',fee:45},{name:'仲夏之夜',fee:40},{name:'夜幕低垂',fee:40},
+  {name:'春日浪漫',fee:40},{name:'晨曦微光',fee:40},{name:'梦幻星空',fee:40},
+  {name:'森林之歌',fee:40},{name:'水墨山水',fee:40},{name:'沐浴阳光',fee:40},
+  {name:'紫藤花开',fee:40},{name:'静谧山野',fee:40},{name:'黑白',fee:40},
+  {name:'迷雾之夜',fee:35},{name:'夏日海滩',fee:25},{name:'夏日海风',fee:25},
+  {name:'星人对白',fee:25},{name:'粉色漫步',fee:25}
+];
+
+// 初始化款式下拉框
+(function(){
+  const sel = document.getElementById('customFeeSelect');
+  customFeeTable.forEach(item => {
+    const opt = document.createElement('option');
+    opt.value = item.fee;
+    opt.textContent = item.name + '（' + item.fee + '元）';
+    sel.appendChild(opt);
+  });
+})();
+
+function setCustomFee() {
+  const sel = document.getElementById('customFeeSelect');
+  if (sel.value) {
+    document.getElementById('customFee').value = sel.value;
+    calcProfit();
+  }
+}
+
+// ========== 标签页切换 ==========
+function switchTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'compare') genCompare();
+}
+
+// ========== 获取固定成本 ==========
+function getFixedCosts() {
+  const m = parseFloat(document.getElementById('materialFee').value) || 0;
+  const s = parseFloat(document.getElementById('shippingFee').value) || 0;
+  const p = parseFloat(document.getElementById('promoFee').value) || 0;
+  return { material: m, shipping: s, promo: p, total: m + s + p };
+}
+
+// ========== 利润计算 ==========
+function calcProfit() {
+  const shoeCost = parseFloat(document.getElementById('shoeCost').value) || 0;
+  const customFee = parseFloat(document.getElementById('customFee').value) || 0;
+  const sellPrice = parseFloat(document.getElementById('sellPrice').value) || 0;
+  const fixed = getFixedCosts();
+
+  const income = sellPrice * 0.8;
+  const totalCost = shoeCost + customFee + fixed.total;
+  const profit = income - totalCost;
+  const rate = sellPrice > 0 ? (profit / sellPrice) * 100 : 0;
+
+  document.getElementById('resIncome').textContent = '¥' + income.toFixed(2);
+  document.getElementById('resFixedCost').textContent = '¥' + fixed.total.toFixed(2);
+  document.getElementById('resTotalCost').textContent = '¥' + totalCost.toFixed(2);
+  document.getElementById('resProfit').textContent = (profit >= 0 ? '¥' : '-¥') + Math.abs(profit).toFixed(2);
+  document.getElementById('resRate').textContent = rate.toFixed(1) + '%';
+
+  // 状态标签
+  const statusEl = document.getElementById('resStatus');
+  const profitBox = document.getElementById('resProfitBox');
+  profitBox.className = 'result-item result-profit';
+  statusEl.style.display = 'inline-block';
+
+  if (profit < 0) {
+    statusEl.textContent = '⚠ 亏损';
+    statusEl.className = 'status-badge badge-loss';
+    profitBox.classList.add('loss');
+  } else if (rate < 10) {
+    statusEl.textContent = '⚡ 低利润';
+    statusEl.className = 'status-badge badge-low';
+    profitBox.classList.add('warn');
+  } else {
+    statusEl.textContent = '✅ 利润健康';
+    statusEl.className = 'status-badge badge-good';
+  }
+
+  // 参考售价
+  if (totalCost > 0) {
+    document.getElementById('resBreakEven').textContent = '¥' + (totalCost / 0.8).toFixed(0);
+    document.getElementById('resSuggest10').textContent = '¥' + (totalCost / 0.8 / 0.9).toFixed(0);
+    document.getElementById('resSuggest15').textContent = '¥' + (totalCost / 0.8 / 0.85).toFixed(0);
+  } else {
+    document.getElementById('resBreakEven').textContent = '¥0';
+    document.getElementById('resSuggest10').textContent = '¥0';
+    document.getElementById('resSuggest15').textContent = '¥0';
+  }
+}
+
+// ========== 原鞋成本倒推 ==========
+function calcReverse() {
+  const income = parseFloat(document.getElementById('revIncome').value) || 0;
+  const customFee = parseFloat(document.getElementById('revCustomFee').value) || 0;
+  const price = parseFloat(document.getElementById('revPrice').value) || 0;
+  const fixed = getFixedCosts();
+  document.getElementById('revFixedDisplay').textContent = fixed.total;
+
+  if (income > 0) {
+    const be = income - customFee - fixed.total;
+    const c10 = income - customFee - fixed.total - price * 0.1;
+    const c15 = income - customFee - fixed.total - price * 0.15;
+    document.getElementById('revBreakEvenCost').textContent = '¥' + be.toFixed(2);
+    document.getElementById('rev10pCost').textContent = '¥' + c10.toFixed(2);
+    document.getElementById('rev15pCost').textContent = '¥' + c15.toFixed(2);
+  } else {
+    document.getElementById('revBreakEvenCost').textContent = '¥0';
+    document.getElementById('rev10pCost').textContent = '¥0';
+    document.getElementById('rev15pCost').textContent = '¥0';
+  }
+}
+
+// ========== 批量倒推 ==========
+function initBatch() {
+  for (let i = 0; i < 3; i++) addBatchRow();
+}
+
+function addBatchRow(name='', income='', custom='', price='') {
+  const tbody = document.getElementById('batchBody');
+  const row = tbody.insertRow();
+  const idx = Date.now() + Math.random();
+  row.innerHTML = `
+    <td><input type="text" id="bn${idx}" value="${name}" placeholder="商品名" oninput="calcBatchRow('${idx}')"></td>
+    <td><input type="number" id="bi${idx}" value="${income}" placeholder="收入" step="0.01" oninput="calcBatchRow('${idx}')"></td>
+    <td><input type="number" id="bc${idx}" value="${custom}" placeholder="定制费" step="0.01" oninput="calcBatchRow('${idx}')"></td>
+    <td><input type="number" id="bp${idx}" value="${price}" placeholder="售价" step="0.01" oninput="calcBatchRow('${idx}')"></td>
+    <td class="col-result" id="bbe${idx}">--</td>
+    <td class="col-result" id="b10${idx}">--</td>
+    <td class="col-result" id="b15${idx}">--</td>
+    <td id="bst${idx}" style="font-size:12px;">--</td>
+    <td><button class="btn btn-outline btn-sm btn-danger" onclick="this.closest('tr').remove()" style="padding:4px 8px;">✕</button></td>
+  `;
+  if (name) calcBatchRow(idx);
+}
+
+function calcBatchRow(idx) {
+  const income = parseFloat(document.getElementById('bi'+idx)?.value) || 0;
+  const custom = parseFloat(document.getElementById('bc'+idx)?.value) || 0;
+  const price = parseFloat(document.getElementById('bp'+idx)?.value) || 0;
+  const fixed = getFixedCosts();
+
+  const beEl = document.getElementById('bbe'+idx);
+  if (!beEl) return;
+
+  if (income > 0) {
+    const be = income - custom - fixed.total;
+    const c10 = income - custom - fixed.total - price * 0.1;
+    const c15 = income - custom - fixed.total - price * 0.15;
+    beEl.textContent = '¥'+be.toFixed(2);
+    document.getElementById('b10'+idx).textContent = '¥'+c10.toFixed(2);
+    document.getElementById('b15'+idx).textContent = '¥'+c15.toFixed(2);
+
+    const stEl = document.getElementById('bst'+idx);
+    if (be < 100) { stEl.innerHTML = '<span style="color:#dc2626;font-weight:600;">⚠ 偏低</span>'; }
+    else if (be > 500) { stEl.innerHTML = '<span style="color:#dc2626;font-weight:600;">⚠ 偏高</span>'; }
+    else { stEl.innerHTML = '<span style="color:#16a34a;font-weight:600;">✅ 合理</span>'; }
+  }
+}
+
+function clearBatch() {
+  document.getElementById('batchBody').innerHTML = '';
+  addBatchRow();
+}
+
+function autoFillDemo() {
+  document.getElementById('batchBody').innerHTML = '';
+  const demos = [
+    ['棉花喵喵', 334.74, 45, 419],
+    ['粉心心跳', 285.86, 45, 359],
+    ['银闪花嫁', 351.30, 50, 439]
+  ];
+  demos.forEach(d => addBatchRow(d[0], d[1], d[2], d[3]));
+}
+
+// ========== 定价对比 ==========
+function genCompare() {
+  const shoeCost = parseFloat(document.getElementById('cmpShoeCost').value) || 0;
+  const customFee = parseFloat(document.getElementById('cmpCustomFee').value) || 0;
+  const fixed = getFixedCosts();
+  const totalCost = shoeCost + customFee + fixed.total;
+
+  document.getElementById('cmpTotalCost').textContent = totalCost.toFixed(2);
+
+  const minV = parseInt(document.getElementById('cmpRangeMin').value);
+  const maxV = parseInt(document.getElementById('cmpRangeMax').value);
+  document.getElementById('cmpRangeLabel').textContent = minV + ' ~ ' + maxV;
+
+  const grid = document.getElementById('compareGrid');
+  grid.innerHTML = '';
+  const step = Math.max(1, Math.floor((maxV - minV) / 18));
+
+  for (let price = minV; price <= maxV; price += step) {
+    const income = price * 0.8;
+    const profit = income - totalCost;
+    const rate = price > 0 ? (profit / price) * 100 : 0;
+
+    let cls = 'ci-good';
+    if (profit < 0) cls = 'ci-loss';
+    else if (rate < 10) cls = 'ci-low';
+
+    const div = document.createElement('div');
+    div.className = 'compare-item ' + cls;
+    div.innerHTML = `
+      <div class="ci-price">¥${price}</div>
+      <div class="ci-profit">${profit>=0?'+':''}${profit.toFixed(0)}</div>
+      <div style="font-size:10px;color:#999;">${rate.toFixed(1)}%</div>
+    `;
+    grid.appendChild(div);
+  }
+}
+
+// ========== 历史记录 ==========
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('shoeCalcHistory') || '[]'); }
+  catch(e) { return []; }
+}
+
+function saveHistory(list) {
+  localStorage.setItem('shoeCalcHistory', JSON.stringify(list));
+  renderHistory();
+}
+
+function saveRecord() {
+  const name = document.getElementById('productName').value || '未命名';
+  const code = document.getElementById('productCode').value || '';
+  const size = document.getElementById('productSize').value || '';
+  const shoeCost = parseFloat(document.getElementById('shoeCost').value) || 0;
+  const customFee = parseFloat(document.getElementById('customFee').value) || 0;
+  const sellPrice = parseFloat(document.getElementById('sellPrice').value) || 0;
+  const fixed = getFixedCosts();
+  const income = sellPrice * 0.8;
+  const totalCost = shoeCost + customFee + fixed.total;
+  const profit = income - totalCost;
+  const rate = sellPrice > 0 ? (profit / sellPrice) * 100 : 0;
+
+  const record = {
+    name, code, size, shoeCost, customFee, sellPrice,
+    fixedTotal: fixed.total, income: +income.toFixed(2),
+    totalCost: +totalCost.toFixed(2), profit: +profit.toFixed(2),
+    rate: +rate.toFixed(1),
+    date: new Date().toLocaleString('zh-CN')
+  };
+
+  const history = getHistory();
+  history.unshift(record);
+  if (history.length > 50) history.length = 50;
+  saveHistory(history);
+  alert('已保存！');
+}
+
+function renderHistory() {
+  const history = getHistory();
+  const container = document.getElementById('historyList');
+  const actions = document.getElementById('historyActions');
+
+  if (history.length === 0) {
+    container.innerHTML = '<div class="history-empty">暂无记录，计算后点击"保存"</div>';
+    actions.style.display = 'none';
+    return;
+  }
+
+  actions.style.display = 'flex';
+  container.innerHTML = history.map((r, i) => {
+    const isPos = r.profit >= 0;
+    return `<div class="history-item" onclick="loadRecord(${i})">
+      <div>
+        <div class="hi-name">${r.name} ${r.code ? '· '+r.code : ''} ${r.size ? '· '+r.size+'码' : ''}</div>
+        <div class="hi-detail">${r.date} ｜ 售价¥${r.sellPrice} ｜ 成本¥${r.totalCost}</div>
+      </div>
+      <div>
+        <div class="hi-profit" style="color:${isPos?'#16a34a':'#dc2626'}">${isPos?'+':''}¥${r.profit}</div>
+        <div class="hi-rate">${r.rate}%</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function loadRecord(idx) {
+  const history = getHistory();
+  const r = history[idx];
+  if (!r) return;
+  document.getElementById('productName').value = r.name;
+  document.getElementById('productCode').value = r.code || '';
+  document.getElementById('productSize').value = r.size || '';
+  document.getElementById('shoeCost').value = r.shoeCost;
+  document.getElementById('customFee').value = r.customFee;
+  document.getElementById('sellPrice').value = r.sellPrice;
+  switchTab('calc');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.tab').classList.add('active');
+  calcProfit();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function clearHistory() {
+  if (confirm('确定清空全部历史记录？此操作不可恢复。')) {
+    localStorage.removeItem('shoeCalcHistory');
+    renderHistory();
+  }
+}
+
+function exportData() {
+  const history = getHistory();
+  const blob = new Blob([JSON.stringify(history, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '利润计算记录_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error('格式错误');
+      const existing = getHistory();
+      const merged = [...data, ...existing].slice(0, 50);
+      saveHistory(merged);
+      alert('成功导入 ' + data.length + ' 条记录');
+    } catch(err) {
+      alert('导入失败，文件格式不正确');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ========== 初始化 ==========
+renderHistory();
+initBatch();
+</script>
+</body>
+</html>

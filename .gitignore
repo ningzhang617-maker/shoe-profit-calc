@@ -1,0 +1,5 @@
+*.xlsx
+*.xls
+price-proxy.js
+package.json
+node_modules/
