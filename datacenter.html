@@ -116,6 +116,12 @@ tr:hover td{background:#fafeff}
 .modal textarea{width:100%;height:200px;padding:12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:monospace;resize:vertical}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 
+/* Finance sub-tabs */
+.fin-section{display:none}
+.fin-section.active{display:block}
+#finBtnLedger,#finBtnWeekly,#finBtnSummary{background:#f5f5f5;color:#666;border:1px solid #ddd;font-size:12px;padding:7px 16px}
+#finBtnLedger.active,#finBtnWeekly.active,#finBtnSummary.active{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
+
 @media(max-width:768px){
   .sidebar{display:none}
   .chart-row{grid-template-columns:1fr}
@@ -138,6 +144,7 @@ tr:hover td{background:#fafeff}
   <div class="nav-item" onclick="switchTab('reports')"><span class="ni-icon">📋</span>报表中心</div>
   <div class="nav-item" onclick="switchTab('analysis')"><span class="ni-icon">🤖</span>AI经营分析</div>
   <div class="nav-item" onclick="switchTab('products')"><span class="ni-icon">👟</span>产品管理</div>
+  <div class="nav-item" onclick="switchTab('finance')"><span class="ni-icon">💰</span>财务账单</div>
   <div class="sidebar-footer">
     <a href="index.html">← 利润计算器</a>
     <div style="margin-top:6px">
@@ -269,6 +276,78 @@ tr:hover td{background:#fafeff}
       </div>
     </div>
 
+    <!-- ========== FINANCE ========== -->
+    <div class="section" id="sec-finance">
+      <div class="filter-bar" style="border-bottom:2px solid #f0f0f0;padding-bottom:12px;margin-bottom:16px;">
+        <button class="btn btn-sm" id="finBtnLedger" onclick="switchFinTab('ledger')" style="border-radius:6px 0 0 6px;">📋 记账流水</button>
+        <button class="btn btn-sm" id="finBtnWeekly" onclick="switchFinTab('weekly')" style="border-radius:0;">📅 周账单详情</button>
+        <button class="btn btn-sm" id="finBtnSummary" onclick="switchFinTab('summary')" style="border-radius:0 6px 6px 0;">📊 汇总分析</button>
+        <span style="flex:1;"></span>
+        <button class="btn btn-outline btn-sm" onclick="uploadFinanceExcel()">📤 上传账单</button>
+      </div>
+
+      <!-- 记账流水 -->
+      <div class="fin-section active" id="fin-ledger">
+        <div class="kpi-grid" id="finLedgerKPIs"></div>
+        <div class="chart-row">
+          <div class="chart-card"><div class="chart-title">📈 每周收支趋势</div><div class="chart-box" id="chartCashflow"></div></div>
+          <div class="chart-card"><div class="chart-title">🍩 支出分类占比</div><div class="chart-box" id="chartExpenseCat"></div></div>
+        </div>
+        <div class="data-card">
+          <div class="card-header"><h4>📋 每日流水明细</h4>
+            <select id="finLedgerWeek" onchange="renderLedger()"><option value="all">全部周次</option></select>
+          </div>
+          <div class="table-wrap"><table id="ledgerTable"><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>周次</th></tr></thead><tbody id="ledgerBody"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- 周账单详情 -->
+      <div class="fin-section" id="fin-weekly">
+        <div class="filter-bar">
+          <select id="finWeekSelect" onchange="renderWeeklyDetail()">
+            <option value="0">第1周 (04/20-04/26)</option>
+            <option value="1">第2周 (04/27-05/03)</option>
+            <option value="2">第3周 (05/04-05/10)</option>
+          </select>
+          <span style="font-size:12px;color:#999;" id="finWeekLabel"></span>
+        </div>
+        <div class="kpi-grid" id="finWeekKPIs"></div>
+        <div class="chart-row">
+          <div class="chart-card"><div class="chart-title">🏆 款式利润排名</div><div class="chart-box" id="chartWeekProducts"></div></div>
+          <div class="chart-card"><div class="chart-title">📐 盈利/亏损分布</div><div class="chart-box" id="chartWeekPnL"></div></div>
+        </div>
+        <div class="data-card">
+          <div class="card-header"><h4>📦 销售订单明细</h4><span style="font-size:12px;color:#999;" id="finSalesCount"></span></div>
+          <div class="table-wrap"><table><thead><tr><th>款式</th><th>尺码</th><th>售价</th><th>原鞋成本</th><th>定制费</th><th>到手</th><th>利润</th><th>利润率</th><th>状态</th></tr></thead><tbody id="finSalesBody"></tbody></table></div>
+        </div>
+        <div class="data-card">
+          <div class="card-header"><h4>↩ 退货明细</h4></div>
+          <div class="table-wrap"><table><thead><tr><th>款式</th><th>尺码</th><th>退款金额</th><th>退货损失</th></tr></thead><tbody id="finReturnsBody"></tbody></table></div>
+        </div>
+        <div class="data-card">
+          <div class="card-header"><h4>📝 本周分析报告</h4></div>
+          <div id="finWeekReport" style="font-size:13px;line-height:1.8;color:#555;"></div>
+        </div>
+      </div>
+
+      <!-- 汇总分析 -->
+      <div class="fin-section" id="fin-summary">
+        <div class="kpi-grid" id="finSummaryKPIs"></div>
+        <div class="data-card">
+          <div class="card-header"><h4>📅 周对比表</h4></div>
+          <div class="table-wrap"><table id="finCompareTable"><thead><tr><th>指标</th><th>第1周(04/20-26)</th><th>第2周(04/27-05/03)</th><th>第3周(05/04-10)</th><th>趋势</th></tr></thead><tbody id="finCompareBody"></tbody></table></div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-card"><div class="chart-title">📈 周利润趋势</div><div class="chart-box" id="chartWeeklyProfit"></div></div>
+          <div class="chart-card"><div class="chart-title">📊 月度汇总预估</div><div class="chart-box" id="chartMonthly"></div></div>
+        </div>
+        <div class="data-card">
+          <div class="card-header"><h4>📝 综合分析</h4></div>
+          <div id="finSummaryReport" style="font-size:13px;line-height:1.8;color:#555;"></div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /app -->
@@ -278,38 +357,138 @@ tr:hover td{background:#fafeff}
 <script>
 // ========== DATA STORE ==========
 function getDB() {
-  try { const d=localStorage.getItem('dc_data_v2'); return d ? JSON.parse(d) : {reports:[],products:[]}; }
-  catch(e) { return {reports:[],products:[]}; }
+  try { const d=localStorage.getItem('dc_data_v3'); return d ? JSON.parse(d) : {reports:[],products:[],finance:{ledger:[],weeklyBills:[],categories:['原鞋','工作室','推广','设计','材料','邮费','平台','其他支出','个人消费','还款债务','其他收入']}}; }
+  catch(e) { return {reports:[],products:[],finance:{ledger:[],weeklyBills:[],categories:[]}}; }
 }
-function saveDB(db) { localStorage.setItem('dc_data_v2', JSON.stringify(db)); document.getElementById('lastUpdate').textContent = '更新于 '+new Date().toLocaleTimeString('zh-CN'); }
+function saveDB(db) { localStorage.setItem('dc_data_v3', JSON.stringify(db)); document.getElementById('lastUpdate').textContent = '更新于 '+new Date().toLocaleTimeString('zh-CN'); }
 
 // ========== DEFAULT DATA ==========
 function initDefaultData() {
   const db = getDB();
-  if (db.reports.length > 0) return;
 
-  const now = Date.now();
-  const day = 86400000;
+  // Always init finance data if missing (even if reports exist)
+  if (!db.finance) db.finance = {ledger:[],weeklyBills:[],categories:['原鞋','工作室','推广','设计','材料','邮费','平台','其他支出','个人消费','还款债务','其他收入']};
 
-  db.reports = [
-    {id:'r1',type:'daily',date:'2026-04-21',label:'4月21日销售',data:{revenue:3827,orders:7,visitors:1875,conversion:0.37,returns:1,profit:234,cost:3200}},
-    {id:'r2',type:'daily',date:'2026-04-22',label:'4月22日销售',data:{revenue:4102,orders:8,visitors:2010,conversion:0.40,returns:2,profit:289,cost:3450}},
-    {id:'r3',type:'daily',date:'2026-04-23',label:'4月23日销售',data:{revenue:3650,orders:7,visitors:1820,conversion:0.38,returns:1,profit:198,cost:3100}},
-    {id:'r4',type:'daily',date:'2026-04-24',label:'4月24日销售',data:{revenue:4210,orders:9,visitors:1950,conversion:0.46,returns:2,profit:310,cost:3550}},
-    {id:'r5',type:'daily',date:'2026-04-25',label:'4月25日销售',data:{revenue:3349,orders:6,visitors:1721,conversion:0.35,returns:1,profit:176,cost:2850}},
-    {id:'r6',type:'weekly',date:'2026-04-26',label:'4月第4周汇总',data:{revenue:38259,orders:66,visitors:12200,conversion:0.54,returns:12,profit:1117,cost:32400}},
-    {id:'r7',type:'weekly',date:'2026-05-03',label:'5月第1周汇总',data:{revenue:28500,orders:52,visitors:10500,conversion:0.50,returns:10,profit:856,cost:24200}},
-    {id:'r8',type:'weekly',date:'2026-05-10',label:'5月第2周汇总',data:{revenue:9620,orders:19,visitors:6500,conversion:0.29,returns:8,profit:-2045,cost:8900}},
-    {id:'r9',type:'monthly',date:'2026-04-30',label:'4月月报',data:{revenue:181475,orders:310,visitors:96843,conversion:0.32,returns:55,profit:4468,cost:154000}},
-  ];
+  // Init ledger if empty
+  if (!db.finance.ledger || db.finance.ledger.length===0) {
 
-  db.products = [
-    {id:'p1',name:'粉心心跳',code:'DV5456-131',brand:'Nike',grade:'S',totalSales:4519,orders:11,conversion:0.85,returns:50,profitPerUnit:49},
-    {id:'p2',name:'银闪花嫁',code:'--',brand:'Nike',grade:'S',totalSales:4450,orders:10,conversion:0.72,returns:20,profitPerUnit:52},
-    {id:'p3',name:'棉花喵喵',code:'--',brand:'adidas neo',grade:'A',totalSales:0,orders:0,conversion:0,returns:0,profitPerUnit:42},
-    {id:'p4',name:'莓莓粉荔',code:'--',brand:'PUMA',grade:'A',totalSales:850,orders:2,conversion:0.13,returns:0,profitPerUnit:35},
-    {id:'p5',name:'幻影灰',code:'--',brand:'Nike',grade:'C',totalSales:0,orders:0,conversion:0,returns:100,profitPerUnit:-250},
-  ];
+  if (!db.finance.ledger || db.finance.ledger.length===0) {
+    db.finance.ledger = [
+      {date:'2026-05-04',day:'周一',cat:'其他支出',desc:'工作室房租',amount:-2000,pay:'支付宝',week:1},
+      {date:'2026-05-04',day:'周一',cat:'推广',desc:'得物推广充值',amount:-800,pay:'支付宝',week:1},
+      {date:'2026-05-05',day:'周二',cat:'原鞋',desc:'粉心心跳进货x3双',amount:-1050,pay:'微信',week:1},
+      {date:'2026-05-05',day:'周二',cat:'邮费',desc:'发货快递费',amount:-96,pay:'支付宝',week:1},
+      {date:'2026-05-06',day:'周三',cat:'原鞋',desc:'银闪花嫁进货x2双',amount:-720,pay:'微信',week:1},
+      {date:'2026-05-06',day:'周三',cat:'工作室',desc:'颜料耗材',amount:-180,pay:'支付宝',week:1},
+      {date:'2026-05-07',day:'周四',cat:'其他收入',desc:'得物到账(上周结算)',amount:5800,pay:'支付宝',week:1},
+      {date:'2026-05-07',day:'周四',cat:'个人消费',desc:'生活费',amount:-1500,pay:'微信',week:1},
+      {date:'2026-05-08',day:'周五',cat:'推广',desc:'追加推广费',amount:-500,pay:'支付宝',week:1},
+      {date:'2026-05-08',day:'周五',cat:'邮费',desc:'发货快递费',amount:-72,pay:'支付宝',week:1},
+      {date:'2026-05-09',day:'周六',cat:'原鞋',desc:'棉花喵喵进货x2双',amount:-680,pay:'微信',week:1},
+      {date:'2026-05-09',day:'周六',cat:'还款债务',desc:'信用卡还款',amount:-2000,pay:'支付宝',week:1},
+      {date:'2026-05-10',day:'周日',cat:'设计',desc:'AI设计工具订阅',amount:-200,pay:'支付宝',week:1},
+      {date:'2026-05-11',day:'周一',cat:'原鞋',desc:'登山者进货x3双',amount:-1350,pay:'微信',week:2},
+      {date:'2026-05-11',day:'周一',cat:'推广',desc:'得物推广充值',amount:-600,pay:'支付宝',week:2},
+      {date:'2026-05-12',day:'周二',cat:'工作室',desc:'工作室电费',amount:-220,pay:'支付宝',week:2},
+      {date:'2026-05-12',day:'周二',cat:'个人消费',desc:'生活费',amount:-1000,pay:'微信',week:2},
+    ];
+  }
+
+  if (!db.finance.weeklyBills || db.finance.weeklyBills.length===0) {
+    db.finance.weeklyBills = [
+      {
+        id:'w1',label:'第1周 (04/20-04/26)',start:'2026-04-20',end:'2026-04-26',
+        summary:{orders:66,returns:5,revenue:38259,netIncome:24918.92,profit:1116.92,profitRate:4.48,platformFee:4754.55,returnRate:7.6,customFee:3055,fixedCost:6157},
+        sales:[
+          {name:'粉心心跳',size:'37/38',price:439,cost:270,custom:45,income:351.2,profit:36.2,rate:8.2},
+          {name:'棉花喵喵',size:'38/39',price:539,cost:320,custom:45,income:431.2,profit:66.2,rate:12.3},
+          {name:'银闪花嫁',size:'37',price:479,cost:280,custom:50,income:383.2,profit:53.2,rate:11.1},
+          {name:'幻想家',size:'38',price:419,cost:290,custom:45,income:335.2,profit:0.2,rate:0.1},
+          {name:'青谧浮影',size:'37/38',price:559,cost:240,custom:55,income:447.2,profit:152.2,rate:27.2},
+          {name:'绯红小马',size:'39',price:499,cost:250,custom:55,income:399.2,profit:94.2,rate:18.9},
+          {name:'云上舞白',size:'38',price:539,cost:270,custom:55,income:431.2,profit:106.2,rate:19.7},
+        ],
+        returns:[
+          {name:'粉心心跳',size:'37',amount:439,loss:50},
+          {name:'绯红小马',size:'39',amount:499,loss:55},
+          {name:'银闪花嫁',size:'37',amount:479,loss:50},
+          {name:'粉心Kitty',size:'38',amount:459,loss:45},
+          {name:'棉花喵喵',size:'39',amount:539,loss:45},
+        ],
+        report:"<b>本周盈利 ¥1,116.92（利润率 4.48%）</b><br><br><b>核心发现：</b>66笔销售中仅23笔盈利（贡献¥2,087），43笔亏损（-¥970），盈亏比2.15:1。<b>65%的订单处于亏损状态。</b><br><br><b>TOP亏损款：</b>粉心心跳(-¥268/17单)、棉花喵喵(-¥97/14单)、幻想家(-¥106/4单)，原鞋成本占到手的78-82%。<br><br><b>盈利款特征：</b>到手>¥400，原鞋成本控制在到手60%以内的产品利润率可达10%以上。<br><br><b>建议：</b>粉心心跳/幻想家/绿野迷踪下架或重新定价；棉花喵喵提价至699-729；银闪花嫁涨价30-50元；目标利润率8-10%。"
+      },
+      {
+        id:'w2',label:'第2周 (04/27-05/03)',start:'2026-04-27',end:'2026-05-03',
+        summary:{orders:36,returns:5,revenue:18807,netIncome:13126.83,profit:-1740.17,profitRate:-9.25,platformFee:2953.32,returnRate:12.2,customFee:1890,fixedCost:3384},
+        sales:[
+          {name:'粉心心跳',size:'37/38',price:439,cost:380,custom:45,income:351.2,profit:-73.8,rate:-16.8},
+          {name:'登山者',size:'39',price:599,cost:220,custom:55,income:479.2,profit:204.2,rate:34.1},
+          {name:'雾蓝废土',size:'38',price:579,cost:230,custom:55,income:463.2,profit:178.2,rate:30.8},
+          {name:'街区涂鸦',size:'37',price:559,cost:235,custom:50,income:447.2,profit:162.2,rate:29.0},
+          {name:'银闪花嫁',size:'37/38',price:479,cost:310,custom:50,income:383.2,profit:23.2,rate:4.8},
+          {name:'棉花喵喵',size:'39',price:539,cost:350,custom:45,income:431.2,profit:36.2,rate:6.7},
+          {name:'幻影灰',size:'38',price:959,cost:580,custom:65,income:767.2,profit:122.2,rate:12.7},
+        ],
+        returns:[
+          {name:'粉心心跳',size:'37',amount:439,loss:80},
+          {name:'粉心心跳',size:'38',amount:439,loss:80},
+          {name:'粉心心跳',size:'37',amount:439,loss:80},
+          {name:'莓莓粉荔',size:'39',amount:419,loss:55},
+          {name:'绿野迷踪',size:'38',amount:499,loss:60},
+        ],
+        report:"<b>⚠ 本周亏损 ¥1,740（由盈转亏！）</b><br><br><b>核心问题：</b>订单量较上周暴跌45.5%（66→36），销售额腰斩（¥38,259→¥18,807）。5笔退货中粉心心跳占3笔。<br><br><b>粉心心跳危机：</b>14单销售亏损¥1,927（原鞋成本暴涨至¥380/双，较上周¥270上涨40%）。供应商涨价导致从盈利款直接变成最大亏损源。<br><br><b>新盈利核心：</b>登山者(+¥394)、雾蓝废土(+¥330)、街区涂鸦(+¥236)成为新的利润支撑。<br><br><b>紧急建议：</b>1)立即与粉心心跳供应商谈判降成本 2)减少粉心心跳推广投入 3)加大登山者/雾蓝废土/街区涂鸦的推广 4)严格执行保本售价底线控制。"
+      },
+      {
+        id:'w3',label:'第3周 (05/04-05/10)',start:'2026-05-04',end:'2026-05-10',
+        summary:{orders:19,returns:8,revenue:9620.44,netIncome:5902.49,profit:1295.19,profitRate:13.5,platformFee:950.28,returnRate:42.1,customFee:890,fixedCost:1692},
+        sales:[
+          {name:'粉心心跳',size:'36-39',price:439,cost:350,custom:45,income:351.2,profit:-43.8,rate:-10},
+          {name:'玉润蛇年',size:'38',price:928.5,cost:420,custom:75,income:742.8,profit:226.8,rate:24.4},
+          {name:'棉花喵喵',size:'39',price:439,cost:290,custom:25,income:351.2,profit:21.2,rate:4.8},
+          {name:'福马顺遂',size:'37',price:788.95,cost:380,custom:65,income:631.16,profit:166.16,rate:21.1},
+          {name:'银闪花嫁',size:'38',price:479,cost:290,custom:50,income:383.2,profit:43.2,rate:9.0},
+          {name:'绯红小马',size:'39',price:579,cost:270,custom:55,income:463.2,profit:118.2,rate:20.4},
+          {name:'绿野迷踪',size:'37',price:499,cost:310,custom:50,income:399.2,profit:39.2,rate:7.9},
+        ],
+        returns:[
+          {name:'粉心心跳',size:'36',amount:439,loss:80},
+          {name:'粉心心跳',size:'37',amount:439,loss:80},
+          {name:'粉心心跳',size:'36',amount:439,loss:80},
+          {name:'粉心心跳',size:'37',amount:439,loss:80},
+          {name:'香柠馒馒',size:'38',amount:459,loss:55},
+          {name:'银闪花嫁',size:'38',amount:479,loss:50},
+          {name:'幻影灰',size:'38',amount:959,loss:250},
+          {name:'山海烛龙',size:'39',amount:649,loss:70},
+        ],
+        report:"<b>⚠ 本周利润 ¥1,295，但退货率飙升至 42.1%！</b><br><br><b>核心矛盾：</b>虽然扭亏为盈，但19单销售中8单退货（42%退货率），实际利润大打折扣。粉心心跳4单退货全部集中在36-37码。<br><br><b>粉心心跳尺码问题：</b>50%退货率集中在36-37小码段。建议：1)检查36-37码的鞋型是否偏小 2)商品详情页增加尺码偏小提示 3)针对小码段调整库存策略。<br><br><b>棉花喵喵破冰：</b>2单销售利润¥42，此前长期0转化，降价到439后开始有成交。<br><br><b>关键建议：</b>1)粉心心跳36-37码暂停销售或加尺码提醒 2)高价款(玉润蛇年¥928/福马顺遂¥788)利润率最高，加大推广 3)幻影灰单退亏损¥250，评估是否下架 4)整体退货率42%远超15%警戒线，必须系统性解决。"
+      }
+    ];
+  }
+
+  // Init reports if empty
+  if (db.reports.length===0) {
+    db.reports = [
+      {id:'r1',type:'daily',date:'2026-04-21',label:'4月21日销售',data:{revenue:3827,orders:7,visitors:1875,conversion:0.37,returns:1,profit:234,cost:3200}},
+      {id:'r2',type:'daily',date:'2026-04-22',label:'4月22日销售',data:{revenue:4102,orders:8,visitors:2010,conversion:0.40,returns:2,profit:289,cost:3450}},
+      {id:'r3',type:'daily',date:'2026-04-23',label:'4月23日销售',data:{revenue:3650,orders:7,visitors:1820,conversion:0.38,returns:1,profit:198,cost:3100}},
+      {id:'r4',type:'daily',date:'2026-04-24',label:'4月24日销售',data:{revenue:4210,orders:9,visitors:1950,conversion:0.46,returns:2,profit:310,cost:3550}},
+      {id:'r5',type:'daily',date:'2026-04-25',label:'4月25日销售',data:{revenue:3349,orders:6,visitors:1721,conversion:0.35,returns:1,profit:176,cost:2850}},
+      {id:'r6',type:'weekly',date:'2026-04-26',label:'4月第4周汇总',data:{revenue:38259,orders:66,visitors:12200,conversion:0.54,returns:12,profit:1117,cost:32400}},
+      {id:'r7',type:'weekly',date:'2026-05-03',label:'5月第1周汇总',data:{revenue:28500,orders:52,visitors:10500,conversion:0.50,returns:10,profit:856,cost:24200}},
+      {id:'r8',type:'weekly',date:'2026-05-10',label:'5月第2周汇总',data:{revenue:9620,orders:19,visitors:6500,conversion:0.29,returns:8,profit:-2045,cost:8900}},
+      {id:'r9',type:'monthly',date:'2026-04-30',label:'4月月报',data:{revenue:181475,orders:310,visitors:96843,conversion:0.32,returns:55,profit:4468,cost:154000}},
+    ];
+  }
+
+  if (db.products.length===0) {
+    db.products = [
+      {id:'p1',name:'粉心心跳',code:'DV5456-131',brand:'Nike',grade:'S',totalSales:4519,orders:11,conversion:0.85,returns:50,profitPerUnit:49},
+      {id:'p2',name:'银闪花嫁',code:'--',brand:'Nike',grade:'S',totalSales:4450,orders:10,conversion:0.72,returns:20,profitPerUnit:52},
+      {id:'p3',name:'棉花喵喵',code:'--',brand:'adidas neo',grade:'A',totalSales:0,orders:0,conversion:0,returns:0,profitPerUnit:42},
+      {id:'p4',name:'莓莓粉荔',code:'--',brand:'PUMA',grade:'A',totalSales:850,orders:2,conversion:0.13,returns:0,profitPerUnit:35},
+      {id:'p5',name:'幻影灰',code:'--',brand:'Nike',grade:'C',totalSales:0,orders:0,conversion:0,returns:100,profitPerUnit:-250},
+    ];
+  }
 
   saveDB(db);
 }
@@ -321,12 +500,13 @@ function switchTab(tab) {
   const sec = document.getElementById('sec-'+tab);
   if (sec) sec.classList.add('active');
   event.target.classList.add('active');
-  const titles = {dashboard:'📊 经营仪表盘',upload:'📤 上传新报表',reports:'📋 报表中心',analysis:'🤖 AI经营分析',products:'👟 产品管理'};
+  const titles = {dashboard:'📊 经营仪表盘',upload:'📤 上传新报表',reports:'📋 报表中心',analysis:'🤖 AI经营分析',products:'👟 产品管理',finance:'💰 财务账单'};
   document.getElementById('pageTitle').textContent = titles[tab] || tab;
   if (tab==='dashboard') renderDashboard();
   if (tab==='reports') renderReports();
   if (tab==='analysis') runAIAnalysis();
   if (tab==='products') renderProducts();
+  if (tab==='finance') { switchFinTab('ledger'); }
 }
 
 // ========== DASHBOARD ==========
@@ -812,6 +992,294 @@ function importAll() {
       } catch(err) { alert('文件格式错误'); }
     };
     reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ========== FINANCE ==========
+let currentFinTab = 'ledger';
+
+function switchFinTab(tab) {
+  currentFinTab = tab;
+  document.querySelectorAll('.fin-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('fin-'+tab).classList.add('active');
+  ['finBtnLedger','finBtnWeekly','finBtnSummary'].forEach(id => document.getElementById(id).classList.remove('active'));
+  const btnMap = {ledger:'finBtnLedger',weekly:'finBtnWeekly',summary:'finBtnSummary'};
+  document.getElementById(btnMap[tab]).classList.add('active');
+
+  if (tab==='ledger') renderLedger();
+  if (tab==='weekly') renderWeeklyDetail();
+  if (tab==='summary') renderSummary();
+}
+
+function renderLedger() {
+  const db = getDB();
+  const ledger = db.finance.ledger || [];
+  const weekFilter = document.getElementById('finLedgerWeek').value;
+
+  let items = ledger;
+  if (weekFilter !== 'all') items = items.filter(i => i.week === parseInt(weekFilter));
+
+  // Weeks for filter
+  const weeks = [...new Set(ledger.map(i => i.week))].sort();
+  document.getElementById('finLedgerWeek').innerHTML = '<option value="all">全部周次</option>' + weeks.map(w => `<option value="${w}">第${w}周</option>`).join('');
+
+  // KPIs
+  const weekItems = weekFilter!=='all' ? items : ledger;
+  const totalIn = weekItems.filter(i => i.amount>0).reduce((s,i) => s+i.amount,0);
+  const totalOut = Math.abs(weekItems.filter(i => i.amount<0).reduce((s,i) => s+i.amount,0));
+  const netFlow = totalIn - totalOut;
+
+  // Category breakdown
+  const catMap = {};
+  weekItems.filter(i => i.amount<0).forEach(i => {
+    const cat = i.cat || '其他';
+    catMap[cat] = (catMap[cat]||0) + Math.abs(i.amount);
+  });
+  const topCats = Object.entries(catMap).sort((a,b) => b[1]-a[1]).slice(0,3);
+
+  document.getElementById('finLedgerKPIs').innerHTML = `
+    <div class="kpi-card revenue"><div class="kpi-label">总收入</div><div class="kpi-value">¥${totalIn.toLocaleString()}</div></div>
+    <div class="kpi-card returns"><div class="kpi-label">总支出</div><div class="kpi-value">¥${totalOut.toLocaleString()}</div></div>
+    <div class="kpi-card ${netFlow>=0?'profit':'returns'}"><div class="kpi-label">净现金流</div><div class="kpi-value" style="color:${netFlow>=0?'#16a34a':'#dc2626'}">¥${netFlow.toLocaleString()}</div></div>
+    <div class="kpi-card conversion"><div class="kpi-label">最大支出项</div><div class="kpi-value" style="font-size:18px;">${topCats[0]?topCats[0][0]+' ¥'+topCats[0][1].toLocaleString():'--'}</div></div>
+  `;
+
+  // Cashflow chart
+  const weekData = {};
+  ledger.forEach(i => {
+    const w = 'W'+i.week;
+    if (!weekData[w]) weekData[w] = {in:0,out:0};
+    if (i.amount>0) weekData[w].in += i.amount;
+    else weekData[w].out += Math.abs(i.amount);
+  });
+  const wKeys = Object.keys(weekData).sort();
+  renderChart('chartCashflow', {
+    tooltip:{trigger:'axis'},
+    legend:{data:['收入','支出','净额'],bottom:0},
+    xAxis:{type:'category',data:wKeys},
+    yAxis:{type:'value',name:'元'},
+    series:[
+      {name:'收入',type:'bar',data:wKeys.map(k=>weekData[k].in),itemStyle:{color:'#10b981'},barMaxWidth:30},
+      {name:'支出',type:'bar',data:wKeys.map(k=>weekData[k].out),itemStyle:{color:'#ef4444'},barMaxWidth:30},
+      {name:'净额',type:'line',data:wKeys.map(k=>weekData[k].in-weekData[k].out),itemStyle:{color:'#4a9eff'},smooth:true}
+    ]
+  });
+
+  // Expense category pie
+  const catPieData = Object.entries(catMap).map(([k,v]) => ({name:k,value:v}));
+  const catColors = {原鞋:'#ef4444',工作室:'#f59e0b',推广:'#8b5cf6',设计:'#06b6d4',材料:'#10b981',邮费:'#6b7280',平台:'#3b82f6',其他支出:'#9ca3af',个人消费:'#ec4899',还款债务:'#dc2626'};
+  renderChart('chartExpenseCat', {
+    tooltip:{trigger:'item',formatter:'{b}: ¥{c} ({d}%)'},
+    series:[{type:'pie',radius:['45%','70%'],data:catPieData,label:{formatter:'{b}\n{d}%'},
+      itemStyle:{color:p=>catColors[p.name]||'#d0d5dd'}}]
+  });
+
+  // Table
+  document.getElementById('ledgerBody').innerHTML = items.slice().reverse().map(i => `
+    <tr>
+      <td>${i.date}</td><td>${i.day||''}</td><td><span class="tag ${i.amount>0?'tag-green':'tag-blue'}">${i.cat}</span></td>
+      <td>${i.desc||''}</td>
+      <td style="color:${i.amount>=0?'#16a34a':'#dc2626'};font-weight:700;">${i.amount>=0?'+':''}¥${Math.abs(i.amount).toLocaleString()}</td>
+      <td>${i.pay||''}</td><td>第${i.week}周</td>
+    </tr>
+  `).join('');
+}
+
+function renderWeeklyDetail() {
+  const db = getDB();
+  const bills = db.finance.weeklyBills || [];
+  const idx = parseInt(document.getElementById('finWeekSelect').value) || 0;
+  const bill = bills[idx];
+  if (!bill) return;
+
+  document.getElementById('finWeekLabel').textContent = `${bill.start} ~ ${bill.end}`;
+
+  const s = bill.summary;
+  const profitColor = s.profit >= 0 ? '#16a34a' : '#dc2626';
+  document.getElementById('finWeekKPIs').innerHTML = `
+    <div class="kpi-card revenue"><div class="kpi-label">销售额</div><div class="kpi-value">¥${s.revenue.toLocaleString()}</div></div>
+    <div class="kpi-card orders"><div class="kpi-label">销售/退货</div><div class="kpi-value">${s.orders}<span style="font-size:16px;">/</span>${s.returns}</div></div>
+    <div class="kpi-card profit"><div class="kpi-label">利润</div><div class="kpi-value" style="color:${profitColor}">¥${s.profit.toLocaleString()}</div><div class="kpi-change ${s.profit>=0?'up':'down'}">${s.profitRate.toFixed(1)}%</div></div>
+    <div class="kpi-card conversion"><div class="kpi-label">到手收入</div><div class="kpi-value">¥${s.netIncome.toLocaleString()}</div></div>
+    <div class="kpi-card returns"><div class="kpi-label">退货率</div><div class="kpi-value">${s.returnRate.toFixed(1)}%</div><div class="kpi-change ${s.returnRate<=15?'up':'down'}">警戒线15%</div></div>
+    <div class="kpi-card visitors"><div class="kpi-label">平台费/固定成本</div><div class="kpi-value" style="font-size:18px;">¥${s.platformFee.toLocaleString()}/¥${s.fixedCost.toLocaleString()}</div></div>
+  `;
+
+  // Product profit chart
+  const products = (bill.sales||[]).sort((a,b) => (b.profit||0)-(a.profit||0));
+  renderChart('chartWeekProducts', {
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    grid:{left:100},
+    xAxis:{type:'value'},
+    yAxis:{type:'category',data:products.map(p=>p.name),inverse:true,axisLabel:{fontSize:11}},
+    series:[{name:'利润',type:'bar',data:products.map(p=>p.profit||0),
+      itemStyle:{color:params=>params.value>=0?'#10b981':'#ef4444'},
+      label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:18}]
+  });
+
+  // P&L pie
+  const profitCount = products.filter(p=>(p.profit||0)>=0).length;
+  const lossCount = products.filter(p=>(p.profit||0)<0).length;
+  renderChart('chartWeekPnL', {
+    tooltip:{trigger:'item'},
+    series:[{type:'pie',radius:['50%','75%'],
+      data:[{value:profitCount,name:'盈利款',itemStyle:{color:'#10b981'}},{value:lossCount,name:'亏损款',itemStyle:{color:'#ef4444'}}],
+      label:{formatter:'{b}\n{d}%'}}]
+  });
+
+  // Sales table
+  document.getElementById('finSalesCount').textContent = `${products.length} 个款式`;
+  document.getElementById('finSalesBody').innerHTML = (bill.sales||[]).map(p => `
+    <tr>
+      <td><b>${p.name}</b></td><td>${p.size||'--'}</td><td>¥${p.price}</td>
+      <td>¥${p.cost}</td><td>¥${p.custom}</td><td>¥${p.income}</td>
+      <td style="color:${p.profit>=0?'#16a34a':'#dc2626'};font-weight:700;">${p.profit>=0?'+':''}¥${p.profit}</td>
+      <td>${p.rate.toFixed(1)}%</td>
+      <td><span class="tag ${p.profit>=50?'tag-green':p.profit>=0?'tag-yellow':'tag-red'}">${p.profit>=50?'盈利':p.profit>=0?'微利':'亏损'}</span></td>
+    </tr>`).join('');
+
+  // Returns table
+  document.getElementById('finReturnsBody').innerHTML = (bill.returns||[]).map(r => `
+    <tr><td><b>${r.name}</b></td><td>${r.size}</td><td style="color:#dc2626;">-¥${r.amount}</td><td style="color:#dc2626;">-¥${r.loss}</td></tr>
+  `).join('');
+
+  // Report
+  document.getElementById('finWeekReport').innerHTML = bill.report || '暂无分析报告';
+}
+
+function renderSummary() {
+  const db = getDB();
+  const bills = db.finance.weeklyBills || [];
+  if (bills.length===0) return;
+
+  // Summary KPIs
+  const totalRev = bills.reduce((s,b) => s+(b.summary.revenue||0), 0);
+  const totalProfit = bills.reduce((s,b) => s+(b.summary.profit||0), 0);
+  const totalOrders = bills.reduce((s,b) => s+(b.summary.orders||0), 0);
+  const avgRetRate = bills.reduce((s,b) => s+(b.summary.returnRate||0), 0) / bills.length;
+
+  document.getElementById('finSummaryKPIs').innerHTML = `
+    <div class="kpi-card revenue"><div class="kpi-label">累计销售额</div><div class="kpi-value">¥${totalRev.toLocaleString()}</div></div>
+    <div class="kpi-card orders"><div class="kpi-label">累计订单</div><div class="kpi-value">${totalOrders}</div></div>
+    <div class="kpi-card ${totalProfit>=0?'profit':'returns'}"><div class="kpi-label">累计利润</div><div class="kpi-value" style="color:${totalProfit>=0?'#16a34a':'#dc2626'}">¥${totalProfit.toLocaleString()}</div></div>
+    <div class="kpi-card returns"><div class="kpi-label">平均退货率</div><div class="kpi-value">${avgRetRate.toFixed(1)}%</div></div>
+  `;
+
+  // Week comparison table
+  document.getElementById('finCompareBody').innerHTML = `
+    <tr><td><b>销售订单</b></td>${bills.map((b,i) => `<td>${b.summary.orders}</td>`).join('')}<td>${bills[2]?((bills[2].summary.orders-bills[0].summary.orders)>=0?'↑':'↓')+' '+(bills[2].summary.orders-bills[0].summary.orders):'--'}</td></tr>
+    <tr><td><b>退货数</b></td>${bills.map(b => `<td>${b.summary.returns}</td>`).join('')}<td>${bills[2]?((bills[2].summary.returns-bills[0].summary.returns)>=0?'↑ 恶化':'↓ 改善')+' '+(bills[2].summary.returns-bills[0].summary.returns):'--'}</td></tr>
+    <tr><td><b>销售额</b></td>${bills.map(b => `<td>¥${b.summary.revenue.toLocaleString()}</td>`).join('')}<td>${bills[2]?(bills[2].summary.revenue-bills[0].summary.revenue>=0?'↑':'↓')+' ¥'+Math.abs(bills[2].summary.revenue-bills[0].summary.revenue).toLocaleString():'--'}</td></tr>
+    <tr><td><b>利润</b></td>${bills.map(b => `<td style="color:${b.summary.profit>=0?'#16a34a':'#dc2626'}">¥${b.summary.profit.toLocaleString()}</td>`).join('')}<td>${bills[2]?(bills[2].summary.profit-bills[0].summary.profit>=0?'↑ 好转':'↓ 恶化'):'--'}</td></tr>
+    <tr><td><b>利润率</b></td>${bills.map(b => `<td>${b.summary.profitRate.toFixed(1)}%</td>`).join('')}<td>--</td></tr>
+    <tr><td><b>退货率</b></td>${bills.map(b => `<td>${b.summary.returnRate.toFixed(1)}%</td>`).join('')}<td>${bills[2]?(bills[2].summary.returnRate>=bills[0].summary.returnRate?'↑ 恶化':'↓ 改善'):'--'}</td></tr>
+    <tr><td><b>平台服务费</b></td>${bills.map(b => `<td>¥${b.summary.platformFee.toLocaleString()}</td>`).join('')}<td>--</td></tr>
+  `;
+
+  // Weekly profit trend chart
+  renderChart('chartWeeklyProfit', {
+    tooltip:{trigger:'axis'},
+    xAxis:{type:'category',data:bills.map(b => b.label)},
+    yAxis:{type:'value',name:'利润(元)'},
+    series:[
+      {name:'利润',type:'bar',data:bills.map(b => b.summary.profit),
+        itemStyle:{color:params=>params.value>=0?'#10b981':'#ef4444'},
+        barMaxWidth:40,label:{show:true,position:'top',formatter:'¥{c}'}},
+      {name:'销售额',type:'line',data:bills.map(b => b.summary.revenue),itemStyle:{color:'#4a9eff'},smooth:true,yAxisIndex:1}
+    ]
+  });
+
+  // Monthly projection
+  const monthlyRev = totalRev / bills.length * 4.3; // project to month
+  const monthlyProfit = totalProfit / bills.length * 4.3;
+  renderChart('chartMonthly', {
+    tooltip:{trigger:'item'},
+    series:[{type:'pie',radius:['55%','78%'],
+      data:[
+        {name:'预估月销售额',value:Math.round(monthlyRev),itemStyle:{color:'#4a9eff'}},
+        {name:'平台费(20%)',value:Math.round(monthlyRev*0.2),itemStyle:{color:'#f59e0b'}},
+        {name:'原鞋成本(估)',value:Math.round(monthlyRev*0.5),itemStyle:{color:'#ef4444'}},
+        {name:'预估月利润',value:Math.round(Math.abs(monthlyProfit)),itemStyle:{color:monthlyProfit>=0?'#10b981':'#ef4444'}}
+      ],label:{formatter:'{b}\n¥{c}'}}]
+  });
+
+  // Summary report
+  const isImproving = bills.length>=2 && bills[bills.length-1].summary.profit > bills[0].summary.profit;
+  const latestRetRate = bills[bills.length-1].summary.returnRate;
+  document.getElementById('finSummaryReport').innerHTML = `
+    <b>${isImproving?'🟢 利润趋势改善中':'🔴 利润趋势恶化'}</b><br><br>
+    <b>核心数据：</b>累计${bills.length}周，总销售额 ¥${totalRev.toLocaleString()}，总利润 ¥${totalProfit.toLocaleString()}。<br><br>
+    <b>最大风险：</b>退货率从 ${bills[0].summary.returnRate.toFixed(1)}% 升至 ${latestRetRate.toFixed(1)}%，${latestRetRate>20?'远超':'接近'}15%警戒线。退货吃掉大量利润。<br><br>
+    <b>产品结构：</b>盈利款（登山者、雾蓝废土、街区涂鸦）贡献主要利润，但流量不足；粉心心跳虽然销售额高但持续亏损，是最大的利润杀手。<br><br>
+    <b>月度预估：</b>按当前周均数据，月销售额约 ¥${monthlyRev.toLocaleString()}，月利润约 ¥${monthlyProfit.toLocaleString()}。<br><br>
+    <b>首要行动：</b>1) 解决粉心心跳的亏损和退货问题（核心矛盾）2) 控制退货率回到15%以下 3) 增加高利润产品的推广预算 4) 严格执行保本售价公式。
+  `;
+}
+
+function uploadFinanceExcel() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx,.xls';
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const wb = XLSX.read(ev.target.result, {type:'array'});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+        const type = prompt('账单类型：1=记账流水 2=周账单', '2');
+        if (!type) return;
+
+        if (type === '1') {
+          // Parse as ledger entries
+          const db = getDB();
+          json.slice(1).forEach(row => {
+            if (!row[0] && !row[1]) return;
+            db.finance.ledger.push({
+              date: row[0]||'', day: row[1]||'', cat: row[2]||'其他支出',
+              desc: row[3]||'', amount: parseFloat(row[4])||0,
+              pay: row[5]||'', week: parseInt(row[6])||1
+            });
+          });
+          saveDB(db);
+          toast('✅ 记账流水已导入');
+          renderLedger();
+        } else if (type === '2') {
+          const label = prompt('账单周期（如：第4周 05/11-05/17）：', '');
+          const db = getDB();
+          const bill = {
+            id:'w_'+Date.now(), label, start:'', end:'',
+            summary:{orders:0,returns:0,revenue:0,netIncome:0,profit:0,profitRate:0,platformFee:0,returnRate:0,customFee:0,fixedCost:0},
+            sales:[], returns:[], report:'数据已导入，分析待补充'
+          };
+          // Try to extract from raw data
+          json.slice(1).forEach(row => {
+            if (!row[0]) return;
+            bill.sales.push({
+              name:row[0]||'', size:row[1]||'', price:parseFloat(row[2])||0,
+              cost:parseFloat(row[3])||0, custom:parseFloat(row[4])||0,
+              income:(parseFloat(row[2])||0)*0.8, profit:(parseFloat(row[2])||0)*0.8-(parseFloat(row[3])||0)-(parseFloat(row[4])||0)-47,
+              rate:((parseFloat(row[2])||0)*0.8-(parseFloat(row[3])||0)-(parseFloat(row[4])||0)-47)/(parseFloat(row[2])||1)*100
+            });
+          });
+          bill.summary.orders = bill.sales.length;
+          bill.summary.revenue = bill.sales.reduce((s,p)=>s+(p.price||0),0);
+          bill.summary.profit = bill.sales.reduce((s,p)=>s+(p.profit||0),0);
+          bill.summary.profitRate = bill.summary.revenue>0 ? bill.summary.profit/bill.summary.revenue*100 : 0;
+
+          db.finance.weeklyBills.push(bill);
+          saveDB(db);
+          toast('✅ 周账单已导入');
+          renderWeeklyDetail();
+        }
+      } catch(err) {
+        alert('文件解析失败：' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
   input.click();
 }
