@@ -217,6 +217,7 @@ body {
     <div style="margin-top:4px;">
       <button onclick="exportData()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:11px;">📤 导出</button>
       <button onclick="document.getElementById('importFile').click()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:11px;margin-left:8px;">📥 导入</button>
+      <button onclick="pasteImport()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:11px;margin-left:8px;">📋 粘贴导入</button>
       <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
     </div>
   </div>
@@ -536,6 +537,28 @@ function importData(event) {
   };
   reader.readAsText(file);
   event.target.value = '';
+}
+
+function pasteImport() {
+  const text = prompt('请粘贴知识库 JSON 数据（可从导出文件复制全部内容）：');
+  if (!text || !text.trim()) return;
+  try {
+    const data = JSON.parse(text.trim());
+    if (!data.articles || !data.categories) throw new Error('格式错误');
+    const existing = getDB();
+    const merged = {
+      articles: [...data.articles, ...existing.articles].slice(0, 200),
+      categories: [...new Set([...data.categories, ...existing.categories])]
+    };
+    if (confirm('粘贴导入将合并现有数据（不覆盖），确定继续？')) {
+      saveDB(merged);
+      renderCategories();
+      renderArticles();
+      toast('成功导入 ' + data.articles.length + ' 篇文档');
+    }
+  } catch(err) {
+    alert('数据格式不正确，请复制完整的 JSON 内容');
+  }
 }
 
 // ========== Toast ==========
