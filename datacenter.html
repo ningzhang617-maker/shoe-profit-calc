@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>六六八八 · 经营数据中心</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f0f2f5;color:#333;min-height:100vh}
+.app{display:flex;height:100vh}
+.sidebar{width:220px;background:#1a1a2e;color:#fff;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-header{padding:18px 16px;border-bottom:1px solid #2a2a4a}
+.sidebar-header h2{font-size:16px;font-weight:700}
+.sidebar-header p{font-size:11px;color:#888;margin-top:2px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:12px 18px;cursor:pointer;font-size:13px;color:#aab;transition:all 0.15s;border-left:3px solid transparent}
+.nav-item:hover{background:#222240;color:#fff}
+.nav-item.active{background:#16213e;color:#fff;border-left-color:#4a9eff;font-weight:600}
+.nav-item .ni-icon{font-size:16px;width:22px;text-align:center}
+.sidebar-footer{padding:12px 16px;border-top:1px solid #2a2a4a;font-size:11px;color:#666;margin-top:auto}
+.sidebar-footer a{color:#4a9eff;text-decoration:none}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5e7eb;flex-shrink:0}
+.topbar h3{font-size:16px;font-weight:700}
+.topbar-actions{display:flex;gap:8px}
+.btn{padding:8px 16px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:inherit;white-space:nowrap}
+.btn-primary{background:linear-gradient(135deg,#4a9eff,#3b82f6);color:#fff}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(74,158,255,.3)}
+.btn-outline{background:#fff;color:#555;border:1.5px solid #ddd}
+.btn-outline:hover{background:#f5f5f5}
+.btn-danger{background:#fff;color:#ef4444;border:1.5px solid #fecaca}
+.btn-danger:hover{background:#fef2f2}
+.btn-sm{padding:5px 12px;font-size:11px}
+.content{flex:1;overflow-y:auto;padding:20px}
+.section{display:none}
+.section.active{display:block}
+
+/* KPI Cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:18px}
+.kpi-card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.04);position:relative;overflow:hidden}
+.kpi-card .kpi-label{font-size:12px;color:#999;margin-bottom:6px}
+.kpi-card .kpi-value{font-size:28px;font-weight:800;letter-spacing:-0.5px}
+.kpi-card .kpi-change{font-size:11px;margin-top:4px}
+.kpi-card .kpi-change.up{color:#16a34a}
+.kpi-card .kpi-change.down{color:#dc2626}
+.kpi-card::after{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
+.kpi-card.revenue::after{background:#4a9eff}
+.kpi-card.orders::after{background:#8b5cf6}
+.kpi-card.profit::after{background:#10b981}
+.kpi-card.conversion::after{background:#f59e0b}
+.kpi-card.returns::after{background:#ef4444}
+.kpi-card.visitors::after{background:#06b6d4}
+
+/* Charts */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.chart-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.chart-card .chart-title{font-size:14px;font-weight:600;margin-bottom:8px;color:#555}
+.chart-box{width:100%;height:280px}
+
+/* Tables */
+.data-card{background:#fff;border-radius:12px;padding:16px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.data-card .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.data-card .card-header h4{font-size:14px;font-weight:600;color:#555}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f8fafc;padding:10px 12px;text-align:left;font-weight:600;color:#666;font-size:12px;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid #f0f0f0}
+tr:hover td{background:#fafeff}
+.tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.tag-red{background:#fef2f2;color:#dc2626}
+.tag-yellow{background:#fffbeb;color:#d97706}
+.tag-green{background:#f0fdf4;color:#16a34a}
+.tag-blue{background:#eff6ff;color:#3b82f6}
+
+/* Upload */
+.upload-zone{border:2px dashed #d0d5dd;border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all 0.2s;background:#fafbfc}
+.upload-zone:hover,.upload-zone.dragover{border-color:#4a9eff;background:#f0f7ff}
+.upload-zone .uz-icon{font-size:40px;margin-bottom:8px}
+.upload-zone p{font-size:13px;color:#999}
+.upload-zone .uz-hint{font-size:11px;color:#bbb;margin-top:4px}
+
+/* AI Panel */
+.ai-panel{background:linear-gradient(135deg,#f8faff,#f0f4ff);border-radius:12px;padding:20px;border:1.5px solid #e0e7ff;margin-bottom:18px}
+.ai-panel .ai-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.ai-panel .ai-header .ai-badge{background:#4a9eff;color:#fff;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700}
+.ai-score{display:flex;gap:20px;margin:12px 0;flex-wrap:wrap}
+.ai-score-item{text-align:center}
+.ai-score-item .score-num{font-size:32px;font-weight:800}
+.ai-score-item .score-label{font-size:11px;color:#999}
+.ai-insight{background:#fff;border-radius:8px;padding:14px;margin:8px 0;border-left:3px solid #4a9eff}
+.ai-insight.warn{border-left-color:#f59e0b;background:#fffdf5}
+.ai-insight.danger{border-left-color:#ef4444;background:#fffbfb}
+.ai-insight.good{border-left-color:#10b981;background:#f8fdf9}
+
+/* Report list */
+.report-item{display:flex;align-items:center;padding:14px;background:#fff;border-radius:10px;margin-bottom:8px;border:1px solid #f0f0f0;gap:12px}
+.report-item .ri-icon{font-size:24px}
+.report-item .ri-body{flex:1}
+.report-item .ri-title{font-weight:600;font-size:14px}
+.report-item .ri-meta{font-size:11px;color:#999;margin-top:2px}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-bar select,.filter-bar input{padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;background:#fff;font-family:inherit}
+.filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:#4a9eff}
+
+/* Toast */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 24px;border-radius:20px;font-size:13px;z-index:200;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:14px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h3{margin-bottom:12px}
+.modal textarea{width:100%;height:200px;padding:12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:monospace;resize:vertical}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+
+@media(max-width:768px){
+  .sidebar{display:none}
+  .chart-row{grid-template-columns:1fr}
+  .kpi-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  .kpi-card .kpi-value{font-size:22px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h2>六六八八</h2>
+    <p>经营数据中心</p>
+  </div>
+  <div class="nav-item active" onclick="switchTab('dashboard')"><span class="ni-icon">📊</span>经营仪表盘</div>
+  <div class="nav-item" onclick="switchTab('upload')"><span class="ni-icon">📤</span>上传新报表</div>
+  <div class="nav-item" onclick="switchTab('reports')"><span class="ni-icon">📋</span>报表中心</div>
+  <div class="nav-item" onclick="switchTab('analysis')"><span class="ni-icon">🤖</span>AI经营分析</div>
+  <div class="nav-item" onclick="switchTab('products')"><span class="ni-icon">👟</span>产品管理</div>
+  <div class="sidebar-footer">
+    <a href="index.html">← 利润计算器</a>
+    <div style="margin-top:6px">
+      <button onclick="exportAll()" style="background:none;border:none;color:#666;cursor:pointer;font-size:11px">📤 导出数据</button>
+      <button onclick="importAll()" style="background:none;border:none;color:#666;cursor:pointer;font-size:11px;margin-left:4px">📥 导入数据</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <h3 id="pageTitle">📊 经营仪表盘</h3>
+    <div class="topbar-actions">
+      <span style="font-size:11px;color:#999;" id="lastUpdate"></span>
+      <button class="btn btn-outline btn-sm" onclick="refreshData()">🔄 刷新</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ========== DASHBOARD ========== -->
+    <div class="section active" id="sec-dashboard">
+      <div class="filter-bar">
+        <select id="dbPeriod" onchange="renderDashboard()">
+          <option value="all">全部数据</option>
+          <option value="30">近30天</option>
+          <option value="7">近7天</option>
+        </select>
+        <span style="font-size:12px;color:#999;">共 <b id="dbReportCount">0</b> 份报表</span>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="chart-row">
+        <div class="chart-card"><div class="chart-title">📈 销售额 & 订单趋势</div><div class="chart-box" id="chartSales"></div></div>
+        <div class="chart-card"><div class="chart-title">📊 转化率 & 退货率趋势</div><div class="chart-box" id="chartRate"></div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card"><div class="chart-title">🏆 产品销售额排行</div><div class="chart-box" id="chartProducts"></div></div>
+        <div class="chart-card"><div class="chart-title">📐 利润分布</div><div class="chart-box" id="chartProfit"></div></div>
+      </div>
+    </div>
+
+    <!-- ========== UPLOAD ========== -->
+    <div class="section" id="sec-upload">
+      <div class="data-card">
+        <h4 style="margin-bottom:12px;">📤 上传经营报表</h4>
+        <p style="font-size:13px;color:#888;margin-bottom:12px;">支持每日销售 Excel、周报、月报。上传后自动解析并更新仪表盘。</p>
+
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div class="uz-icon">📁</div>
+          <p><b>点击上传</b> 或拖拽 Excel 文件到这里</p>
+          <p class="uz-hint">支持 .xlsx / .xls 格式</p>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event)" multiple>
+
+        <div style="margin-top:12px;font-size:12px;color:#999;">
+          <p>📌 上传后选择报表类型：</p>
+          <div style="display:flex;gap:8px;margin-top:8px;" id="uploadActions" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="data-card" id="uploadPreview" style="display:none;">
+        <div class="card-header"><h4>📋 数据预览</h4><span style="font-size:12px;color:#999;" id="previewInfo"></span></div>
+        <div class="table-wrap" id="previewTable"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+          <label style="font-size:13px;">报表类型：</label>
+          <select id="reportType">
+            <option value="daily">每日销售数据</option>
+            <option value="weekly">周报汇总</option>
+            <option value="monthly">月报汇总</option>
+            <option value="billing">财务账单</option>
+          </select>
+          <label style="font-size:13px;margin-left:8px;">日期：</label>
+          <input type="date" id="reportDate">
+          <button class="btn btn-primary" onclick="saveUploadedReport()">✅ 确认导入</button>
+          <button class="btn btn-outline" onclick="cancelUpload()">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== REPORTS ========== -->
+    <div class="section" id="sec-reports">
+      <div class="filter-bar">
+        <select id="rptTypeFilter" onchange="renderReports()">
+          <option value="all">全部类型</option>
+          <option value="daily">每日销售</option>
+          <option value="weekly">周报</option>
+          <option value="monthly">月报</option>
+          <option value="billing">财务账单</option>
+        </select>
+        <span style="font-size:12px;color:#999;">共 <b id="rptCount">0</b> 份报表</span>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('fileInput').click()">＋ 添加报表</button>
+      </div>
+      <div id="reportList"></div>
+    </div>
+
+    <!-- ========== AI ANALYSIS ========== -->
+    <div class="section" id="sec-analysis">
+      <div class="ai-panel">
+        <div class="ai-header">
+          <span class="ai-badge">🤖 AI</span>
+          <span style="font-size:13px;color:#666;">基于当前数据的自动分析 · <span id="aiTime">--</span></span>
+        </div>
+        <div class="ai-score" id="aiScores"></div>
+        <div id="aiInsights"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="runAIAnalysis()">🔄 重新分析</button>
+          <button class="btn btn-outline btn-sm" onclick="copyAnalysisPrompt()">📋 复制详细分析提示词</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== PRODUCTS ========== -->
+    <div class="section" id="sec-products">
+      <div class="filter-bar">
+        <input type="text" id="prodSearch" placeholder="🔍 搜索产品..." oninput="renderProducts()">
+        <select id="prodGrade" onchange="renderProducts()">
+          <option value="all">全部等级</option><option value="S">S级</option><option value="A">A级</option><option value="B">B级</option><option value="C">C级</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="showAddProduct()">＋ 添加产品</button>
+      </div>
+      <div class="data-card">
+        <div class="table-wrap">
+          <table id="productTable">
+            <thead><tr><th>产品名称</th><th>货号</th><th>品牌</th><th>等级</th><th>总销售额</th><th>订单数</th><th>转化率</th><th>退货率</th><th>利润/单</th><th>操作</th></tr></thead>
+            <tbody id="productBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== DATA STORE ==========
+function getDB() {
+  try { const d=localStorage.getItem('dc_data_v2'); return d ? JSON.parse(d) : {reports:[],products:[]}; }
+  catch(e) { return {reports:[],products:[]}; }
+}
+function saveDB(db) { localStorage.setItem('dc_data_v2', JSON.stringify(db)); document.getElementById('lastUpdate').textContent = '更新于 '+new Date().toLocaleTimeString('zh-CN'); }
+
+// ========== DEFAULT DATA ==========
+function initDefaultData() {
+  const db = getDB();
+  if (db.reports.length > 0) return;
+
+  const now = Date.now();
+  const day = 86400000;
+
+  db.reports = [
+    {id:'r1',type:'daily',date:'2026-04-21',label:'4月21日销售',data:{revenue:3827,orders:7,visitors:1875,conversion:0.37,returns:1,profit:234,cost:3200}},
+    {id:'r2',type:'daily',date:'2026-04-22',label:'4月22日销售',data:{revenue:4102,orders:8,visitors:2010,conversion:0.40,returns:2,profit:289,cost:3450}},
+    {id:'r3',type:'daily',date:'2026-04-23',label:'4月23日销售',data:{revenue:3650,orders:7,visitors:1820,conversion:0.38,returns:1,profit:198,cost:3100}},
+    {id:'r4',type:'daily',date:'2026-04-24',label:'4月24日销售',data:{revenue:4210,orders:9,visitors:1950,conversion:0.46,returns:2,profit:310,cost:3550}},
+    {id:'r5',type:'daily',date:'2026-04-25',label:'4月25日销售',data:{revenue:3349,orders:6,visitors:1721,conversion:0.35,returns:1,profit:176,cost:2850}},
+    {id:'r6',type:'weekly',date:'2026-04-26',label:'4月第4周汇总',data:{revenue:38259,orders:66,visitors:12200,conversion:0.54,returns:12,profit:1117,cost:32400}},
+    {id:'r7',type:'weekly',date:'2026-05-03',label:'5月第1周汇总',data:{revenue:28500,orders:52,visitors:10500,conversion:0.50,returns:10,profit:856,cost:24200}},
+    {id:'r8',type:'weekly',date:'2026-05-10',label:'5月第2周汇总',data:{revenue:9620,orders:19,visitors:6500,conversion:0.29,returns:8,profit:-2045,cost:8900}},
+    {id:'r9',type:'monthly',date:'2026-04-30',label:'4月月报',data:{revenue:181475,orders:310,visitors:96843,conversion:0.32,returns:55,profit:4468,cost:154000}},
+  ];
+
+  db.products = [
+    {id:'p1',name:'粉心心跳',code:'DV5456-131',brand:'Nike',grade:'S',totalSales:4519,orders:11,conversion:0.85,returns:50,profitPerUnit:49},
+    {id:'p2',name:'银闪花嫁',code:'--',brand:'Nike',grade:'S',totalSales:4450,orders:10,conversion:0.72,returns:20,profitPerUnit:52},
+    {id:'p3',name:'棉花喵喵',code:'--',brand:'adidas neo',grade:'A',totalSales:0,orders:0,conversion:0,returns:0,profitPerUnit:42},
+    {id:'p4',name:'莓莓粉荔',code:'--',brand:'PUMA',grade:'A',totalSales:850,orders:2,conversion:0.13,returns:0,profitPerUnit:35},
+    {id:'p5',name:'幻影灰',code:'--',brand:'Nike',grade:'C',totalSales:0,orders:0,conversion:0,returns:100,profitPerUnit:-250},
+  ];
+
+  saveDB(db);
+}
+
+// ========== TAB SWITCH ==========
+function switchTab(tab) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const sec = document.getElementById('sec-'+tab);
+  if (sec) sec.classList.add('active');
+  event.target.classList.add('active');
+  const titles = {dashboard:'📊 经营仪表盘',upload:'📤 上传新报表',reports:'📋 报表中心',analysis:'🤖 AI经营分析',products:'👟 产品管理'};
+  document.getElementById('pageTitle').textContent = titles[tab] || tab;
+  if (tab==='dashboard') renderDashboard();
+  if (tab==='reports') renderReports();
+  if (tab==='analysis') runAIAnalysis();
+  if (tab==='products') renderProducts();
+}
+
+// ========== DASHBOARD ==========
+function renderDashboard() {
+  const db = getDB();
+  const period = document.getElementById('dbPeriod').value;
+  document.getElementById('dbReportCount').textContent = db.reports.length;
+
+  let reports = db.reports;
+  if (period !== 'all') {
+    const cutoff = Date.now() - parseInt(period) * 86400000;
+    reports = reports.filter(r => new Date(r.date).getTime() > cutoff);
+  }
+
+  if (reports.length === 0) {
+    document.getElementById('kpiGrid').innerHTML = '<div style="text-align:center;padding:40px;color:#ccc;">暂无数据，请先上传报表</div>';
+    return;
+  }
+
+  // Aggregate
+  const agg = {revenue:0,orders:0,visitors:0,returns:0,profit:0,cost:0};
+  reports.forEach(r => {
+    agg.revenue += r.data.revenue||0;
+    agg.orders += r.data.orders||0;
+    agg.visitors += r.data.visitors||0;
+    agg.returns += r.data.returns||0;
+    agg.profit += r.data.profit||0;
+    agg.cost += r.data.cost||0;
+  });
+  const convRate = agg.visitors > 0 ? (agg.orders/agg.visitors*100) : 0;
+  const retRate = agg.orders > 0 ? (agg.returns/agg.orders*100) : 0;
+  const margin = agg.revenue > 0 ? (agg.profit/agg.revenue*100) : 0;
+
+  // KPI Cards
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card revenue"><div class="kpi-label">总销售额</div><div class="kpi-value">¥${agg.revenue.toLocaleString()}</div><div class="kpi-change">${reports.length} 份报表</div></div>
+    <div class="kpi-card orders"><div class="kpi-label">总订单</div><div class="kpi-value">${agg.orders}</div><div class="kpi-change">日均 ${(agg.orders/reports.length).toFixed(1)} 单</div></div>
+    <div class="kpi-card profit"><div class="kpi-label">总利润</div><div class="kpi-value" style="color:${agg.profit>=0?'#16a34a':'#dc2626'}">¥${agg.profit.toLocaleString()}</div><div class="kpi-change ${agg.profit>=0?'up':'down'}">利润率 ${margin.toFixed(1)}%</div></div>
+    <div class="kpi-card conversion"><div class="kpi-label">转化率</div><div class="kpi-value">${convRate.toFixed(2)}%</div><div class="kpi-change ${convRate>=0.5?'up':'down'}">行业平均 2-3%</div></div>
+    <div class="kpi-card returns"><div class="kpi-label">退货率</div><div class="kpi-value">${retRate.toFixed(1)}%</div><div class="kpi-change ${retRate<=15?'up':'down'}">警戒线 15%</div></div>
+    <div class="kpi-card visitors"><div class="kpi-label">总访客</div><div class="kpi-value">${agg.visitors.toLocaleString()}</div><div class="kpi-change">人均 ¥${agg.visitors>0?(agg.revenue/agg.visitors).toFixed(2):0}</div></div>
+  `;
+
+  // Sales & Orders Trend Chart
+  const dates = reports.map(r => r.date);
+  const revenues = reports.map(r => r.data.revenue||0);
+  const orders = reports.map(r => r.data.orders||0);
+
+  renderChart('chartSales', {
+    tooltip:{trigger:'axis'},
+    legend:{data:['销售额','订单数'],bottom:0},
+    xAxis:{type:'category',data:dates,axisLabel:{rotate:30,fontSize:10}},
+    yAxis:[
+      {type:'value',name:'销售额(元)'},
+      {type:'value',name:'订单数'}
+    ],
+    series:[
+      {name:'销售额',type:'bar',data:revenues,itemStyle:{color:'#4a9eff'},barMaxWidth:30},
+      {name:'订单数',type:'line',yAxisIndex:1,data:orders,itemStyle:{color:'#8b5cf6'},smooth:true}
+    ]
+  });
+
+  // Conversion & Return Rate Chart
+  const conversions = reports.map(r => r.data.conversion||0);
+  const returns = reports.map(r => r.data.returns||0);
+  const retRates = reports.map((r,i) => orders[i]>0?(returns[i]/orders[i]*100):0);
+
+  renderChart('chartRate', {
+    tooltip:{trigger:'axis'},
+    legend:{data:['转化率%','退货率%'],bottom:0},
+    xAxis:{type:'category',data:dates,axisLabel:{rotate:30,fontSize:10}},
+    yAxis:{type:'value',name:'%'},
+    series:[
+      {name:'转化率%',type:'line',data:conversions.map(v=>+v.toFixed(2)),itemStyle:{color:'#f59e0b'},smooth:true,markLine:{silent:true,data:[{yAxis:2,label:{formatter:'行业基准2%'},lineStyle:{color:'#f59e0b',type:'dashed'}}]}},
+      {name:'退货率%',type:'line',data:retRates.map(v=>+v.toFixed(1)),itemStyle:{color:'#ef4444'},smooth:true,markLine:{silent:true,data:[{yAxis:15,label:{formatter:'警戒线15%'},lineStyle:{color:'#ef4444',type:'dashed'}}]}}
+    ]
+  });
+
+  // Product Ranking
+  const products = db.products.sort((a,b) => b.totalSales - a.totalSales).slice(0,8);
+  renderChart('chartProducts', {
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    grid:{left:100},
+    xAxis:{type:'value'},
+    yAxis:{type:'category',data:products.map(p=>p.name),inverse:true,axisLabel:{fontSize:11}},
+    series:[{name:'销售额',type:'bar',data:products.map(p=>p.totalSales),itemStyle:{color:function(p){const colors=['#4a9eff','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'];return colors[p.dataIndex%8]}},label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:20}]
+  });
+
+  // Profit Distribution
+  const profitProducts = db.products.filter(p => p.profitPerUnit > 0).length;
+  const lossProducts = db.products.filter(p => p.profitPerUnit < 0).length;
+  const zeroProducts = db.products.filter(p => p.profitPerUnit === 0).length;
+  renderChart('chartProfit', {
+    tooltip:{trigger:'item'},
+    series:[{
+      type:'pie',radius:['50%','75%'],center:['50%','50%'],
+      data:[
+        {value:profitProducts,name:'盈利产品',itemStyle:{color:'#10b981'}},
+        {value:lossProducts,name:'亏损产品',itemStyle:{color:'#ef4444'}},
+        {value:zeroProducts,name:'无数据',itemStyle:{color:'#d0d5dd'}}
+      ],
+      label:{formatter:'{b}\n{d}%'}
+    }]
+  });
+}
+
+function renderChart(id, option) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let chart = el.__echart;
+  if (!chart) { chart = echarts.init(el); el.__echart = chart; }
+  chart.setOption(option, true);
+  chart.resize();
+}
+
+// ========== UPLOAD ==========
+let pendingFileData = null;
+
+function handleFileUpload(event) {
+  const files = event.target.files;
+  if (!files || files.length===0) return;
+
+  const file = files[0];
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+
+      pendingFileData = {name: file.name, raw: json, sheetNames: wb.SheetNames};
+
+      // Preview first 30 rows
+      let html = '<table><thead><tr>';
+      const headers = json[0] || [];
+      headers.forEach(h => html += `<th>${h||'列'}</th>`);
+      html += '</tr></thead><tbody>';
+      for (let i=1; i<Math.min(json.length, 31); i++) {
+        html += '<tr>';
+        (json[i]||[]).forEach(c => html += `<td>${c}</td>`);
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      if (json.length > 31) html += `<p style="font-size:12px;color:#999;margin-top:8px;">... 共 ${json.length} 行，仅显示前30行</p>`;
+
+      document.getElementById('previewTable').innerHTML = html;
+      document.getElementById('previewInfo').textContent = `${file.name} · ${wb.SheetNames.length} 个工作表 · ${json.length} 行`;
+      document.getElementById('uploadPreview').style.display = 'block';
+      document.getElementById('reportDate').value = new Date().toISOString().slice(0,10);
+    } catch(err) {
+      alert('文件解析失败：' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
+
+function saveUploadedReport() {
+  if (!pendingFileData) return;
+
+  const type = document.getElementById('reportType').value;
+  const date = document.getElementById('reportDate').value;
+  const db = getDB();
+
+  // Try to extract numbers from the data
+  let extracted = {revenue:0,orders:0,visitors:0,conversion:0,returns:0,profit:0,cost:0};
+
+  // Simple heuristic: find columns with numbers and match common headers
+  const headers = (pendingFileData.raw[0]||[]).map(h=>String(h).toLowerCase());
+  const dataRows = pendingFileData.raw.slice(1).filter(r => r.some(c => c !== ''));
+
+  // Try to find relevant columns
+  dataRows.forEach(row => {
+    headers.forEach((h,i) => {
+      const v = parseFloat(row[i]);
+      if (isNaN(v)) return;
+      if (h.includes('销售')||h.includes('收入')||h.includes('成交')||h.includes('revenue')) extracted.revenue += v;
+      if (h.includes('订单')||h.includes('单数')||h.includes('orders')) extracted.orders += Math.round(v);
+      if (h.includes('访客')||h.includes('流量')||h.includes('visitor')) extracted.visitors += Math.round(v);
+      if (h.includes('利润')||h.includes('profit')) extracted.profit += v;
+      if (h.includes('退货')||h.includes('退款')||h.includes('return')) extracted.returns += Math.round(v);
+      if (h.includes('成本')||h.includes('cost')||h.includes('进货')) extracted.cost += v;
+    });
+  });
+
+  const report = {
+    id: 'r_' + Date.now(),
+    type, date, label: pendingFileData.name.replace(/\.xlsx?$/, ''),
+    data: extracted,
+    rawData: pendingFileData.raw.slice(0, 200) // keep first 200 rows
+  };
+
+  db.reports.unshift(report);
+  saveDB(db);
+  pendingFileData = null;
+  document.getElementById('uploadPreview').style.display = 'none';
+  toast('✅ 报表已导入！');
+  renderDashboard();
+  renderReports();
+}
+
+function cancelUpload() {
+  pendingFileData = null;
+  document.getElementById('uploadPreview').style.display = 'none';
+}
+
+// Drag & drop
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('uploadZone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length) {
+      document.getElementById('fileInput').files = files;
+      handleFileUpload({target:{files}});
+    }
+  });
+});
+
+// ========== REPORTS ==========
+function renderReports() {
+  const db = getDB();
+  const typeFilter = document.getElementById('rptTypeFilter').value;
+  let reports = db.reports;
+  if (typeFilter !== 'all') reports = reports.filter(r => r.type === typeFilter);
+  reports.sort((a,b) => new Date(b.date) - new Date(a.date));
+  document.getElementById('rptCount').textContent = reports.length;
+
+  const typeLabels = {daily:'每日销售',weekly:'周报',monthly:'月报',billing:'财务账单'};
+  const container = document.getElementById('reportList');
+
+  if (reports.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#ccc;">暂无报表，点击「上传新报表」添加</div>';
+    return;
+  }
+
+  container.innerHTML = reports.map(r => `
+    <div class="report-item">
+      <div class="ri-icon">📊</div>
+      <div class="ri-body">
+        <div class="ri-title">${r.label}</div>
+        <div class="ri-meta">${r.date} · ${typeLabels[r.type]||r.type} · 销售额 ¥${(r.data.revenue||0).toLocaleString()} · 利润 ¥${(r.data.profit||0).toLocaleString()}</div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="viewReportDetail('${r.id}')">查看</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteReport('${r.id}')">删除</button>
+    </div>
+  `).join('');
+}
+
+function viewReportDetail(id) {
+  const db = getDB();
+  const r = db.reports.find(x => x.id === id);
+  if (!r) return;
+  alert(`报表详情\n\n名称：${r.label}\n日期：${r.date}\n销售额：¥${(r.data.revenue||0).toLocaleString()}\n订单：${r.data.orders||0}\n访客：${r.data.visitors||0}\n利润：¥${(r.data.profit||0).toLocaleString()}\n退货：${r.data.returns||0}`);
+}
+
+function deleteReport(id) {
+  if (!confirm('确定删除这份报表？')) return;
+  const db = getDB();
+  db.reports = db.reports.filter(r => r.id !== id);
+  saveDB(db);
+  renderReports();
+  renderDashboard();
+  toast('报表已删除');
+}
+
+// ========== AI ANALYSIS ==========
+function runAIAnalysis() {
+  const db = getDB();
+  const reports = db.reports.sort((a,b) => new Date(a.date) - new Date(b.date));
+  document.getElementById('aiTime').textContent = new Date().toLocaleString('zh-CN');
+
+  if (reports.length < 2) {
+    document.getElementById('aiScores').innerHTML = '<p style="color:#999;">需要至少 2 份报表才能进行对比分析</p>';
+    document.getElementById('aiInsights').innerHTML = '';
+    return;
+  }
+
+  // Calculate scores
+  const recent = reports.slice(-4); // last 4 reports
+  const older = reports.slice(0, -4); // earlier reports
+
+  const avgRecent = (field) => recent.reduce((s,r) => s + (r.data[field]||0), 0) / recent.length;
+  const avgOlder = (field) => older.length > 0 ? older.reduce((s,r) => s + (r.data[field]||0), 0) / older.length : avgRecent(field);
+
+  const revScore = trendScore(avgRecent('revenue'), avgOlder('revenue'));
+  const profScore = trendScore(avgRecent('profit'), avgOlder('profit'));
+  const convScore = trendScore(avgRecent('conversion'), avgOlder('conversion'));
+  const retScore = -trendScore(avgRecent('returns'), avgOlder('returns')); // lower returns = better
+
+  const overallScore = Math.round((revScore*0.3 + profScore*0.35 + convScore*0.2 + retScore*0.15));
+
+  const scoreColor = overallScore >= 70 ? '#10b981' : overallScore >= 40 ? '#f59e0b' : '#ef4444';
+  const scoreLabel = overallScore >= 70 ? '健康' : overallScore >= 40 ? '需关注' : '危险';
+
+  document.getElementById('aiScores').innerHTML = `
+    <div class="ai-score-item"><div class="score-num" style="color:${scoreColor}">${overallScore}</div><div class="score-label">综合健康度 · ${scoreLabel}</div></div>
+    <div class="ai-score-item"><div class="score-num" style="color:${revScore>=50?'#10b981':'#ef4444'}">${revScore}</div><div class="score-label">销售趋势</div></div>
+    <div class="ai-score-item"><div class="score-num" style="color:${profScore>=50?'#10b981':'#ef4444'}">${profScore}</div><div class="score-label">利润趋势</div></div>
+    <div class="ai-score-item"><div class="score-num" style="color:${convScore>=50?'#10b981':'#ef4444'}">${convScore}</div><div class="score-label">转化趋势</div></div>
+    <div class="ai-score-item"><div class="score-num" style="color:${retScore>=50?'#10b981':'#ef4444'}">${retScore}</div><div class="score-label">退货控制</div></div>
+  `;
+
+  // Insights
+  let insights = [];
+
+  const lastReport = reports[reports.length-1];
+  const latestProfit = lastReport.data.profit || 0;
+  const latestConv = lastReport.data.conversion || 0;
+  const latestRet = lastReport.data.returns || 0;
+  const latestOrders = lastReport.data.orders || 0;
+  const latestRetRate = latestOrders > 0 ? (latestRet/latestOrders*100) : 0;
+  const latestMargin = lastReport.data.revenue > 0 ? (latestProfit/lastReport.data.revenue*100) : 0;
+
+  if (latestProfit < 0) {
+    insights.push({cls:'danger',text:`<b>⚠ 当前亏损 ¥${Math.abs(latestProfit).toLocaleString()}</b>。最近的报表显示经营处于亏损状态。建议：1) 立即排查高退货率产品 2) 暂停亏损产品的推广 3) 聚焦利润产品`});
+  } else if (latestMargin < 5) {
+    insights.push({cls:'warn',text:`<b>⚡ 利润率偏低（${latestMargin.toFixed(1)}%）</b>。虽然不亏损但利润很薄。建议优化定价策略，将保本售价控制线作为最低出价底线。`});
+  } else {
+    insights.push({cls:'good',text:`<b>✅ 当前盈利 ¥${latestProfit.toLocaleString()}</b>（利润率 ${latestMargin.toFixed(1)}%）。继续保持并寻找增量机会。`});
+  }
+
+  if (latestConv < 0.5) {
+    insights.push({cls:'danger',text:`<b>⚠ 转化率 ${latestConv.toFixed(2)}% 严重低于行业平均</b>（行业 2-3%）。核心问题：商品详情页吸引力不足或价格偏高。建议：1) 优化主图和详情页 2) 测试降价 3) 聚焦高转化品类`});
+  }
+
+  if (latestRetRate > 20) {
+    insights.push({cls:'danger',text:`<b>⚠ 退货率 ${latestRetRate.toFixed(1)}% 严重超标</b>（警戒线 15%）。高退货率直接吃掉利润。建议：1) 检查高频退货产品的质量问题 2) 优化尺码说明 3) 加强售前沟通`});
+  }
+
+  // Trend analysis
+  if (reports.length >= 3) {
+    const trend = reports.slice(-3);
+    const revTrend = trend[2].data.revenue - trend[0].data.revenue;
+    if (revTrend < -500) {
+      insights.push({cls:'warn',text:`<b>📉 销售下滑趋势</b>：近 3 期销售额下降 ¥${Math.abs(revTrend).toLocaleString()}。需要警惕并采取行动。`});
+    } else if (revTrend > 500) {
+      insights.push({cls:'good',text:`<b>📈 销售增长趋势</b>：近 3 期销售额上升 ¥${revTrend.toLocaleString()}。策略有效，继续保持。`});
+    }
+  }
+
+  document.getElementById('aiInsights').innerHTML = insights.map(i => `
+    <div class="ai-insight ${i.cls}">${i.text}</div>
+  `).join('');
+
+  // Also provide a copyable analysis prompt
+  window._analysisPrompt = generateAnalysisPrompt(db);
+}
+
+function trendScore(recent, older) {
+  if (older === 0) return 50;
+  const change = (recent - older) / Math.abs(older) * 100;
+  return Math.max(0, Math.min(100, 50 + change));
+}
+
+function generateAnalysisPrompt(db) {
+  const r = db.reports.slice(-3);
+  let prompt = `请分析以下定制球鞋店铺（六六八八）的经营数据：\n\n`;
+  r.forEach(x => {
+    prompt += `【${x.label}·${x.date}】销售额:¥${x.data.revenue} 订单:${x.data.orders} 访客:${x.data.visitors} 转化率:${x.data.conversion}% 退货:${x.data.returns} 利润:¥${x.data.profit}\n`;
+  });
+  prompt += `\n请给出：1) 趋势判断 2) 风险预警 3) 具体改进建议`;
+  return prompt;
+}
+
+function copyAnalysisPrompt() {
+  if (!window._analysisPrompt) runAIAnalysis();
+  navigator.clipboard.writeText(window._analysisPrompt).then(() => {
+    toast('✅ 分析提示词已复制，可粘贴到 Claude 进行深度分析');
+  }).catch(() => {
+    prompt('复制以下内容进行AI分析：', window._analysisPrompt);
+  });
+}
+
+// ========== PRODUCTS ==========
+function renderProducts() {
+  const db = getDB();
+  const search = (document.getElementById('prodSearch').value||'').toLowerCase();
+  const grade = document.getElementById('prodGrade').value;
+  let products = db.products;
+  if (grade !== 'all') products = products.filter(p => p.grade === grade);
+  if (search) products = products.filter(p => p.name.toLowerCase().includes(search) || (p.code||'').toLowerCase().includes(search));
+
+  document.getElementById('productBody').innerHTML = products.map(p => `
+    <tr>
+      <td><b>${p.name}</b></td><td>${p.code||'--'}</td><td>${p.brand||'--'}</td>
+      <td><span class="tag ${p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red'}">${p.grade}级</span></td>
+      <td>¥${(p.totalSales||0).toLocaleString()}</td><td>${p.orders||0}</td>
+      <td>${(p.conversion||0).toFixed(1)}%</td><td>${(p.returns||0).toFixed(0)}%</td>
+      <td style="color:${(p.profitPerUnit||0)>=0?'#16a34a':'#dc2626'}">¥${p.profitPerUnit||0}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="editProduct('${p.id}')">编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">删除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function showAddProduct() {
+  const name = prompt('产品名称：');
+  if (!name) return;
+  const code = prompt('货号（可选）：') || '';
+  const brand = prompt('品牌（可选）：') || '';
+  const grade = prompt('等级 S/A/B/C：') || 'B';
+  const db = getDB();
+  db.products.push({
+    id:'p_'+Date.now(),
+    name, code, brand, grade: grade.toUpperCase(),
+    totalSales:0, orders:0, conversion:0, returns:0, profitPerUnit:0
+  });
+  saveDB(db);
+  renderProducts();
+  toast('产品已添加');
+}
+
+function editProduct(id) {
+  const db = getDB();
+  const p = db.products.find(x => x.id === id);
+  if (!p) return;
+  const sales = prompt('总销售额：', p.totalSales);
+  if (sales === null) return;
+  const orders = prompt('订单数：', p.orders);
+  if (orders === null) return;
+  const conv = prompt('转化率(%)：', p.conversion);
+  if (conv === null) return;
+  const ret = prompt('退货率(%)：', p.returns);
+  if (ret === null) return;
+  const ppu = prompt('单均利润：', p.profitPerUnit);
+  if (ppu === null) return;
+  p.totalSales = parseFloat(sales)||0;
+  p.orders = parseInt(orders)||0;
+  p.conversion = parseFloat(conv)||0;
+  p.returns = parseFloat(ret)||0;
+  p.profitPerUnit = parseFloat(ppu)||0;
+  saveDB(db);
+  renderProducts();
+  renderDashboard();
+  toast('产品已更新');
+}
+
+function deleteProduct(id) {
+  if (!confirm('确定删除这个产品？')) return;
+  const db = getDB();
+  db.products = db.products.filter(p => p.id !== id);
+  saveDB(db);
+  renderProducts();
+  toast('产品已删除');
+}
+
+// ========== DATA EXPORT/IMPORT ==========
+function exportAll() {
+  const db = getDB();
+  const blob = new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '数据中心备份_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  toast('数据已导出');
+}
+
+function importAll() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (confirm('导入将覆盖现有数据，确定继续？')) {
+          saveDB(data);
+          renderDashboard();
+          renderReports();
+          renderProducts();
+          toast('数据导入成功');
+        }
+      } catch(err) { alert('文件格式错误'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ========== TOAST ==========
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ========== INIT ==========
+function refreshData() {
+  renderDashboard();
+  renderReports();
+  renderProducts();
+  toast('数据已刷新');
+}
+
+window.addEventListener('resize', () => {
+  ['chartSales','chartRate','chartProducts','chartProfit'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.__echart) el.__echart.resize();
+  });
+});
+
+initDefaultData();
+renderDashboard();
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => { if ((e.ctrlKey||e.metaKey) && e.key==='r') { e.preventDefault(); refreshData(); } });
+</script>
+</body>
+</html>
