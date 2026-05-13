@@ -165,6 +165,7 @@ tr:hover td{background:#fafcfd}
     <div class="nav-item" onclick="switchModule('fin')"><span class="ni-icon">💳</span>财务账单</div>
     <div class="nav-item" onclick="switchModule('ai')"><span class="ni-icon">🤖</span>AI 助手</div>
     <div class="nav-item" onclick="switchModule('prod')"><span class="ni-icon">👟</span>产品管理</div>
+    <div class="nav-item" onclick="switchModule('mkt')"><span class="ni-icon">📈</span>营销ROI</div>
     <div class="nav-item" onclick="switchModule('kb')"><span class="ni-icon">📚</span>知识库</div>
   </div>
   <div class="sidebar-footer">经营工作台 v1.0</div>
@@ -203,6 +204,11 @@ tr:hover td{background:#fafcfd}
           <div class="card-title">⚠ 预警中心</div>
           <div id="homeAlerts" style="max-height:200px;overflow-y:auto;"></div>
         </div>
+      </div>
+      <!-- 待办事项 -->
+      <div class="card">
+        <div class="card-title">📝 待办事项 <button class="btn btn-outline btn-sm" onclick="addTask()" style="margin-left:8px;">＋ 新建</button></div>
+        <div id="homeTasks"></div>
       </div>
     </div>
 
@@ -356,6 +362,21 @@ tr:hover td{background:#fafcfd}
       <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th>货号</th><th>品牌</th><th>等级</th><th>总销售额</th><th>订单数</th><th>转化率</th><th>退货率</th><th>单均利润</th><th>状态</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div></div>
     </div>
 
+    <!-- MARKETING ROI -->
+    <div class="section" id="sec-mkt">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-outline btn-sm" onclick="addPromoRecord()">＋ 记录推广支出</button>
+        <span style="font-size:12px;color:var(--text3);margin-left:8px;" id="mktSummary"></span>
+      </div>
+      <div class="kpi-grid" id="mktKPIs"></div>
+      <div class="chart-row">
+        <div class="chart-card"><div class="cc-title">📈 推广投入 vs 产出</div><div class="chart-box" id="chartMktROI"></div></div>
+        <div class="chart-card"><div class="cc-title">📊 按产品ROI对比</div><div class="chart-box" id="chartMktByProduct"></div></div>
+      </div>
+      <div class="card"><div class="card-title">📋 推广记录</div>
+      <div class="table-wrap"><table><thead><tr><th>日期</th><th>产品</th><th>渠道</th><th>花费</th><th>曝光</th><th>点击</th><th>成交订单</th><th>成交金额</th><th>ROI</th><th>操作</th></tr></thead><tbody id="mktBody"></tbody></table></div></div>
+    </div>
+
     <!-- KNOWLEDGE BASE -->
     <div class="section" id="sec-kb">
       <div style="display:flex;gap:8px;margin-bottom:12px;">
@@ -393,9 +414,9 @@ function switchModule(name) {
   if (sec) sec.classList.add('active');
   // Find and activate the correct nav item
   const navItems = document.querySelectorAll('.nav-item');
-  const idx = {home:0,calc:1,dash:2,fin:3,ai:4,prod:5,kb:6}[name];
+  const idx = {home:0,calc:1,dash:2,fin:3,ai:4,prod:5,mkt:6,kb:7}[name];
   if (idx !== undefined && navItems[idx]) navItems[idx].classList.add('active');
-  const titles = {home:'🏠 首页仪表盘',calc:'💰 利润计算器',dash:'📊 数据中心',fin:'💳 财务账单',ai:'🤖 AI 助手',prod:'👟 产品管理',kb:'📚 知识库'};
+  const titles = {home:'🏠 首页仪表盘',calc:'💰 利润计算器',dash:'📊 数据中心',fin:'💳 财务账单',ai:'🤖 AI 助手',prod:'👟 产品管理',mkt:'📈 营销ROI',kb:'📚 知识库'};
   document.getElementById('pageTitle').textContent = titles[name]||name;
   // Lazy render
   if (name==='home') renderHome();
@@ -404,6 +425,7 @@ function switchModule(name) {
   if (name==='fin') { switchFinTab(currentFinTab); }
   if (name==='ai') runAIAnalysis();
   if (name==='prod') renderProducts();
+  if (name==='mkt') renderMKT();
   if (name==='kb') renderKB();
 }
 
@@ -503,6 +525,62 @@ function renderHome() {
   if (netCash < -3000) alerts.push({cls:'danger',text:`🔴 本月净现金流 −¥${Math.abs(netCash).toLocaleString()}，支出远超收入`});
   if (alerts.length===0) alerts.push({cls:'info',text:'✅ 当前各项指标正常，无异常预警'});
   document.getElementById('homeAlerts').innerHTML = alerts.slice(0,5).map(a=>`<div class="alert alert-${a.cls}">${a.text}</div>`).join('');
+
+  // Auto-generate tasks from alerts
+  if (!db.tasks) db.tasks = [];
+  alerts.filter(a=>a.cls==='danger').forEach(a=>{
+    const exists = db.tasks.find(t=>t.title===a.text);
+    if (!exists) db.tasks.unshift({id:'t_'+Date.now()+Math.random(),title:a.text,done:false,createdAt:Date.now(),source:'auto'});
+  });
+  if (db.tasks.length > 30) db.tasks = db.tasks.slice(0,30);
+  saveDB(db);
+  renderTasks();
+}
+
+function renderTasks() {
+  const db = getDB(); const tasks = db.tasks||[];
+  const pending = tasks.filter(t=>!t.done);
+  const done = tasks.filter(t=>t.done).slice(0,5);
+  const html = [];
+  if (pending.length===0 && done.length===0) {
+    html.push('<div style="text-align:center;padding:20px;color:var(--text3);">暂无待办事项</div>');
+  } else {
+    pending.forEach(t=>{
+      html.push(`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;">
+        <input type="checkbox" onchange="toggleTask('${t.id}')" style="width:16px;height:16px;cursor:pointer;">
+        <span style="flex:1;font-size:13px;">${t.title}</span>
+        <span style="font-size:10px;color:var(--text3);">${t.source==='auto'?'🤖自动':'✏️手动'}</span>
+        <button onclick="deleteTask('${t.id}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;">✕</button>
+      </div>`);
+    });
+    if (done.length > 0) {
+      html.push('<div style="font-size:11px;color:var(--text3);margin-top:8px;">已完成</div>');
+      done.forEach(t=>{
+        html.push(`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;opacity:0.5;">
+          <span style="font-size:13px;text-decoration:line-through;">${t.title}</span>
+          <span style="font-size:10px;color:var(--text3);">✅</span>
+        </div>`);
+      });
+    }
+  }
+  document.getElementById('homeTasks').innerHTML = html.join('');
+}
+
+function addTask() {
+  const title = prompt('待办事项：'); if (!title) return;
+  const db = getDB(); if (!db.tasks) db.tasks = [];
+  db.tasks.unshift({id:'t_'+Date.now(),title,done:false,createdAt:Date.now(),source:'manual'});
+  saveDB(db); renderTasks(); toast('已添加');
+}
+
+function toggleTask(id) {
+  const db = getDB(); const t = (db.tasks||[]).find(x=>x.id===id); if (!t) return;
+  t.done = !t.done; saveDB(db); renderTasks();
+}
+
+function deleteTask(id) {
+  const db = getDB(); db.tasks = (db.tasks||[]).filter(t=>t.id!==id);
+  saveDB(db); renderTasks();
 }
 
 // ============================================================
@@ -808,15 +886,23 @@ function deleteLedgerRow(idx) {
   toast('已删除');
 }
 
-function renderFinWeekly(idxOverride) {
+function initFinWeekSelect() {
   const db = getDB(); const bills = db.finance.weeklyBills||[];
   const sel=document.getElementById('finWeekSel');
-  const prevVal = sel.value;
-  sel.innerHTML = bills.map((b,i)=>`<option value="${i}">${b.label}</option>`).join('');
-  // Restore previous selection or use override
-  if (idxOverride !== undefined) sel.value = idxOverride;
-  else if (prevVal && parseInt(prevVal) < bills.length) sel.value = prevVal;
-  const idx=parseInt(sel.value)||0; const bill=bills[idx]; if(!bill) return;
+  if (!sel || sel.options.length > 0) return; // already initialized
+  bills.forEach((b,i)=>{const o=document.createElement('option');o.value=i;o.textContent=b.label;sel.appendChild(o);});
+}
+
+function renderFinWeekly() {
+  const db = getDB(); const bills = db.finance.weeklyBills||[];
+  const sel=document.getElementById('finWeekSel');
+  // Initialize dropdown if empty
+  if (sel && sel.options.length===0) {
+    bills.forEach((b,i)=>{const o=document.createElement('option');o.value=i;o.textContent=b.label;sel.appendChild(o);});
+  }
+  const idx=parseInt(sel.value)||0;
+  const bill=bills[idx];
+  if(!bill) { console.log('No bill at index',idx,'bills length',bills.length); return; }
   const s=bill.summary;
   document.getElementById('finWeekKPIs').innerHTML = `
     <div class="kpi-card"><div class="kpi-label">销售额 / 订单</div><div class="kpi-value">¥${s.revenue.toLocaleString()}<span style="font-size:16px;">/${s.orders}</span></div></div>
@@ -952,7 +1038,7 @@ function renderProducts() {
     else { status='🔴 亏损'; tagCls='tag-red'; }
     return `<tr>
       <td><b>${p.name}</b></td>
-      <td style="font-family:monospace;font-size:11px;">${p.code||'--'}</td>
+      <td><input value="${p.code||''}" onchange="updateProductField('${p.id}','code',this.value)" style="width:120px;padding:4px 6px;font-size:11px;font-family:monospace;" placeholder="输入货号"></td>
       <td>${p.brand||'--'}</td>
       <td><span class="tag ${p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red'}">${p.grade}级</span></td>
       <td>¥${(p.totalSales||0).toLocaleString()}</td>
@@ -978,10 +1064,56 @@ function editProduct(id) {
   const ppu=prompt('单均利润：',p.profitPerUnit);if(ppu===null)return;const g=prompt('等级(S/A/B/C)：',p.grade);if(g===null)return;
   p.totalSales=parseFloat(sales)||0;p.orders=parseInt(orders)||0;p.profitPerUnit=parseFloat(ppu)||0;p.grade=g.toUpperCase();saveDB(db);renderProducts();toast('已更新');
 }
+function updateProductField(id, field, value) {
+  const db=getDB();const p=db.products.find(x=>x.id===id);if(!p)return;
+  p[field]=value;saveDB(db);
+}
 function deleteProduct(id){if(!confirm('确定删除？'))return;const db=getDB();db.products=db.products.filter(p=>p.id!==id);saveDB(db);renderProducts();toast('已删除');}
 
 // ============================================================
-// MODULE 7: KNOWLEDGE BASE
+// MODULE 7: MARKETING ROI
+// ============================================================
+function renderMKT() {
+  const db = getDB(); if (!db.promotions) db.promotions = [];
+  const promos = db.promotions.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const totalSpend = promos.reduce((s,p)=>s+(p.amount||0),0);
+  const totalRevenue = promos.reduce((s,p)=>s+(p.revenue||0),0);
+  const overallROI = totalSpend>0 ? (totalRevenue/totalSpend).toFixed(2) : '0';
+  document.getElementById('mktSummary').textContent = `总投入 ¥${totalSpend.toLocaleString()} · 总产出 ¥${totalRevenue.toLocaleString()} · ROI ${overallROI}`;
+  document.getElementById('mktKPIs').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">推广总投入</div><div class="kpi-value">¥${totalSpend.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="kpi-label">推广带来成交</div><div class="kpi-value">¥${totalRevenue.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="kpi-label">综合ROI</div><div class="kpi-value" style="color:${parseFloat(overallROI)>=1?'var(--green)':'var(--red)'}">${overallROI}</div><div class="kpi-sub">${parseFloat(overallROI)>=1?'盈利':'亏损'}</div></div>
+  `;
+  // Charts
+  const dates=[...new Set(promos.map(p=>p.date))].sort();
+  renderChart('chartMktROI',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:dates,axisLabel:{rotate:30,fontSize:9}},yAxis:{type:'value'},series:[{name:'投入',type:'bar',data:dates.map(d=>promos.filter(p=>p.date===d).reduce((s,p)=>s+(p.amount||0),0)),itemStyle:{color:'#ff9500'},barMaxWidth:25},{name:'产出',type:'bar',data:dates.map(d=>promos.filter(p=>p.date===d).reduce((s,p)=>s+(p.revenue||0),0)),itemStyle:{color:'#3370ff'},barMaxWidth:25}]});
+  const byProd={};promos.forEach(p=>{const k=p.product||'未指定';byProd[k]=(byProd[k]||0)+(p.revenue||0)-(p.amount||0);});
+  const prodData=Object.entries(byProd).sort((a,b)=>b[1]-a[1]);
+  renderChart('chartMktByProduct',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:100},xAxis:{type:'value'},yAxis:{type:'category',data:prodData.map(([k])=>k),axisLabel:{fontSize:10}},series:[{name:'净收益',type:'bar',data:prodData.map(([,v])=>v),itemStyle:{color:p=>p.value>=0?'#34c759':'#ff3b30'},label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:16}]});
+  // Table
+  document.getElementById('mktBody').innerHTML = promos.map(p=>`<tr><td>${p.date}</td><td>${p.product||'--'}</td><td>${p.channel||'得物推广'}</td><td style="color:var(--red);">-¥${(p.amount||0).toLocaleString()}</td><td>${p.impressions||'--'}</td><td>${p.clicks||'--'}</td><td>${p.orders||0}单</td><td style="color:var(--green);">+¥${(p.revenue||0).toLocaleString()}</td><td style="font-weight:700;color:${(p.revenue||0)>=(p.amount||0)?'var(--green)':'var(--red)'}">${p.amount>0?((p.revenue||0)/p.amount).toFixed(2):'--'}</td><td><button class="btn btn-danger btn-sm" onclick="deletePromo('${p.id}')" style="padding:2px 8px;">✕</button></td></tr>`).join('');
+}
+
+function addPromoRecord() {
+  const db = getDB(); if (!db.promotions) db.promotions = [];
+  const date = prompt('日期（如 2026-05-14）：', new Date().toISOString().slice(0,10)); if (!date) return;
+  const product = prompt('关联产品：','');
+  const amount = parseFloat(prompt('推广花费（元）：','')); if (isNaN(amount)) return;
+  const orders = parseInt(prompt('带来订单数：','0'))||0;
+  const revenue = parseFloat(prompt('带来成交金额（元）：','0'))||0;
+  db.promotions.push({id:'m_'+Date.now(),date,product:product||'未指定',channel:'得物推广',amount,orders,revenue,impressions:'--',clicks:'--'});
+  saveDB(db); renderMKT(); toast('推广记录已添加');
+}
+
+function deletePromo(id) {
+  if (!confirm('确定删除？')) return;
+  const db = getDB(); db.promotions = (db.promotions||[]).filter(p=>p.id!==id);
+  saveDB(db); renderMKT();
+}
+
+// ============================================================
+// MODULE 8: KNOWLEDGE BASE
 // ============================================================
 function renderKB() {
   const db = getDB(); if(!db.kbDocs) db.kbDocs=[];
