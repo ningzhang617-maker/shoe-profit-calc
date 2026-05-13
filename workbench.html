@@ -148,6 +148,8 @@ tr:hover td{background:#fafcfd}
 .fin-view.active{display:block}
 .fin-tab-btn{background:#f5f5f5;color:#666;border:1px solid var(--border)}
 .fin-tab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.dash-view{display:none}
+.dash-view.active{display:block}
 </style>
 </head>
 <body>
@@ -181,16 +183,26 @@ tr:hover td{background:#fafcfd}
 
     <!-- HOME -->
     <div class="section active" id="sec-home">
+      <!-- 核心KPI概览 -->
       <div class="kpi-grid" id="homeKPIs"></div>
-      <div class="chart-row">
-        <div class="chart-card"><div class="cc-title">📈 近7天销售趋势</div><div class="chart-box mini-chart" id="homeChart"></div></div>
-        <div class="chart-card">
-          <div class="cc-title">⚠ 预警中心</div>
-          <div class="alert-list" id="homeAlerts"></div>
+      <!-- 各模块缩略卡片 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+        <div class="card" style="cursor:pointer;" onclick="switchModule('dash')">
+          <div class="card-title">📊 销售概览 <span style="font-size:11px;color:var(--blue);margin-left:auto;">查看详情 →</span></div>
+          <div id="homeSalesMini"></div>
         </div>
-      </div>
-      <div class="card"><div class="card-title">🔗 快捷操作</div>
-        <div class="quick-actions" id="quickActions"></div>
+        <div class="card" style="cursor:pointer;" onclick="switchModule('fin')">
+          <div class="card-title">💳 财务概览 <span style="font-size:11px;color:var(--blue);margin-left:auto;">查看详情 →</span></div>
+          <div id="homeFinMini"></div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="switchModule('prod')">
+          <div class="card-title">👟 产品概览 <span style="font-size:11px;color:var(--blue);margin-left:auto;">查看详情 →</span></div>
+          <div id="homeProdMini"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">⚠ 预警中心</div>
+          <div id="homeAlerts" style="max-height:200px;overflow-y:auto;"></div>
+        </div>
       </div>
     </div>
 
@@ -251,19 +263,32 @@ tr:hover td{background:#fafcfd}
 
     <!-- DASHBOARD -->
     <div class="section" id="sec-dash">
-      <div class="kpi-grid" id="dashKPIs"></div>
-      <div class="chart-row">
-        <div class="chart-card"><div class="cc-title">📈 销售趋势</div><div class="chart-box" id="chartDashSales"></div></div>
-        <div class="chart-card"><div class="cc-title">📊 转化/退货率</div><div class="chart-box" id="chartDashRate"></div></div>
-      </div>
-      <div class="chart-row">
-        <div class="chart-card"><div class="cc-title">🏆 产品排行</div><div class="chart-box" id="chartDashProducts"></div></div>
-        <div class="chart-card"><div class="cc-title">📐 盈亏分布</div><div class="chart-box" id="chartDashPnL"></div></div>
-      </div>
-      <div class="btn-row">
+      <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
+        <button class="btn btn-sm fin-tab-btn active" id="dashTabOverview" onclick="switchDashTab('overview')" style="border-radius:6px 0 0 6px;">📊 总体概览</button>
+        <button class="btn btn-sm fin-tab-btn" id="dashTabProducts" onclick="switchDashTab('products')" style="border-radius:0;">👟 商品明细</button>
+        <button class="btn btn-sm fin-tab-btn" id="dashTabWeeks" onclick="switchDashTab('weeks')" style="border-radius:0 6px 6px 0;">📅 周对比</button>
+        <span style="flex:1;"></span>
         <span style="font-size:12px;color:var(--text3);">共 <b id="dashReportCount">0</b> 份报表</span>
-        <button class="btn btn-outline btn-sm" onclick="switchModule('dash');document.getElementById('fileInputDash').click()">📤 上传报表</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('fileInputDash').click()">📤 上传报表</button>
         <input type="file" id="fileInputDash" accept=".xlsx,.xls" style="display:none" onchange="handleFileUploadDash(event)">
+      </div>
+      <!-- 总体概览 -->
+      <div class="dash-view active" id="dashOverview">
+        <div class="kpi-grid" id="dashKPIs"></div>
+        <div class="chart-row">
+          <div class="chart-card"><div class="cc-title">📈 销售趋势</div><div class="chart-box" id="chartDashSales"></div></div>
+          <div class="chart-card"><div class="cc-title">📊 转化/退货率</div><div class="chart-box" id="chartDashRate"></div></div>
+        </div>
+      </div>
+      <!-- 商品明细 -->
+      <div class="dash-view" id="dashProducts">
+        <div class="card"><div class="card-title">👟 商品数据明细（按最新周）</div>
+        <div class="table-wrap"><table><thead><tr><th>商品</th><th>品牌</th><th>等级</th><th>本周销售</th><th>本周订单</th><th>转化率</th><th>单均利润</th><th>上周销售</th><th>环比</th><th>状态</th></tr></thead><tbody id="dashProductDetailBody"></tbody></table></div></div>
+      </div>
+      <!-- 周对比 -->
+      <div class="dash-view" id="dashWeeks">
+        <div class="card"><div class="card-title">📅 每周数据对比</div>
+        <div class="table-wrap"><table><thead><tr><th>周期</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>退货</th><th>退货率</th><th>利润</th><th>利润率</th></tr></thead><tbody id="dashWeekTableBody"></tbody></table></div></div>
       </div>
     </div>
 
@@ -395,56 +420,80 @@ function refreshCurrent() {
 // ============================================================
 function renderHome() {
   const db = getDB();
-  const reports = db.reports.sort((a,b) => new Date(b.date)-new Date(a.date));
-  const lastR = reports[0];
-  const financeData = db.finance;
-  const bills = financeData.weeklyBills || [];
+  const reports = db.reports.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const bills = db.finance.weeklyBills||[];
+  const ledger = db.finance.ledger||[];
+  const products = db.products||[];
+
+  // Latest data
   const lastBill = bills[bills.length-1];
+  const totalIn = ledger.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
+  const totalOut = Math.abs(ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
+  const totalProfit = bills.reduce((s,b)=>s+(b.summary.profit||0),0);
+  const totalRev = bills.reduce((s,b)=>s+(b.summary.revenue||0),0);
 
-  // KPIs
-  const rev = lastR ? (lastR.data.revenue||0) : 0;
-  const orders = lastR ? (lastR.data.orders||0) : 0;
-  const profit = lastR ? (lastR.data.profit||0) : 0;
-  const visitors = lastR ? (lastR.data.visitors||0) : 0;
-  const conv = visitors>0 ? (orders/visitors*100) : 0;
-  const totalProfit = bills.reduce((s,b) => s+(b.summary.profit||0),0);
-
+  // Top KPI row
   document.getElementById('homeKPIs').innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">最新报表销售额</div><div class="kpi-value">¥${rev.toLocaleString()}</div><div class="kpi-sub">${lastR?lastR.label:'暂无数据'}</div></div>
-    <div class="kpi-card"><div class="kpi-label">订单 / 访客</div><div class="kpi-value">${orders}<span style="font-size:16px;color:var(--text3);">/${visitors.toLocaleString()}</span></div><div class="kpi-sub">转化率 ${conv.toFixed(2)}%</div></div>
-    <div class="kpi-card"><div class="kpi-label">累计利润（近3周）</div><div class="kpi-value" style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">¥${totalProfit.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">产品数 / 报表数</div><div class="kpi-value">${db.products.length}<span style="font-size:16px;color:var(--text3);">/${reports.length}</span></div></div>
+    <div class="kpi-card" onclick="switchModule('dash')" style="cursor:pointer;">
+      <div class="kpi-label">📊 最新周销售额</div>
+      <div class="kpi-value">¥${lastBill?lastBill.summary.revenue.toLocaleString():'--'}</div>
+      <div class="kpi-sub">${lastBill?lastBill.label:'暂无数据'} · ${lastBill?lastBill.summary.orders:0}单</div>
+    </div>
+    <div class="kpi-card" onclick="switchModule('dash')" style="cursor:pointer;">
+      <div class="kpi-label">📈 最新周利润</div>
+      <div class="kpi-value" style="color:${lastBill&&lastBill.summary.profit>=0?'var(--green)':'var(--red)'}">${lastBill?((lastBill.summary.profit>=0?'¥':'−¥')+Math.abs(lastBill.summary.profit).toLocaleString()):'--'}</div>
+      <div class="kpi-sub">利润率 ${lastBill?lastBill.summary.profitRate.toFixed(1):'--'}%</div>
+    </div>
+    <div class="kpi-card" onclick="switchModule('fin')" style="cursor:pointer;">
+      <div class="kpi-label">💳 本月支出</div>
+      <div class="kpi-value">¥${totalOut.toLocaleString()}</div>
+      <div class="kpi-sub">收入 ¥${totalIn.toLocaleString()} · 净现金流 ${totalIn-totalOut>=0?'+':''}¥${(totalIn-totalOut).toLocaleString()}</div>
+    </div>
+    <div class="kpi-card" onclick="switchModule('prod')" style="cursor:pointer;">
+      <div class="kpi-label">👟 产品库存</div>
+      <div class="kpi-value">${products.length}<span style="font-size:16px;color:var(--text3);">个</span></div>
+      <div class="kpi-sub">S级 ${products.filter(p=>p.grade==='S').length} · A级 ${products.filter(p=>p.grade==='A').length} · 亏损 ${products.filter(p=>p.profitPerUnit<0).length}个</div>
+    </div>
   `;
 
-  // Mini chart
-  const recentReports = reports.slice(0,7).reverse();
-  renderChart('homeChart', {
-    tooltip:{trigger:'axis'},grid:{top:10,right:10,bottom:20,left:40},
-    xAxis:{type:'category',data:recentReports.map(r=>r.date),axisLabel:{fontSize:9}},
-    yAxis:{type:'value',axisLabel:{fontSize:9}},
-    series:[
-      {name:'销售额',type:'bar',data:recentReports.map(r=>r.data.revenue||0),itemStyle:{color:'#3370ff'},barMaxWidth:20},
-      {name:'利润',type:'line',data:recentReports.map(r=>r.data.profit||0),itemStyle:{color:'#34c759'},smooth:true}
-    ]
-  });
+  // Sales mini
+  const topProducts = [...products].sort((a,b)=>b.totalSales-a.totalSales).slice(0,5);
+  document.getElementById('homeSalesMini').innerHTML = `
+    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">近3周累计：销售额 ¥${totalRev.toLocaleString()} · 利润 ¥${totalProfit.toLocaleString()}</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">${bills.length} 周数据 · ${reports.length} 份报表</div>
+    ${topProducts.length>0? '<div style="font-size:11px;color:var(--text3);">🏆 销售额TOP5：'+topProducts.map(p=>p.name+' ¥'+(p.totalSales||0).toLocaleString()).join('、')+'</div>':'<div style="font-size:11px;color:var(--text3);">暂无产品数据</div>'}
+  `;
+
+  // Finance mini
+  const catMap={};ledger.filter(i=>i.amount<0).forEach(i=>{catMap[i.cat]=(catMap[i.cat]||0)+Math.abs(i.amount);});
+  const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  document.getElementById('homeFinMini').innerHTML = `
+    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">净现金流：<b style="color:${totalIn-totalOut>=0?'var(--green)':'var(--red)'}">${totalIn-totalOut>=0?'+':''}¥${(totalIn-totalOut).toLocaleString()}</b></div>
+    ${topCats.length>0?'<div style="font-size:11px;color:var(--text3);">支出TOP5：'+topCats.map(([k,v])=>k+' ¥'+v.toLocaleString()).join(' · ')+'</div>':'<div style="font-size:11px;color:var(--text3);">暂无记账数据</div>'}
+    <div style="font-size:11px;color:var(--text3);margin-top:4px;">共 ${ledger.length} 条流水记录</div>
+  `;
+
+  // Product mini
+  const lossProducts = products.filter(p=>p.profitPerUnit<0);
+  const profitProducts = products.filter(p=>p.profitPerUnit>50);
+  document.getElementById('homeProdMini').innerHTML = `
+    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">🟢 高利润(>¥50/单)：${profitProducts.length}个 · 🔴 亏损：${lossProducts.length}个</div>
+    ${lossProducts.length>0?'<div style="font-size:11px;color:var(--red);">⚠ 亏损产品：'+lossProducts.map(p=>p.name+' ¥'+p.profitPerUnit).join('、')+'</div>':''}
+    ${profitProducts.length>0?'<div style="font-size:11px;color:var(--green);margin-top:2px;">✅ 利润产品：'+profitProducts.slice(0,3).map(p=>p.name+' ¥'+p.profitPerUnit).join('、')+'</div>':''}
+    ${lossProducts.length===0&&profitProducts.length===0?'<div style="font-size:11px;color:var(--text3);">暂无产品利润数据</div>':''}
+  `;
 
   // Alerts
   let alerts = [];
-  if (lastBill && lastBill.summary.returnRate > 20) alerts.push({cls:'danger',text:`⚠ 退货率 ${lastBill.summary.returnRate.toFixed(1)}% 远超警戒线 15%（${lastBill.label}）`});
-  if (lastBill && lastBill.summary.profit < 0) alerts.push({cls:'danger',text:`⚠ ${lastBill.label} 亏损 ¥${Math.abs(lastBill.summary.profit).toLocaleString()}`});
-  if (bills.length>=2 && bills[bills.length-1].summary.orders < bills[bills.length-2].summary.orders*0.7) alerts.push({cls:'warn',text:`⚡ 订单量较上周下滑超30%`});
-  if (db.products.filter(p=>p.grade==='C').length > 2) alerts.push({cls:'warn',text:`⚡ ${db.products.filter(p=>p.grade==='C').length} 个C级产品待处理`});
-  if (alerts.length===0) alerts.push({cls:'info',text:'✅ 当前无异常预警，经营状况正常'});
-
-  document.getElementById('homeAlerts').innerHTML = alerts.map(a => `<div class="alert alert-${a.cls}">${a.text}</div>`).join('');
-
-  // Quick actions
-  document.getElementById('quickActions').innerHTML = `
-    <div class="quick-action" onclick="switchModule('calc')"><div class="qa-icon">💰</div><div class="qa-label">算利润</div></div>
-    <div class="quick-action" onclick="switchModule('dash');document.getElementById('fileInputDash').click()"><div class="qa-icon">📤</div><div class="qa-label">上传报表</div></div>
-    <div class="quick-action" onclick="switchModule('ai')"><div class="qa-icon">🤖</div><div class="qa-label">AI 分析</div></div>
-    <div class="quick-action" onclick="switchModule('fin')"><div class="qa-icon">💳</div><div class="qa-label">查账单</div></div>
-  `;
+  if (lastBill && lastBill.summary.returnRate > 20) alerts.push({cls:'danger',text:`⚠ 退货率 ${lastBill.summary.returnRate.toFixed(1)}% 严重超标（警戒线15%）— ${lastBill.label}`});
+  if (lastBill && lastBill.summary.profit < 0) alerts.push({cls:'danger',text:`🔴 ${lastBill.label} 亏损 ¥${Math.abs(lastBill.summary.profit).toLocaleString()}`});
+  if (bills.length>=2) {
+    const cur=bills[bills.length-1].summary, prev=bills[bills.length-2].summary;
+    if (cur.orders < prev.orders*0.7) alerts.push({cls:'warn',text:`⚡ 订单周环比下滑 ${Math.round((1-cur.orders/prev.orders)*100)}%（${prev.orders}→${cur.orders}单）`});
+  }
+  lossProducts.forEach(p=>{alerts.push({cls:'warn',text:`🟡 ${p.name} 单均亏损 ¥${Math.abs(p.profitPerUnit)}，建议调整定价或下架`});});
+  if (alerts.length===0) alerts.push({cls:'info',text:'✅ 当前无异常预警'});
+  document.getElementById('homeAlerts').innerHTML = alerts.slice(0,8).map(a=>`<div class="alert alert-${a.cls}">${a.text}</div>`).join('');
 }
 
 // ============================================================
@@ -555,36 +604,74 @@ function loadCalcRecord(i) {
 // ============================================================
 // MODULE 3: DASHBOARD (from datacenter.html)
 // ============================================================
+function switchDashTab(t) {
+  document.querySelectorAll('.dash-view').forEach(v=>v.classList.remove('active'));
+  const map={overview:'dashOverview',products:'dashProducts',weeks:'dashWeeks'};
+  const el=document.getElementById(map[t]); if(el) el.classList.add('active');
+  document.querySelectorAll('#sec-dash .fin-tab-btn').forEach(b=>b.classList.remove('active'));
+  const btnMap={overview:'dashTabOverview',products:'dashTabProducts',weeks:'dashTabWeeks'};
+  const btn=document.getElementById(btnMap[t]); if(btn) btn.classList.add('active');
+  if (t==='overview') renderDashOverview();
+  if (t==='products') renderDashProducts();
+  if (t==='weeks') renderDashWeeks();
+}
+
 function renderDashboard() {
+  document.getElementById('dashReportCount').textContent = getDB().reports.length;
+  switchDashTab('overview');
+}
+
+function renderDashOverview() {
   const db = getDB();
   const reports = db.reports.sort((a,b)=>new Date(a.date)-new Date(b.date));
-  document.getElementById('dashReportCount').textContent = reports.length;
   if (reports.length===0) { document.getElementById('dashKPIs').innerHTML='<div style="padding:20px;color:var(--text3);">暂无数据，请上传报表</div>'; return; }
-
-  const agg = {rev:0,orders:0,vis:0,ret:0,profit:0};
+  const agg={rev:0,orders:0,vis:0,ret:0,profit:0};
   reports.forEach(r=>{agg.rev+=r.data.revenue||0;agg.orders+=r.data.orders||0;agg.vis+=r.data.visitors||0;agg.ret+=r.data.returns||0;agg.profit+=r.data.profit||0;});
-  const conv = agg.vis>0?(agg.orders/agg.vis*100):0;
-  const retRate = agg.orders>0?(agg.ret/agg.orders*100):0;
-  const margin = agg.rev>0?(agg.profit/agg.rev*100):0;
-
-  document.getElementById('dashKPIs').innerHTML = `
+  const conv=agg.vis>0?(agg.orders/agg.vis*100):0,retRate=agg.orders>0?(agg.ret/agg.orders*100):0,margin=agg.rev>0?(agg.profit/agg.rev*100):0;
+  document.getElementById('dashKPIs').innerHTML=`
     <div class="kpi-card"><div class="kpi-label">总销售额</div><div class="kpi-value">¥${agg.rev.toLocaleString()}</div></div>
     <div class="kpi-card"><div class="kpi-label">总订单 / 访客</div><div class="kpi-value">${agg.orders}<span style="font-size:16px;color:var(--text3);">/${agg.vis.toLocaleString()}</span></div></div>
     <div class="kpi-card"><div class="kpi-label">总利润</div><div class="kpi-value" style="color:${agg.profit>=0?'var(--green)':'var(--red)'}">¥${agg.profit.toLocaleString()}</div><div class="kpi-sub">${margin.toFixed(1)}%</div></div>
     <div class="kpi-card"><div class="kpi-label">转化率</div><div class="kpi-value">${conv.toFixed(2)}%</div><div class="kpi-sub">行业 2-3%</div></div>
-    <div class="kpi-card"><div class="kpi-label">退货率</div><div class="kpi-value">${retRate.toFixed(1)}%</div><div class="kpi-sub">警戒 15%</div></div>
-  `;
-
-  const dates = reports.map(r=>r.date);
+    <div class="kpi-card"><div class="kpi-label">退货率</div><div class="kpi-value">${retRate.toFixed(1)}%</div><div class="kpi-sub">警戒 15%</div></div>`;
+  const dates=reports.map(r=>r.date);
   renderChart('chartDashSales',{tooltip:{trigger:'axis'},legend:{data:['销售额','利润'],bottom:0},xAxis:{type:'category',data:dates,axisLabel:{rotate:30,fontSize:9}},yAxis:{type:'value'},series:[{name:'销售额',type:'bar',data:reports.map(r=>r.data.revenue||0),itemStyle:{color:'#3370ff'},barMaxWidth:25},{name:'利润',type:'line',data:reports.map(r=>r.data.profit||0),itemStyle:{color:'#34c759'},smooth:true}]});
   renderChart('chartDashRate',{tooltip:{trigger:'axis'},legend:{data:['转化率%','退货率%'],bottom:0},xAxis:{type:'category',data:dates,axisLabel:{rotate:30,fontSize:9}},yAxis:{type:'value'},series:[{name:'转化率%',type:'line',data:reports.map(r=>r.data.conversion||0),itemStyle:{color:'#ff9500'},smooth:true},{name:'退货率%',type:'line',data:reports.map((r,i)=>(r.data.returns||0)/((r.data.orders||1))*100),itemStyle:{color:'#ff3b30'},smooth:true}]});
+}
 
-  const products = db.products.sort((a,b)=>b.totalSales-a.totalSales).slice(0,8);
-  renderChart('chartDashProducts',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:100},xAxis:{type:'value'},yAxis:{type:'category',data:products.map(p=>p.name),inverse:true,axisLabel:{fontSize:10}},series:[{name:'销售额',type:'bar',data:products.map(p=>p.totalSales),itemStyle:{color:'#3370ff'},label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:18}]});
+function renderDashProducts() {
+  const db=getDB(); const products=db.products; const bills=db.finance.weeklyBills||[];
+  const lastBill=bills[bills.length-1]; const prevBill=bills[bills.length-2];
+  document.getElementById('dashProductDetailBody').innerHTML=products.map(p=>{
+    const curSales=lastBill?lastBill.sales.filter(s=>s.name===p.name).reduce((x,s)=>x+s.price,0):0;
+    const curOrders=lastBill?lastBill.sales.filter(s=>s.name===p.name).length:0;
+    const prevSales=prevBill?prevBill.sales.filter(s=>s.name===p.name).reduce((x,s)=>x+s.price,0):0;
+    const prevOrders=prevBill?prevBill.sales.filter(s=>s.name===p.name).length:0;
+    const change=prevSales>0?((curSales-prevSales)/prevSales*100):0;
+    return `<tr>
+      <td><b>${p.name}</b></td><td>${p.brand||'--'}</td>
+      <td><span class="tag ${p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red'}">${p.grade}级</span></td>
+      <td>¥${curSales.toLocaleString()}</td><td>${curOrders}单</td>
+      <td>${(p.conversion||0).toFixed(1)}%</td>
+      <td style="color:${(p.profitPerUnit||0)>=0?'var(--green)':'var(--red)'}">¥${p.profitPerUnit||0}</td>
+      <td>¥${prevSales.toLocaleString()}</td>
+      <td style="color:${change>=0?'var(--green)':'var(--red)'}">${change>=0?'↑':'↓'}${Math.abs(change).toFixed(0)}%</td>
+      <td><span class="tag ${(p.profitPerUnit||0)>=50?'tag-green':(p.profitPerUnit||0)>=0?'tag-yellow':'tag-red'}">${(p.profitPerUnit||0)>=50?'盈利':(p.profitPerUnit||0)>=0?'微利':'亏损'}</span></td>
+    </tr>`;}).join('');
+}
 
-  const profCnt = db.products.filter(p=>p.profitPerUnit>0).length;
-  const lossCnt = db.products.filter(p=>p.profitPerUnit<0).length;
-  renderChart('chartDashPnL',{tooltip:{trigger:'item'},series:[{type:'pie',radius:['50%','72%'],data:[{value:profCnt,name:'盈利',itemStyle:{color:'#34c759'}},{value:lossCnt,name:'亏损',itemStyle:{color:'#ff3b30'}}],label:{formatter:'{b}\n{d}%'}}]});
+function renderDashWeeks() {
+  const db=getDB(); const bills=db.finance.weeklyBills||[];
+  document.getElementById('dashWeekTableBody').innerHTML=bills.map((b,i)=>{
+    const s=b.summary; const prev=bills[i-1];
+    const ch=prev?(s.revenue-prev.summary.revenue):0;
+    return `<tr>
+      <td><b>${b.label}</b></td>
+      <td>¥${s.revenue.toLocaleString()}</td><td>${s.orders}</td><td>--</td>
+      <td>--</td><td>${s.returns}</td><td>${s.returnRate.toFixed(1)}%</td>
+      <td style="color:${s.profit>=0?'var(--green)':'var(--red)'}">¥${s.profit.toLocaleString()}</td>
+      <td>${s.profitRate.toFixed(1)}%</td>
+    </tr>`;}).join('');
 }
 
 function handleFileUploadDash(event) {
