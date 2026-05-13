@@ -311,7 +311,7 @@ tr:hover td{background:#fafcfd}
         <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="addLedgerRow()">＋ 新增一行</button></div>
       </div>
       <div id="finWeeklyView" class="fin-view">
-        <div style="margin-bottom:10px;"><select id="finWeekSel" onchange="renderFinWeekly()"></select></div>
+        <div style="margin-bottom:10px;"><select id="finWeekSel" onchange="renderFinWeekly(parseInt(this.value))"></select></div>
         <div class="kpi-grid" id="finWeekKPIs"></div>
         <div class="chart-row">
           <div class="chart-card"><div class="cc-title">🏆 款式利润</div><div class="chart-box" id="chartFinWeekProducts"></div></div>
@@ -353,7 +353,7 @@ tr:hover td{background:#fafcfd}
         <select id="prodGrade" onchange="renderProducts()"><option value="all">全部等级</option><option value="S">S级</option><option value="A">A级</option><option value="B">B级</option><option value="C">C级</option></select>
         <button class="btn btn-outline btn-sm" onclick="addProduct()">＋ 添加</button>
       </div>
-      <div class="card"><div class="table-wrap"><table><thead><tr><th>产品</th><th>货号</th><th>品牌</th><th>等级</th><th>销售额</th><th>订单</th><th>转化率</th><th>退货率</th><th>利润/单</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div></div>
+      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th>货号</th><th>品牌</th><th>等级</th><th>总销售额</th><th>订单数</th><th>转化率</th><th>退货率</th><th>单均利润</th><th>状态</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div></div>
     </div>
 
     <!-- KNOWLEDGE BASE -->
@@ -420,80 +420,89 @@ function refreshCurrent() {
 // ============================================================
 function renderHome() {
   const db = getDB();
-  const reports = db.reports.sort((a,b)=>new Date(b.date)-new Date(a.date));
   const bills = db.finance.weeklyBills||[];
   const ledger = db.finance.ledger||[];
   const products = db.products||[];
-
-  // Latest data
   const lastBill = bills[bills.length-1];
+  const prevBill = bills[bills.length-2];
+
+  // Total this week
   const totalIn = ledger.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
   const totalOut = Math.abs(ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
-  const totalProfit = bills.reduce((s,b)=>s+(b.summary.profit||0),0);
-  const totalRev = bills.reduce((s,b)=>s+(b.summary.revenue||0),0);
+  const netCash = totalIn - totalOut;
 
-  // Top KPI row
+  // KPIs
+  const curRev = lastBill?lastBill.summary.revenue:0;
+  const curProfit = lastBill?lastBill.summary.profit:0;
+  const prevProfit = prevBill?prevBill.summary.profit:0;
+  const profitChange = prevProfit!==0 ? curProfit-prevProfit : 0;
+
   document.getElementById('homeKPIs').innerHTML = `
     <div class="kpi-card" onclick="switchModule('dash')" style="cursor:pointer;">
-      <div class="kpi-label">📊 最新周销售额</div>
-      <div class="kpi-value">¥${lastBill?lastBill.summary.revenue.toLocaleString():'--'}</div>
-      <div class="kpi-sub">${lastBill?lastBill.label:'暂无数据'} · ${lastBill?lastBill.summary.orders:0}单</div>
+      <div class="kpi-label">${lastBill?lastBill.label:'最新周'} 销售额</div>
+      <div class="kpi-value">¥${curRev.toLocaleString()}</div>
+      <div class="kpi-sub">${lastBill?lastBill.summary.orders:0}单 · ${lastBill?lastBill.summary.returnRate.toFixed(1):'--'}%退货</div>
     </div>
     <div class="kpi-card" onclick="switchModule('dash')" style="cursor:pointer;">
-      <div class="kpi-label">📈 最新周利润</div>
-      <div class="kpi-value" style="color:${lastBill&&lastBill.summary.profit>=0?'var(--green)':'var(--red)'}">${lastBill?((lastBill.summary.profit>=0?'¥':'−¥')+Math.abs(lastBill.summary.profit).toLocaleString()):'--'}</div>
-      <div class="kpi-sub">利润率 ${lastBill?lastBill.summary.profitRate.toFixed(1):'--'}%</div>
+      <div class="kpi-label">${lastBill?lastBill.label:'最新周'} 利润</div>
+      <div class="kpi-value" style="color:${curProfit>=0?'var(--green)':'var(--red)'}">${curProfit>=0?'¥':'−¥'}${Math.abs(curProfit).toLocaleString()}</div>
+      <div class="kpi-sub">${prevBill?'较上周 '+(profitChange>=0?'↑ +¥':'↓ −¥')+Math.abs(profitChange).toLocaleString():''}</div>
     </div>
     <div class="kpi-card" onclick="switchModule('fin')" style="cursor:pointer;">
-      <div class="kpi-label">💳 本月支出</div>
-      <div class="kpi-value">¥${totalOut.toLocaleString()}</div>
-      <div class="kpi-sub">收入 ¥${totalIn.toLocaleString()} · 净现金流 ${totalIn-totalOut>=0?'+':''}¥${(totalIn-totalOut).toLocaleString()}</div>
+      <div class="kpi-label">本月现金流</div>
+      <div class="kpi-value" style="color:${netCash>=0?'var(--green)':'var(--red)'}">${netCash>=0?'+¥':'−¥'}${Math.abs(netCash).toLocaleString()}</div>
+      <div class="kpi-sub">入 ¥${totalIn.toLocaleString()} · 出 ¥${totalOut.toLocaleString()}</div>
     </div>
     <div class="kpi-card" onclick="switchModule('prod')" style="cursor:pointer;">
-      <div class="kpi-label">👟 产品库存</div>
-      <div class="kpi-value">${products.length}<span style="font-size:16px;color:var(--text3);">个</span></div>
-      <div class="kpi-sub">S级 ${products.filter(p=>p.grade==='S').length} · A级 ${products.filter(p=>p.grade==='A').length} · 亏损 ${products.filter(p=>p.profitPerUnit<0).length}个</div>
+      <div class="kpi-label">状态速览</div>
+      <div class="kpi-value" style="font-size:18px;">
+        ${products.filter(p=>p.profitPerUnit<0).length>0?'🔴'+products.filter(p=>p.profitPerUnit<0).length+'亏损':'✅'}
+        ${products.filter(p=>p.profitPerUnit>=50).length>0?'🟢'+products.filter(p=>p.profitPerUnit>=50).length+'盈利':''}
+      </div>
+      <div class="kpi-sub">共${products.length}个产品 · ${bills.length}周数据 · ${ledger.length}条流水</div>
     </div>
   `;
 
   // Sales mini
-  const topProducts = [...products].sort((a,b)=>b.totalSales-a.totalSales).slice(0,5);
+  const topProds = [...products].sort((a,b)=>b.totalSales-a.totalSales).slice(0,3);
   document.getElementById('homeSalesMini').innerHTML = `
-    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">近3周累计：销售额 ¥${totalRev.toLocaleString()} · 利润 ¥${totalProfit.toLocaleString()}</div>
-    <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">${bills.length} 周数据 · ${reports.length} 份报表</div>
-    ${topProducts.length>0? '<div style="font-size:11px;color:var(--text3);">🏆 销售额TOP5：'+topProducts.map(p=>p.name+' ¥'+(p.totalSales||0).toLocaleString()).join('、')+'</div>':'<div style="font-size:11px;color:var(--text3);">暂无产品数据</div>'}
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:12px;">${prevBill?'周环比：销售额 '+(curRev-(prevBill.summary.revenue||0)>=0?'↑':'↓')+' '+Math.abs(curRev-(prevBill.summary.revenue||0)).toLocaleString()+' 元':'暂无上周数据'}</span>
+    </div>
+    ${topProds.length>0?'<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">🏆 销售TOP3：</div>'+topProds.map((p,i)=>`<div style="font-size:12px;padding:3px 0;display:flex;justify-content:space-between;"><span>${i+1}. ${p.name}</span><span style="font-weight:600;">¥${(p.totalSales||0).toLocaleString()}</span></div>`).join(''):'<div style="font-size:11px;color:var(--text3);">暂无产品数据</div>'}
   `;
 
   // Finance mini
   const catMap={};ledger.filter(i=>i.amount<0).forEach(i=>{catMap[i.cat]=(catMap[i.cat]||0)+Math.abs(i.amount);});
-  const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,3);
   document.getElementById('homeFinMini').innerHTML = `
-    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">净现金流：<b style="color:${totalIn-totalOut>=0?'var(--green)':'var(--red)'}">${totalIn-totalOut>=0?'+':''}¥${(totalIn-totalOut).toLocaleString()}</b></div>
-    ${topCats.length>0?'<div style="font-size:11px;color:var(--text3);">支出TOP5：'+topCats.map(([k,v])=>k+' ¥'+v.toLocaleString()).join(' · ')+'</div>':'<div style="font-size:11px;color:var(--text3);">暂无记账数据</div>'}
-    <div style="font-size:11px;color:var(--text3);margin-top:4px;">共 ${ledger.length} 条流水记录</div>
+    <div style="font-size:12px;margin-bottom:6px;">净现金流：<b style="color:${netCash>=0?'var(--green)':'var(--red)'};font-size:16px;">${netCash>=0?'+':''}¥${netCash.toLocaleString()}</b></div>
+    ${topCats.length>0?'<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">📊 支出TOP3：</div>'+topCats.map(([k,v])=>`<div style="font-size:12px;padding:2px 0;display:flex;justify-content:space-between;"><span>${k}</span><span style="font-weight:600;">¥${v.toLocaleString()}</span></div>`).join(''):'<div style="font-size:11px;color:var(--text3);">暂无记账数据</div>'}
+    <div style="font-size:10px;color:var(--text3);margin-top:4px;">${ledger.length}条流水记录</div>
   `;
 
   // Product mini
-  const lossProducts = products.filter(p=>p.profitPerUnit<0);
-  const profitProducts = products.filter(p=>p.profitPerUnit>50);
+  const lossProds = products.filter(p=>p.profitPerUnit<0);
+  const starProds = products.filter(p=>p.profitPerUnit>=100);
   document.getElementById('homeProdMini').innerHTML = `
-    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">🟢 高利润(>¥50/单)：${profitProducts.length}个 · 🔴 亏损：${lossProducts.length}个</div>
-    ${lossProducts.length>0?'<div style="font-size:11px;color:var(--red);">⚠ 亏损产品：'+lossProducts.map(p=>p.name+' ¥'+p.profitPerUnit).join('、')+'</div>':''}
-    ${profitProducts.length>0?'<div style="font-size:11px;color:var(--green);margin-top:2px;">✅ 利润产品：'+profitProducts.slice(0,3).map(p=>p.name+' ¥'+p.profitPerUnit).join('、')+'</div>':''}
-    ${lossProducts.length===0&&profitProducts.length===0?'<div style="font-size:11px;color:var(--text3);">暂无产品利润数据</div>':''}
+    <div style="font-size:12px;margin-bottom:4px;">⭐ 核心利润(>¥100/单)：<b>${starProds.length}</b>个 · ⚠ 亏损：<b style="color:var(--red)">${lossProds.length}</b>个</div>
+    ${lossProds.length>0?'<div style="font-size:11px;color:var(--red);margin-bottom:4px;">⚠ 需处理：'+lossProds.map(p=>p.name+' ¥'+p.profitPerUnit).join('、')+'</div>':''}
+    ${starProds.length>0?'<div style="font-size:11px;color:var(--green);margin-bottom:4px;">✅ 明星产品：'+starProds.map(p=>p.name+' ¥'+p.profitPerUnit).join('、')+'</div>':''}
+    <div style="font-size:10px;color:var(--text3);">S级${products.filter(p=>p.grade==='S').length} · A级${products.filter(p=>p.grade==='A').length} · B级${products.filter(p=>p.grade==='B').length} · C级${products.filter(p=>p.grade==='C').length}</div>
   `;
 
   // Alerts
   let alerts = [];
-  if (lastBill && lastBill.summary.returnRate > 20) alerts.push({cls:'danger',text:`⚠ 退货率 ${lastBill.summary.returnRate.toFixed(1)}% 严重超标（警戒线15%）— ${lastBill.label}`});
-  if (lastBill && lastBill.summary.profit < 0) alerts.push({cls:'danger',text:`🔴 ${lastBill.label} 亏损 ¥${Math.abs(lastBill.summary.profit).toLocaleString()}`});
-  if (bills.length>=2) {
-    const cur=bills[bills.length-1].summary, prev=bills[bills.length-2].summary;
-    if (cur.orders < prev.orders*0.7) alerts.push({cls:'warn',text:`⚡ 订单周环比下滑 ${Math.round((1-cur.orders/prev.orders)*100)}%（${prev.orders}→${cur.orders}单）`});
+  if (lastBill && lastBill.summary.returnRate > 20) alerts.push({cls:'danger',text:`🔴 退货率 ${lastBill.summary.returnRate.toFixed(1)}%（警戒线15%）— 建议检查${lastBill.returns&&lastBill.returns.length>0?lastBill.returns[0].name+'等产品质量/尺码':''}`});
+  if (lastBill && lastBill.summary.profit < 0) alerts.push({cls:'danger',text:`🔴 ${lastBill.label} 亏损 ¥${Math.abs(lastBill.summary.profit).toLocaleString()} — 建议立即排查亏损产品`});
+  if (prevBill && lastBill) {
+    const chg = lastBill.summary.orders - prevBill.summary.orders;
+    if (chg < -5) alerts.push({cls:'warn',text:`🟡 订单周环比 ${chg}单（${prevBill.summary.orders}→${lastBill.summary.orders}）`});
   }
-  lossProducts.forEach(p=>{alerts.push({cls:'warn',text:`🟡 ${p.name} 单均亏损 ¥${Math.abs(p.profitPerUnit)}，建议调整定价或下架`});});
-  if (alerts.length===0) alerts.push({cls:'info',text:'✅ 当前无异常预警'});
-  document.getElementById('homeAlerts').innerHTML = alerts.slice(0,8).map(a=>`<div class="alert alert-${a.cls}">${a.text}</div>`).join('');
+  lossProds.slice(0,3).forEach(p=>{alerts.push({cls:'warn',text:`🟡 ${p.name} 单均亏损 ¥${Math.abs(p.profitPerUnit)}，建议评估是否调价或下架`});});
+  if (netCash < -3000) alerts.push({cls:'danger',text:`🔴 本月净现金流 −¥${Math.abs(netCash).toLocaleString()}，支出远超收入`});
+  if (alerts.length===0) alerts.push({cls:'info',text:'✅ 当前各项指标正常，无异常预警'});
+  document.getElementById('homeAlerts').innerHTML = alerts.slice(0,5).map(a=>`<div class="alert alert-${a.cls}">${a.text}</div>`).join('');
 }
 
 // ============================================================
@@ -740,7 +749,7 @@ function renderFinLedger() {
       <td><input value="${i.day||''}" onchange="updateLedgerCell(${realIdx},'day',this.value)" style="width:60px;padding:4px 6px;font-size:12px;"></td>
       <td><select onchange="updateLedgerCell(${realIdx},'cat',this.value)" style="padding:4px 6px;font-size:12px;">${cats}</select></td>
       <td><input value="${i.desc||''}" onchange="updateLedgerCell(${realIdx},'desc',this.value)" style="width:140px;padding:4px 6px;font-size:12px;"></td>
-      <td><input type="number" value="${i.amount}" onchange="updateLedgerCell(${realIdx},'amount',parseFloat(this.value)||0)" style="width:90px;padding:4px 6px;font-size:12px;color:${i.amount>=0?'var(--green)':'var(--red)'};font-weight:700;"></td>
+      <td><input type="number" value="${Math.abs(i.amount)}" oninput="this.style.color=parseFloat(this.value)>0&&'${i.cat}'!=='其他收入'?'var(--red)':'var(--green)';this.value=this.value.replace(/^-/,'')" onchange="let v=parseFloat(this.value)||0;if(v>0&&'${i.cat.replace(/'/g,"\\'")}'!=='其他收入')v=-v;updateLedgerCell(${realIdx},'amount',v)" style="width:90px;padding:4px 6px;font-size:12px;color:${i.amount<0?'var(--red)':'var(--green)'};font-weight:700;"></td>
       <td><input value="${i.pay||''}" onchange="updateLedgerCell(${realIdx},'pay',this.value)" style="width:70px;padding:4px 6px;font-size:12px;"></td>
       <td><input type="number" value="${i.week||1}" onchange="updateLedgerCell(${realIdx},'week',parseInt(this.value)||1)" style="width:50px;padding:4px 6px;font-size:12px;"></td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteLedgerRow(${realIdx})" style="padding:2px 8px;">✕</button></td>
@@ -752,8 +761,26 @@ function updateLedgerCell(idx, field, value) {
   const db = getDB();
   if (idx>=0 && idx<db.finance.ledger.length) {
     db.finance.ledger[idx][field] = value;
+    // Auto-detect: if date changed, fill weekday and week number
+    if (field==='date' && value) {
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) {
+        const days = ['周日','周一','周二','周三','周四','周五','周六'];
+        db.finance.ledger[idx].day = days[d.getDay()];
+        // Calculate week number (from May 4 = Week 1)
+        const startDate = new Date('2026-05-04');
+        const diffDays = Math.floor((d - startDate) / 86400000);
+        db.finance.ledger[idx].week = Math.floor(diffDays / 7) + 1;
+      }
+    }
+    // Auto-negate: if category is expense type and amount > 0, make it negative
+    if (field==='amount' && value > 0 && db.finance.ledger[idx].cat !== '其他收入') {
+      db.finance.ledger[idx].amount = -Math.abs(value);
+    }
     saveDB(db);
-    // Re-render KPIs without full table refresh
+    // Re-render to update auto-filled fields
+    renderFinLedger();
+    // Update KPIs
     const totalIn = db.finance.ledger.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
     const totalOut = Math.abs(db.finance.ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
     document.getElementById('finLedgerKPIs').innerHTML = `
@@ -781,10 +808,14 @@ function deleteLedgerRow(idx) {
   toast('已删除');
 }
 
-function renderFinWeekly() {
+function renderFinWeekly(idxOverride) {
   const db = getDB(); const bills = db.finance.weeklyBills||[];
   const sel=document.getElementById('finWeekSel');
+  const prevVal = sel.value;
   sel.innerHTML = bills.map((b,i)=>`<option value="${i}">${b.label}</option>`).join('');
+  // Restore previous selection or use override
+  if (idxOverride !== undefined) sel.value = idxOverride;
+  else if (prevVal && parseInt(prevVal) < bills.length) sel.value = prevVal;
   const idx=parseInt(sel.value)||0; const bill=bills[idx]; if(!bill) return;
   const s=bill.summary;
   document.getElementById('finWeekKPIs').innerHTML = `
@@ -912,7 +943,29 @@ function analyzeLatestReport() {
 function renderProducts() {
   const db = getDB(); const search=(document.getElementById('prodSearch').value||'').toLowerCase(); const grade=document.getElementById('prodGrade').value;
   let products=db.products; if(grade!=='all') products=products.filter(p=>p.grade===grade); if(search) products=products.filter(p=>p.name.toLowerCase().includes(search)||(p.code||'').toLowerCase().includes(search));
-  document.getElementById('prodBody').innerHTML = products.map(p=>`<tr><td><b>${p.name}</b></td><td>${p.code||'--'}</td><td>${p.brand||'--'}</td><td><span class="tag ${p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red'}">${p.grade}级</span></td><td>¥${(p.totalSales||0).toLocaleString()}</td><td>${p.orders||0}</td><td>${(p.conversion||0).toFixed(1)}%</td><td>${(p.returns||0).toFixed(0)}%</td><td style="color:${(p.profitPerUnit||0)>=0?'var(--green)':'var(--red)'}">¥${p.profitPerUnit||0}</td><td><button class="btn btn-outline btn-sm" onclick="editProduct('${p.id}')">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">✕</button></td></tr>`).join('');
+  document.getElementById('prodBody').innerHTML = products.map(p=>{
+    const ppu = p.profitPerUnit||0;
+    let status='', tagCls='';
+    if (ppu>=100) { status='🟢 核心利润'; tagCls='tag-green'; }
+    else if (ppu>=50) { status='🔵 高利润'; tagCls='tag-blue'; }
+    else if (ppu>=0) { status='🟡 微利'; tagCls='tag-yellow'; }
+    else { status='🔴 亏损'; tagCls='tag-red'; }
+    return `<tr>
+      <td><b>${p.name}</b></td>
+      <td style="font-family:monospace;font-size:11px;">${p.code||'--'}</td>
+      <td>${p.brand||'--'}</td>
+      <td><span class="tag ${p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red'}">${p.grade}级</span></td>
+      <td>¥${(p.totalSales||0).toLocaleString()}</td>
+      <td>${p.orders||0}单</td>
+      <td>${(p.conversion||0).toFixed(1)}%</td>
+      <td>${(p.returns||0).toFixed(0)}%</td>
+      <td style="color:${ppu>=0?'var(--green)':'var(--red)'};font-weight:700;">${ppu>=0?'+':''}¥${ppu}</td>
+      <td><span class="tag ${tagCls}">${status}</span></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-outline btn-sm" onclick="editProduct('${p.id}')" style="padding:3px 8px;">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')" style="padding:3px 8px;">✕</button>
+      </td>
+    </tr>`;}).join('');
 }
 
 function addProduct() {
