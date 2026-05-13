@@ -408,9 +408,12 @@ tr:hover td{background:#fafcfd}
           <select id="opsTaskFilter" onchange="renderOpsTasks()" style="padding:6px 10px;font-size:12px;">
             <option value="all">全部</option><option value="pending">待完成</option><option value="done">已完成</option>
           </select>
+          <button class="btn btn-outline btn-sm" onclick="showOpsGantt()">📅 甘特图</button>
+          <button class="btn btn-outline btn-sm" onclick="analyzeOps()">🤖 AI分析</button>
           <span style="font-size:12px;color:var(--text3);" id="opsTaskCount"></span>
         </div>
         <div id="opsTaskList"></div>
+        <div id="opsGanttView" style="display:none;margin-top:12px;"></div>
       </div>
       <!-- 战略规划 -->
       <div class="ops-view" id="opsPlansView">
@@ -418,6 +421,12 @@ tr:hover td{background:#fafcfd}
           <button class="btn btn-primary btn-sm" onclick="addPlan()">＋ 新建策划方案</button>
         </div>
         <div id="opsPlanList"></div>
+      </div>
+      <!-- AI分析弹窗 -->
+      <div id="opsAIPanel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);border-radius:14px;padding:24px;width:90%;max-width:600px;max-height:80vh;overflow-y:auto;z-index:150;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px;"><b style="font-size:16px;">🤖 AI 运营分析</b><button onclick="document.getElementById('opsAIPanel').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;">✕</button></div>
+        <div id="opsAIResult" style="font-size:13px;line-height:1.8;"></div>
+        <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="copyOpsAnalysis()">📋 复制给 Claude</button></div>
       </div>
     </div>
 
@@ -1056,19 +1065,46 @@ function renderFinWeekly() {
 
 function renderFinSummary() {
   const db = getDB(); const bills = db.finance.weeklyBills||[]; if (bills.length===0) return;
+  const ledger = db.finance.ledger||[];
   const totalRev = bills.reduce((s,b)=>s+(b.summary.revenue||0),0);
   const totalProfit = bills.reduce((s,b)=>s+(b.summary.profit||0),0);
+  const totalIn = ledger.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
+  const totalOut = Math.abs(ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
   const avgRet = bills.reduce((s,b)=>s+(b.summary.returnRate||0),0)/bills.length;
+  const netCash = totalIn - totalOut;
+  const profitMargin = totalRev>0?(totalProfit/totalRev*100):0;
+  const costRatio = totalRev>0?((totalRev*0.8-totalProfit)/totalRev*100):0;
+  // Weekly burn rate
+  const weeks = bills.length||1;
+  const weeklyBurn = totalOut/weeks;
+  const runway = netCash>0?'充裕':weeklyBurn>0?Math.abs(netCash)/weeklyBurn:'--';
+
   document.getElementById('finSummaryKPIs').innerHTML = `
     <div class="kpi-card"><div class="kpi-label">累计销售额</div><div class="kpi-value">¥${totalRev.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">累计利润</div><div class="kpi-value" style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">¥${totalProfit.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">平均退货率</div><div class="kpi-value">${avgRet.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">累计利润</div><div class="kpi-value" style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">¥${totalProfit.toLocaleString()}</div><div class="kpi-sub">利润率 ${profitMargin.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">净现金流</div><div class="kpi-value" style="color:${netCash>=0?'var(--green)':'var(--red)'}">¥${netCash.toLocaleString()}</div><div class="kpi-sub">周均支出 ¥${weeklyBurn.toFixed(0)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">成本率 / 退货率</div><div class="kpi-value">${costRatio.toFixed(1)}%<span style="font-size:14px;">/${avgRet.toFixed(1)}%</span></div><div class="kpi-sub">资金跑道：${typeof runway==='string'?runway:runway.toFixed(1)+'周'}</div></div>
   `;
-  document.getElementById('finCompareBody').innerHTML = bills.map((b,i)=>`<tr><td><b>${b.label}</b></td><td>${b.summary.orders}单/${b.summary.returns}退</td><td>¥${b.summary.revenue.toLocaleString()}</td><td style="color:${b.summary.profit>=0?'var(--green)':'var(--red)'}">¥${b.summary.profit.toLocaleString()}</td><td>${b.summary.profitRate.toFixed(1)}%</td><td>${b.summary.returnRate.toFixed(1)}%</td></tr>`).join('');
+  // Compare table with more columns
+  document.getElementById('finCompareBody').innerHTML = `
+    <tr><td><b>销售额</b></td>${bills.map(b=>`<td>¥${b.summary.revenue.toLocaleString()}</td>`).join('')}<td>¥${totalRev.toLocaleString()}</td></tr>
+    <tr><td><b>利润</b></td>${bills.map(b=>`<td style=\"color:${b.summary.profit>=0?'var(--green)':'var(--red)'}\">¥${b.summary.profit.toLocaleString()}</td>`).join('')}<td style=\"color:${totalProfit>=0?'var(--green)':'var(--red)'}\">¥${totalProfit.toLocaleString()}</td></tr>
+    <tr><td><b>利润率</b></td>${bills.map(b=>`<td>${b.summary.profitRate.toFixed(1)}%</td>`).join('')}<td>${profitMargin.toFixed(1)}%</td></tr>
+    <tr><td><b>订单/退货</b></td>${bills.map(b=>`<td>${b.summary.orders}/${b.summary.returns}</td>`).join('')}<td>--</td></tr>
+    <tr><td><b>退货率</b></td>${bills.map(b=>`<td>${b.summary.returnRate.toFixed(1)}%</td>`).join('')}<td>${avgRet.toFixed(1)}%</td></tr>
+    <tr><td><b>到手收入</b></td>${bills.map(b=>`<td>¥${b.summary.netIncome.toLocaleString()}</td>`).join('')}<td>--</td></tr>
+    <tr><td><b>平台费</b></td>${bills.map(b=>`<td>¥${b.summary.platformFee.toLocaleString()}</td>`).join('')}<td>--</td></tr>
+  `;
   renderChart('chartFinWeeklyProfit',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:bills.map(b=>b.label)},yAxis:{type:'value'},series:[{name:'利润',type:'bar',data:bills.map(b=>b.summary.profit),itemStyle:{color:params=>params.value>=0?'#34c759':'#ff3b30'},barMaxWidth:35,label:{show:true,position:'top',formatter:'¥{c}'}}]});
-  const monthlyRev=totalRev/bills.length*4.3,monthlyProfit=totalProfit/bills.length*4.3;
-  renderChart('chartFinMonthly',{tooltip:{trigger:'item'},series:[{type:'pie',radius:['55%','78%'],data:[{name:'预估月销售额',value:Math.round(monthlyRev),itemStyle:{color:'#3370ff'}},{name:'平台费(20%)',value:Math.round(monthlyRev*0.2),itemStyle:{color:'#ff9500'}},{name:'原鞋成本(估)',value:Math.round(monthlyRev*0.5),itemStyle:{color:'#ff3b30'}},{name:'预估月利润',value:Math.round(Math.abs(monthlyProfit)),itemStyle:{color:monthlyProfit>=0?'#34c759':'#ff3b30'}}],label:{formatter:'{b}\n¥{c}'}}]});
-  document.getElementById('finSummaryReport').innerHTML = `<b>月度预估：</b>月销售额约 ¥${monthlyRev.toLocaleString()}，月利润约 ¥${monthlyProfit.toLocaleString()}<br><br><b>关键风险：</b>退货率 ${avgRet.toFixed(1)}%（${avgRet>15?'超标':'正常'}），${totalProfit<0?'<b style=color:var(--red)>整体亏损中</b>':'盈利状态良好'}。`;
+  // Cash flow waterfall
+  const cfData=[{name:'销售额',value:totalRev,color:'#3370ff'},{name:'平台费(-20%)',value:-totalRev*0.2,color:'#ff9500'},{name:'原鞋成本(估)',value:-totalRev*0.45,color:'#ff3b30'},{name:'定制/固定成本',value:-totalRev*0.2,color:'#af52de'},{name:'净利润',value:totalProfit,color:totalProfit>=0?'#34c759':'#ff3b30'}];
+  renderChart('chartFinMonthly',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},xAxis:{type:'category',data:cfData.map(d=>d.name),axisLabel:{fontSize:9}},yAxis:{type:'value'},series:[{name:'金额',type:'bar',data:cfData.map(d=>d.value),itemStyle:{color:params=>cfData[params.dataIndex].color},barMaxWidth:35,label:{show:true,position:'top',formatter:'¥{c}'}}]});
+  document.getElementById('finSummaryReport').innerHTML = `<b>📊 财务健康诊断：</b><br>
+    利润率 ${profitMargin.toFixed(1)}%（${profitMargin>=10?'🟢 健康':profitMargin>=5?'🟡 偏低':'🔴 危险'}）<br>
+    成本率 ${costRatio.toFixed(1)}%（含平台佣金+原鞋+定制+固定成本）<br>
+    退货率 ${avgRet.toFixed(1)}%（${avgRet<=15?'🟢 正常':'🔴 超标'}）<br>
+    周均支出 ¥${weeklyBurn.toFixed(0)} · 资金跑道 ${typeof runway==='string'?runway:runway.toFixed(1)+'周'}<br>
+    ${netCash<0?'<b style=\"color:var(--red);\">⚠ 现金流为负，支出超过收入，需要控制成本或增加销售</b>':'🟢 现金流为正，运营健康'}`;
 }
 
 function uploadFinanceWorkbench() {
@@ -1284,6 +1320,43 @@ function addPlan(){const db=getDB();if(!db.opsPlans)db.opsPlans=[];const t=promp
 function genTasksFromPlan(pid){const db=getDB();const plan=db.opsPlans.find(p=>p.id===pid);if(!plan)return;if(!db.opsTasks)db.opsTasks=[];const txt=prompt('输入任务（每行一个）：','');if(!txt)return;txt.split('\n').filter(l=>l.trim()).forEach(l=>{db.opsTasks.unshift({id:'ot_'+Date.now()+Math.random(),title:l.trim(),done:false,priority:'medium',planId:plan.id,planName:plan.title,source:'plan',createdAt:Date.now()});});saveDB(db);renderOpsPlans();toast('任务已生成');}
 function editPlan(id){const db=getDB();const p=db.opsPlans.find(x=>x.id===id);if(!p)return;const t=prompt('标题：',p.title);if(t===null)return;const g=prompt('目标：',p.goal);if(g===null)return;const d=prompt('截止日期：',p.deadline);if(d===null)return;const s=prompt('状态（active/planned/done）：',p.status);if(s===null)return;p.title=t;p.goal=g;p.deadline=d;p.status=s;saveDB(db);renderOpsPlans();toast('已更新');}
 function deletePlan(id){if(!confirm('删除方案？'))return;const db=getDB();db.opsPlans=(db.opsPlans||[]).filter(p=>p.id!==id);saveDB(db);renderOpsPlans();}
+
+function showOpsGantt() {
+  const db=getDB();const plans=db.opsPlans||[];const tasks=db.opsTasks||[];
+  if (plans.length===0&&tasks.length===0){toast('暂无任务可显示甘特图');return;}
+  const view=document.getElementById('opsGanttView');
+  view.style.display=view.style.display==='none'?'block':'none';
+  if (view.style.display==='none')return;
+  const now=Date.now();const day=86400000;
+  const allItems=[];
+  plans.forEach(p=>{allItems.push({title:p.title,start:p.createdAt||now,end:p.deadline?new Date(p.deadline).getTime():now+30*day,color:'#3370ff',type:'plan'});});
+  tasks.filter(t=>t.dueDate&&!t.done).forEach(t=>{allItems.push({title:t.title,start:Date.now()-7*day,end:new Date(t.dueDate).getTime(),color:t.priority==='high'?'#ff3b30':'#ff9500',type:'task'});});
+  const minStart=Math.min(...allItems.map(i=>i.start));
+  const maxEnd=Math.max(...allItems.map(i=>i.end));
+  const totalDays=Math.max(1,(maxEnd-minStart)/day);
+  view.innerHTML=`<div class=\"card\"><div class=\"card-title\">📅 甘特图</div><div style=\"position:relative;\">`+
+    allItems.map(i=>{const left=((i.start-minStart)/day/totalDays*100).toFixed(1);const width=Math.max(3,((i.end-i.start)/day/totalDays*100)).toFixed(1);return`<div style=\"margin:4px 0;display:flex;align-items:center;gap:8px;\"><span style=\"font-size:11px;width:150px;text-align:right;\">${i.title.substring(0,15)}</span><div style=\"flex:1;background:#f0f0f0;height:20px;border-radius:4px;position:relative;\"><div style=\"position:absolute;left:${left}%;width:${width}%;height:100%;background:${i.color};border-radius:4px;opacity:0.8;\"></div></div></div>`}).join('')+
+    `<div style=\"font-size:10px;color:var(--text3);margin-top:8px;\">◼ 蓝色=方案 ◼ 红色=高优任务 ◼ 橙色=普通任务</div></div></div>`;
+}
+
+function analyzeOps() {
+  const db=getDB();const plans=db.opsPlans||[];const tasks=db.opsTasks||[];
+  const pending=tasks.filter(t=>!t.done).length;const done=tasks.filter(t=>t.done).length;
+  const total=tasks.length;const progress=total>0?Math.round(done/total*100):0;
+  const activePlans=plans.filter(p=>p.status==='active').length;
+  const highPriority=tasks.filter(t=>!t.done&&t.priority==='high').length;
+  let analysis=`<b>📊 运营总览</b><br>策划方案：${plans.length}个（${activePlans}个进行中）<br>任务总数：${total}（✅${done} / ⏳${pending}）<br>完成率：${progress}%<br>高优先级待办：${highPriority}个<br><br>`;
+  if (highPriority>3) analysis+=`<span style=\"color:var(--red);\">⚠ 高优先级任务堆积（${highPriority}个），建议集中处理</span><br>`;
+  if (progress<30&&total>5) analysis+=`<span style=\"color:var(--orange);\">⚡ 任务完成率偏低（${progress}%），需要加快进度</span><br>`;
+  if (activePlans===0&&plans.length>0) analysis+=`<span style=\"color:var(--text2);\">💡 所有方案已完成或未启动，建议制定新方案</span><br>`;
+  if (total===0) analysis+=`<span style=\"color:var(--text3);\">尚无任务，建议从数据预警中创建待办，或制定策划方案后自动生成任务</span><br>`;
+  analysis+=`<br><b>💡 建议行动：</b><br>1. 根据首页预警自动生成的高优任务优先处理<br>2. 将策划方案拆解为具体任务并设定截止日期<br>3. 每周回顾任务完成情况，调整优先级`;
+  document.getElementById('opsAIResult').innerHTML=analysis;
+  document.getElementById('opsAIPanel').style.display='block';
+  window._opsAnalysis=analysis;
+}
+
+function copyOpsAnalysis(){navigator.clipboard.writeText(window._opsAnalysis||'').then(()=>toast('✅ 已复制'));}
 
 // ============================================================
 // MODULE 8: MARKETING ROI
