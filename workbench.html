@@ -832,7 +832,8 @@ function renderDashOverview() {
   const vis=products.reduce((s,x)=>s+(x.visitors||0),0);
   const ret=products.reduce((s,x)=>s+(x.returnQty||0),0);
   const conv=vis>0?(orders/vis*100):0,retRate=orders>0?(ret/orders*100):0;
-  document.getElementById('dashOverviewNote').textContent = pidx==='all'?`${periods.length}个周期 · ${products.length}个SPU`:'';
+  const filterVal=document.getElementById('dashPeriodFilter').value;
+  document.getElementById('dashOverviewNote').textContent = filterVal==='all'?`${periods.length}个周期 · ${products.length}个SPU`:'';
   document.getElementById('dashKPIs').innerHTML=`
     <div class="kpi-card"><div class="kpi-label">销售额</div><div class="kpi-value">¥${rev.toLocaleString()}</div></div>
     <div class="kpi-card"><div class="kpi-label">订单 / 访客</div><div class="kpi-value">${orders}<span style="font-size:16px;color:var(--text3);">/${vis.toLocaleString()}</span></div></div>
@@ -880,27 +881,6 @@ function analyzeCurrentView(){
   const zeroSales=last.products.filter(x=>!x.orders).length;
   let prompt=`分析得物店铺「六六八八」最新数据周期（${last.label}，${last.days}天）：\n- SPU总数：${last.products.length}\n- 总销售额：¥${rev.toLocaleString()}\n- 总订单：${ord}\n- 总访客：${vis.toLocaleString()}\n- 零销售SPU：${zeroSales}个（${(zeroSales/last.products.length*100).toFixed(0)}%）\n- TOP5：${top5.map(p=>p.shortName+' ¥'+p.payment).join('、')}\n\n请分析：1)整体健康度 2)问题SPU 3)改进建议`;
   navigator.clipboard.writeText(prompt).then(()=>toast('✅ 分析提示词已复制，可粘贴给Claude深度分析')).catch(()=>{prompt('分析提示词（可复制给Claude）：',prompt);});
-}
-
-function renderDashProducts() {
-  const db=getDB(); const products=db.products; const bills=db.finance.weeklyBills||[];
-  const lastBill=bills[bills.length-1]; const prevBill=bills[bills.length-2];
-  document.getElementById('dashProductDetailBody').innerHTML=products.map(p=>{
-    const curSales=lastBill?lastBill.sales.filter(s=>s.name===p.name).reduce((x,s)=>x+s.price,0):0;
-    const curOrders=lastBill?lastBill.sales.filter(s=>s.name===p.name).length:0;
-    const prevSales=prevBill?prevBill.sales.filter(s=>s.name===p.name).reduce((x,s)=>x+s.price,0):0;
-    const prevOrders=prevBill?prevBill.sales.filter(s=>s.name===p.name).length:0;
-    const change=prevSales>0?((curSales-prevSales)/prevSales*100):0;
-    return `<tr>
-      <td><b>${p.name}</b></td><td>${p.brand||'--'}</td>
-      <td><span class="tag ${p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red'}">${p.grade}级</span></td>
-      <td>¥${curSales.toLocaleString()}</td><td>${curOrders}单</td>
-      <td>${(p.conversion||0).toFixed(1)}%</td>
-      <td style="color:${(p.profitPerUnit||0)>=0?'var(--green)':'var(--red)'}">¥${p.profitPerUnit||0}</td>
-      <td>¥${prevSales.toLocaleString()}</td>
-      <td style="color:${change>=0?'var(--green)':'var(--red)'}">${change>=0?'↑':'↓'}${Math.abs(change).toFixed(0)}%</td>
-      <td><span class="tag ${(p.profitPerUnit||0)>=50?'tag-green':(p.profitPerUnit||0)>=0?'tag-yellow':'tag-red'}">${(p.profitPerUnit||0)>=50?'盈利':(p.profitPerUnit||0)>=0?'微利':'亏损'}</span></td>
-    </tr>`;}).join('');
 }
 
 function renderDashWeeks() {
@@ -1510,9 +1490,9 @@ function initDefaultDataWorkbench() {
     // Will be populated below
   }
 
-  if (db.products.length===0) {
-    // Auto-populate from SPU data with smart grading
-    const spuPeriods=db.spuPeriods||[];
+  // Always regenerate products from SPU data for fresh grading
+  if (db.spuPeriods && db.spuPeriods.length>0) {
+    const spuPeriods=db.spuPeriods;
     const productMap={};
     spuPeriods.forEach(period=>{
       period.products.forEach(p=>{
