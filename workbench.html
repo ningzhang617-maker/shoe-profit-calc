@@ -275,7 +275,8 @@ tr:hover td{background:#fafcfd}
       <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
         <button class="btn btn-sm fin-tab-btn active" id="dashTabOverview" onclick="switchDashTab('overview')" style="border-radius:6px 0 0 6px;">📊 总体概览</button>
         <button class="btn btn-sm fin-tab-btn" id="dashTabProducts" onclick="switchDashTab('products')" style="border-radius:0;">👟 商品明细</button>
-        <button class="btn btn-sm fin-tab-btn" id="dashTabWeeks" onclick="switchDashTab('weeks')" style="border-radius:0 6px 6px 0;">📅 周对比</button>
+        <button class="btn btn-sm fin-tab-btn" id="dashTabWeeks" onclick="switchDashTab('weeks')" style="border-radius:0;">📅 周期对比</button>
+        <button class="btn btn-sm fin-tab-btn" id="dashTabSPU" onclick="switchDashTab('spu')" style="border-radius:0 6px 6px 0;">📋 SPU数据</button>
         <span style="flex:1;"></span>
         <span style="font-size:12px;color:var(--text3);">共 <b id="dashReportCount">0</b> 份报表</span>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('fileInputDash').click()">📤 上传报表</button>
@@ -296,8 +297,17 @@ tr:hover td{background:#fafcfd}
       </div>
       <!-- 周对比 -->
       <div class="dash-view" id="dashWeeks">
-        <div class="card"><div class="card-title">📅 每周数据对比</div>
-        <div class="table-wrap"><table><thead><tr><th>周期</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>退货</th><th>退货率</th><th>利润</th><th>利润率</th></tr></thead><tbody id="dashWeekTableBody"></tbody></table></div></div>
+        <div class="card"><div class="card-title">📅 周期数据对比 <span style="font-size:11px;color:var(--text3);">（周期天数可能不同，注意对比）</span></div>
+        <div class="table-wrap"><table><thead><tr><th>周期</th><th>天数</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>退货</th><th>退货率</th><th>日均销售</th></tr></thead><tbody id="dashWeekTableBody"></tbody></table></div></div>
+      </div>
+      <!-- SPU数据 -->
+      <div class="dash-view" id="dashSPU">
+        <div class="filter-bar">
+          <select id="spuPeriodSelect" onchange="renderDashSPU()"></select>
+          <input type="text" id="spuSearch" placeholder="🔍 搜索商品..." oninput="renderDashSPU()" style="max-width:200px;">
+          <span style="font-size:12px;color:var(--text3);" id="spuCount"></span>
+        </div>
+        <div class="card"><div class="table-wrap"><table style="min-width:800px;"><thead><tr><th>商品</th><th>货号</th><th>品牌</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>收藏</th><th>退货额</th><th>退货单</th><th>出价区间</th></tr></thead><tbody id="dashSPUBody"></tbody></table></div></div>
       </div>
     </div>
 
@@ -723,14 +733,15 @@ function loadCalcRecord(i) {
 // ============================================================
 function switchDashTab(t) {
   document.querySelectorAll('.dash-view').forEach(v=>v.classList.remove('active'));
-  const map={overview:'dashOverview',products:'dashProducts',weeks:'dashWeeks'};
+  const map={overview:'dashOverview',products:'dashProducts',weeks:'dashWeeks',spu:'dashSPU'};
   const el=document.getElementById(map[t]); if(el) el.classList.add('active');
   document.querySelectorAll('#sec-dash .fin-tab-btn').forEach(b=>b.classList.remove('active'));
-  const btnMap={overview:'dashTabOverview',products:'dashTabProducts',weeks:'dashTabWeeks'};
+  const btnMap={overview:'dashTabOverview',products:'dashTabProducts',weeks:'dashTabWeeks',spu:'dashTabSPU'};
   const btn=document.getElementById(btnMap[t]); if(btn) btn.classList.add('active');
   if (t==='overview') renderDashOverview();
   if (t==='products') renderDashProducts();
   if (t==='weeks') renderDashWeeks();
+  if (t==='spu') renderDashSPU();
 }
 
 function renderDashboard() {
@@ -778,17 +789,38 @@ function renderDashProducts() {
 }
 
 function renderDashWeeks() {
-  const db=getDB(); const bills=db.finance.weeklyBills||[];
-  document.getElementById('dashWeekTableBody').innerHTML=bills.map((b,i)=>{
-    const s=b.summary; const prev=bills[i-1];
-    const ch=prev?(s.revenue-prev.summary.revenue):0;
-    return `<tr>
-      <td><b>${b.label}</b></td>
-      <td>¥${s.revenue.toLocaleString()}</td><td>${s.orders}</td><td>--</td>
-      <td>--</td><td>${s.returns}</td><td>${s.returnRate.toFixed(1)}%</td>
-      <td style="color:${s.profit>=0?'var(--green)':'var(--red)'}">¥${s.profit.toLocaleString()}</td>
-      <td>${s.profitRate.toFixed(1)}%</td>
-    </tr>`;}).join('');
+  const db=getDB(); const periods=db.spuPeriods||[];
+  // Combine SPU periods + financial weeks
+  let rows=[];
+  periods.forEach(p=>{
+    const rev=p.products.reduce((s,x)=>s+(x.payment||0),0);
+    const orders=p.products.reduce((s,x)=>s+(x.orders||0),0);
+    const vis=p.products.reduce((s,x)=>s+(x.visitors||0),0);
+    const ret=p.products.reduce((s,x)=>s+(x.returnQty||0),0);
+    const conv=vis>0?(orders/vis*100):0;
+    const retRate=orders>0?(ret/orders*100):0;
+    rows.push(`<tr><td><b>${p.label}</b></td><td>${p.days||'--'}天</td><td>¥${rev.toLocaleString()}</td><td>${orders}</td><td>${vis.toLocaleString()}</td><td>${conv.toFixed(2)}%</td><td>${ret}</td><td>${retRate.toFixed(1)}%</td><td>¥${(rev/(p.days||1)).toFixed(0)}</td></tr>`);
+  });
+  document.getElementById('dashWeekTableBody').innerHTML=rows.join('');
+}
+
+function renderDashSPU() {
+  const db=getDB();const periods=db.spuPeriods||[];
+  if (periods.length===0){document.getElementById('dashSPUBody').innerHTML='<tr><td colspan=11>暂无SPU数据</td></tr>';return;}
+  // Init period selector
+  const sel=document.getElementById('spuPeriodSelect');
+  if (sel.options.length===0) periods.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.label+' ('+p.days+'天)';sel.appendChild(o);});
+  const idx=parseInt(sel.value)||0;const period=periods[idx];if(!period)return;
+  const search=(document.getElementById('spuSearch').value||'').toLowerCase();
+  let products=period.products;
+  if (search) products=products.filter(p=>(p.shortName||'').toLowerCase().includes(search)||(p.code||'').toLowerCase().includes(search)||(p.brand||'').toLowerCase().includes(search));
+  products.sort((a,b)=>b.payment-a.payment);
+  document.getElementById('spuCount').textContent = `显示 ${products.length}/${period.products.length} 个SPU`;
+  document.getElementById('dashSPUBody').innerHTML=products.map(p=>`<tr>
+    <td><b>${p.shortName||'--'}</b></td><td style=\"font-size:10px;\">${(p.code||'').substring(0,25)}</td><td>${p.brand||'--'}</td>
+    <td>¥${(p.payment||0).toLocaleString()}</td><td>${p.orders||0}</td><td>${(p.visitors||0).toLocaleString()}</td>
+    <td>${(p.conversion||0).toFixed(2)}%</td><td>${p.favorites||0}</td><td style=\"color:var(--red);\">¥${(p.returnAmt||0).toLocaleString()}</td><td>${p.returnQty||0}</td><td>${p.priceRange||'--'}</td>
+  </tr>`).join('');
 }
 
 function handleFileUploadDash(event) {
