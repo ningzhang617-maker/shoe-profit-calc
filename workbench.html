@@ -284,8 +284,15 @@ tr:hover td{background:#fafcfd}
       </div>
       <!-- 总体概览 -->
       <div class="dash-view active" id="dashOverview">
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
-          <select id="dashPeriodFilter" onchange="renderDashOverview()" style="padding:6px 10px;font-size:12px;width:auto;"><option value="all">全部周期</option></select>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+          <select id="dashPeriodFilter" onchange="onPeriodFilterChange('overview')" style="padding:6px 10px;font-size:12px;width:auto;">
+            <option value="all">全部周期</option><option value="2w">近2周</option><option value="1m">近一个月</option><option value="3m">近三个月</option><option value="custom">自定义</option>
+          </select>
+          <span id="dashCustomRange" style="display:none;gap:4px;align-items:center;">
+            <input type="date" id="dashDateFrom" onchange="renderDashOverview()" style="padding:4px 6px;font-size:11px;width:130px;">
+            <span style="font-size:11px;">至</span>
+            <input type="date" id="dashDateTo" onchange="renderDashOverview()" style="padding:4px 6px;font-size:11px;width:130px;">
+          </span>
           <button class="btn btn-outline btn-sm" onclick="analyzeCurrentView()">🤖 AI分析</button>
           <span style="font-size:11px;color:var(--text3);" id="dashOverviewNote"></span>
         </div>
@@ -298,7 +305,14 @@ tr:hover td{background:#fafcfd}
       <!-- 商品明细 -->
       <div class="dash-view" id="dashProducts">
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
-          <select id="prodPeriodFilter" onchange="renderDashProducts()" style="padding:6px 10px;font-size:12px;width:auto;"><option value="all">全部周期</option></select>
+          <select id="prodPeriodFilter" onchange="onPeriodFilterChange('products')" style="padding:6px 10px;font-size:12px;width:auto;">
+            <option value="all">全部周期</option><option value="2w">近2周</option><option value="1m">近一个月</option><option value="3m">近三个月</option><option value="custom">自定义</option>
+          </select>
+          <span id="prodCustomRange" style="display:none;gap:4px;align-items:center;">
+            <input type="date" id="prodDateFrom" onchange="renderDashProducts()" style="padding:4px 6px;font-size:11px;width:130px;">
+            <span style="font-size:11px;">至</span>
+            <input type="date" id="prodDateTo" onchange="renderDashProducts()" style="padding:4px 6px;font-size:11px;width:130px;">
+          </span>
           <button class="btn btn-outline btn-sm" onclick="sortDashProducts('payment')">💰按销售排序</button>
           <button class="btn btn-outline btn-sm" onclick="sortDashProducts('visitors')">👁按访客排序</button>
           <button class="btn btn-outline btn-sm" onclick="sortDashProducts('conversion')">📈按转化排序</button>
@@ -780,15 +794,38 @@ function renderDashboard() {
 
 let dashSortField='payment'; let spuSortField='payment';
 
+function onPeriodFilterChange(view){
+  const selId=view==='overview'?'dashPeriodFilter':'prodPeriodFilter';
+  const rangeId=view==='overview'?'dashCustomRange':'prodCustomRange';
+  const val=document.getElementById(selId).value;
+  document.getElementById(rangeId).style.display=val==='custom'?'flex':'none';
+  if (view==='overview') renderDashOverview();
+  else renderDashProducts();
+}
+
+function getFilteredProducts(periods, filterId){
+  const val=document.getElementById(filterId).value;
+  if (val==='all'){let all=[];periods.forEach(p=>all=all.concat(p.products));return all;}
+  if (val==='custom'){
+    const fromId=filterId==='dashPeriodFilter'?'dashDateFrom':'prodDateFrom';
+    const toId=filterId==='dashPeriodFilter'?'dashDateTo':'prodDateTo';
+    const from=document.getElementById(fromId).value;
+    const to=document.getElementById(toId).value;
+    if(!from||!to) return [];
+    let all=[];periods.forEach(p=>{if(p.start>=from&&p.end<=to)all=all.concat(p.products);});return all;
+  }
+  const now=new Date();let cutoff;
+  if (val==='2w') cutoff=new Date(now-14*86400000);
+  else if (val==='1m') cutoff=new Date(now-30*86400000);
+  else if (val==='3m') cutoff=new Date(now-90*86400000);
+  else return [];
+  const cs=cutoff.toISOString().slice(0,10);
+  let all=[];periods.forEach(p=>{if(p.end>=cs)all=all.concat(p.products);});return all;
+}
+
 function renderDashOverview() {
   const db=getDB();const periods=db.spuPeriods||[];
-  // Init period filter
-  const sel=document.getElementById('dashPeriodFilter');
-  if (sel.options.length<=1){sel.innerHTML='<option value="all">全部周期</option>';periods.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.label+' ('+p.days+'天)';sel.appendChild(o);});}
-  const pidx=sel.value;
-  let products=[];
-  if (pidx==='all'){periods.forEach(p=>products=products.concat(p.products));}
-  else{const p=periods[parseInt(pidx)];if(p)products=p.products;}
+  const products=getFilteredProducts(periods, 'dashPeriodFilter');
   if (products.length===0){document.getElementById('dashKPIs').innerHTML='<div style="padding:20px;color:var(--text3);">暂无数据</div>';return;}
   const rev=products.reduce((s,x)=>s+(x.payment||0),0);
   const orders=products.reduce((s,x)=>s+(x.orders||0),0);
@@ -811,12 +848,8 @@ function sortDashProducts(field){dashSortField=field;const labels={payment:'销�
 function sortSPU(field){spuSortField=field;const labels={payment:'销售额',visitors:'访客',conversion:'转化率',favorites:'收藏'};document.getElementById('spuSortLabel').textContent='排序：'+labels[field]+'↓';renderDashSPU();}
 
 function renderDashProducts() {
-  const db=getDB();const periods=db.spuPeriods||[];const filter=document.getElementById('prodPeriodFilter');
-  if (filter.options.length<=1){filter.innerHTML='<option value="all">全部周期</option>';periods.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.label+' ('+p.days+'天)';filter.appendChild(o);});}
-  const pidx=filter.value;
-  let products=[];
-  if (pidx==='all'){periods.forEach(p=>products=products.concat(p.products));}
-  else{const p=periods[parseInt(pidx)];if(p)products=p.products;}
+  const db=getDB();const periods=db.spuPeriods||[];
+  let products=getFilteredProducts(periods, 'prodPeriodFilter');
   // Deduplicate by shortName
   const seen={};const dedup=[];
   products.forEach(x=>{if(!seen[x.shortName]){seen[x.shortName]=true;dedup.push(x);}});
@@ -1211,14 +1244,15 @@ function renderProducts() {
   document.getElementById('prodCount').textContent = products.length+'/'+db.products.length+' 个产品';
   document.getElementById('prodBody').innerHTML = products.map(p=>{
     const ppu = p.profitPerUnit||0;
+    const score=p.score||0;
     let status='', tagCls='';
-    if (ppu>=100) { status='🟢 核心利润'; tagCls='tag-green'; }
-    else if (ppu>=50) { status='🔵 高利润'; tagCls='tag-blue'; }
-    else if (ppu>=0) { status='🟡 微利'; tagCls='tag-yellow'; }
-    else { status='🔴 亏损'; tagCls='tag-red'; }
+    if (score>=65) { status='⭐ 明星'; tagCls='tag-green'; }
+    else if (score>=40) { status='🔵 潜力'; tagCls='tag-blue'; }
+    else if (score>=15) { status='🟡 观察'; tagCls='tag-yellow'; }
+    else { status='🔴 长尾'; tagCls='tag-red'; }
     return `<tr>
       <td><b>${p.name}</b></td>
-      <td><input value="${p.code||''}" onchange="updateProductField('${p.id}','code',this.value)" style="width:120px;padding:4px 6px;font-size:11px;font-family:monospace;" placeholder="输入货号"></td>
+      <td><input value="${p.code||''}" onchange="updateProductField('${p.id}','code',this.value)" style="width:110px;padding:3px 5px;font-size:10px;font-family:monospace;" placeholder="货号"></td>
       <td>${p.brand||'--'}</td>
       <td><span class="tag ${p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red'}">${p.grade}级</span></td>
       <td>¥${(p.totalSales||0).toLocaleString()}</td>
@@ -1477,28 +1511,40 @@ function initDefaultDataWorkbench() {
   }
 
   if (db.products.length===0) {
-    // Auto-populate from SPU data
+    // Auto-populate from SPU data with smart grading
     const spuPeriods=db.spuPeriods||[];
     const productMap={};
     spuPeriods.forEach(period=>{
       period.products.forEach(p=>{
         const key=p.shortName||p.code||'unknown';
-        if (!productMap[key]) productMap[key]={name:p.shortName||key,code:p.code||'',brand:p.brand||'',totalSales:0,orders:0,visitors:0,favorites:0,returns:0,priceRange:''};
+        if (!productMap[key]) productMap[key]={name:p.shortName||key,code:p.code||'',brand:p.brand||'',totalSales:0,orders:0,visitors:0,favorites:0,returns:0,priceRange:'',maxConversion:0};
         productMap[key].totalSales+=(p.payment||0);
         productMap[key].orders+=(p.orders||0);
         productMap[key].visitors+=(p.visitors||0);
         productMap[key].favorites+=(p.favorites||0);
         productMap[key].returns+=(p.returnQty||0);
-        if (p.priceRange) productMap[key].priceRange=p.priceRange;
+        if ((p.conversion||0)>productMap[key].maxConversion) productMap[key].maxConversion=(p.conversion||0);
+        if (p.priceRange&&!productMap[key].priceRange) productMap[key].priceRange=p.priceRange;
       });
     });
-    db.products = Object.values(productMap).map((p,i)=>({
-      id:'p_spu_'+i,name:p.name,code:p.code,brand:p.brand,
-      grade: p.orders>=5?'S':p.orders>=2?'A':p.visitors>=500?'B':'C',
-      totalSales:p.totalSales,orders:p.orders,
-      conversion:p.visitors>0?(p.orders/p.visitors*100):0,returns:0,
-      profitPerUnit:0
-    }));
+    // Smart grading based on multi-dimensional data
+    db.products = Object.values(productMap).map((p,i)=>{
+      const conv=p.visitors>0?(p.orders/p.visitors*100):0;
+      const favRate=p.visitors>0?(p.favorites/p.visitors*100):0;
+      let grade='C',score=0;
+      // Scoring: orders(40) + conversion(30) + favorites(20) + sales(10)
+      if (p.orders>=10) score+=40; else if (p.orders>=5) score+=30; else if (p.orders>=2) score+=20; else if (p.orders>=1) score+=10;
+      if (conv>=1.0) score+=30; else if (conv>=0.5) score+=25; else if (conv>=0.2) score+=15; else if (conv>0) score+=5;
+      if (favRate>=10) score+=20; else if (favRate>=5) score+=15; else if (favRate>=2) score+=10; else if (favRate>0) score+=5;
+      if (p.totalSales>=5000) score+=10; else if (p.totalSales>=2000) score+=7; else if (p.totalSales>=500) score+=4;
+      if (score>=65) grade='S'; else if (score>=40) grade='A'; else if (score>=15) grade='B';
+      return {
+        id:'p_spu_'+i,name:p.name,code:p.code,brand:p.brand,grade,
+        totalSales:p.totalSales,orders:p.orders,
+        conversion:conv,returns:p.returns,
+        profitPerUnit:0,maxConversion:p.maxConversion,score
+      };
+    });
   }
   saveDB(db);
 }
