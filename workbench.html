@@ -143,9 +143,11 @@ tr:hover td{background:#fafcfd}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#d0d5dd;border-radius:2px}
 
-/* Home-specific */
-.alert-list{max-height:300px;overflow-y:auto}
-.mini-chart{height:180px}
+/* Finance sub-tabs */
+.fin-view{display:none}
+.fin-view.active{display:block}
+.fin-tab-btn{background:#f5f5f5;color:#666;border:1px solid var(--border)}
+.fin-tab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 </style>
 </head>
 <body>
@@ -268,9 +270,9 @@ tr:hover td{background:#fafcfd}
     <!-- FINANCE -->
     <div class="section" id="sec-fin">
       <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
-        <button class="btn btn-sm" id="fTabLedger" onclick="switchFinTab('ledger')" style="border-radius:6px 0 0 6px;">📋 记账流水</button>
-        <button class="btn btn-sm" id="fTabWeekly" onclick="switchFinTab('weekly')" style="border-radius:0;">📅 周账单</button>
-        <button class="btn btn-sm" id="fTabSummary" onclick="switchFinTab('summary')" style="border-radius:0 6px 6px 0;">📊 汇总</button>
+        <button class="btn btn-sm fin-tab-btn active" id="fTabLedger" onclick="switchFinTab('ledger')" style="border-radius:6px 0 0 6px;">📋 记账流水</button>
+        <button class="btn btn-sm fin-tab-btn" id="fTabWeekly" onclick="switchFinTab('weekly')" style="border-radius:0;">📅 周账单</button>
+        <button class="btn btn-sm fin-tab-btn" id="fTabSummary" onclick="switchFinTab('summary')" style="border-radius:0 6px 6px 0;">📊 汇总</button>
         <span style="flex:1;"></span>
         <button class="btn btn-outline btn-sm" onclick="switchModule('fin');uploadFinanceWorkbench()">📤 上传账单</button>
       </div>
@@ -280,7 +282,8 @@ tr:hover td{background:#fafcfd}
           <div class="chart-card"><div class="cc-title">📈 每周收支</div><div class="chart-box" id="chartFinCashflow"></div></div>
           <div class="chart-card"><div class="cc-title">🍩 支出分类</div><div class="chart-box" id="chartFinExpCat"></div></div>
         </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>周次</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>周次</th><th>操作</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div>
+        <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="addLedgerRow()">＋ 新增一行</button></div>
       </div>
       <div id="finWeeklyView" class="fin-view">
         <div style="margin-bottom:10px;"><select id="finWeekSel" onchange="renderFinWeekly()"></select></div>
@@ -373,7 +376,7 @@ function switchModule(name) {
   if (name==='home') renderHome();
   if (name==='calc') renderCalcHistory();
   if (name==='dash') renderDashboard();
-  if (name==='fin') { switchFinTab('ledger'); }
+  if (name==='fin') { switchFinTab(currentFinTab); }
   if (name==='ai') runAIAnalysis();
   if (name==='prod') renderProducts();
   if (name==='kb') renderKB();
@@ -618,9 +621,11 @@ let currentFinTab='ledger';
 function switchFinTab(t) {
   currentFinTab=t;
   document.querySelectorAll('.fin-view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('fin'+t.charAt(0).toUpperCase()+t.slice(1)+'View').classList.add('active');
-  ['fTabLedger','fTabWeekly','fTabSummary'].forEach(id=>document.getElementById(id).style.background=t===id.replace('fTab','').toLowerCase()?'var(--blue)':'');
-  ['fTabLedger','fTabWeekly','fTabSummary'].forEach(id=>document.getElementById(id).style.color=t===id.replace('fTab','').toLowerCase()?'#fff':'');
+  const viewEl = document.getElementById({'ledger':'finLedgerView','weekly':'finWeeklyView','summary':'finSummaryView'}[t]);
+  if (viewEl) viewEl.classList.add('active');
+  document.querySelectorAll('.fin-tab-btn').forEach(b=>b.classList.remove('active'));
+  const btnEl = document.getElementById({'ledger':'fTabLedger','weekly':'fTabWeekly','summary':'fTabSummary'}[t]);
+  if (btnEl) btnEl.classList.add('active');
   if (t==='ledger') renderFinLedger();
   if (t==='weekly') renderFinWeekly();
   if (t==='summary') renderFinSummary();
@@ -640,7 +645,53 @@ function renderFinLedger() {
   const wKeys=Object.keys(wkMap).sort();
   renderChart('chartFinCashflow',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:wKeys},yAxis:{type:'value'},series:[{name:'收入',type:'bar',data:wKeys.map(k=>wkMap[k].in),itemStyle:{color:'#34c759'},barMaxWidth:25},{name:'支出',type:'bar',data:wKeys.map(k=>wkMap[k].out),itemStyle:{color:'#ff3b30'},barMaxWidth:25}]});
   renderChart('chartFinExpCat',{tooltip:{trigger:'item'},series:[{type:'pie',radius:['45%','70%'],data:Object.entries(catMap).map(([k,v])=>({name:k,value:v})),label:{formatter:'{b}\n{d}%'}}]});
-  document.getElementById('finLedgerBody').innerHTML = [...ledger].reverse().map(i=>`<tr><td>${i.date}</td><td>${i.day||''}</td><td><span class="tag tag-blue">${i.cat}</span></td><td>${i.desc||''}</td><td style="color:${i.amount>=0?'var(--green)':'var(--red)'};font-weight:700;">${i.amount>=0?'+':''}¥${Math.abs(i.amount)}</td><td>${i.pay||''}</td><td>第${i.week}周</td></tr>`).join('');
+  document.getElementById('finLedgerBody').innerHTML = [...ledger].reverse().map((i,idx)=>{
+    const realIdx = ledger.length-1-idx;
+    const cats = (db.finance.categories||['其他']).map(c=>`<option value="${c}" ${i.cat===c?'selected':''}>${c}</option>`).join('');
+    return `<tr>
+      <td><input value="${i.date}" onchange="updateLedgerCell(${realIdx},'date',this.value)" style="width:100px;padding:4px 6px;font-size:12px;"></td>
+      <td><input value="${i.day||''}" onchange="updateLedgerCell(${realIdx},'day',this.value)" style="width:60px;padding:4px 6px;font-size:12px;"></td>
+      <td><select onchange="updateLedgerCell(${realIdx},'cat',this.value)" style="padding:4px 6px;font-size:12px;">${cats}</select></td>
+      <td><input value="${i.desc||''}" onchange="updateLedgerCell(${realIdx},'desc',this.value)" style="width:140px;padding:4px 6px;font-size:12px;"></td>
+      <td><input type="number" value="${i.amount}" onchange="updateLedgerCell(${realIdx},'amount',parseFloat(this.value)||0)" style="width:90px;padding:4px 6px;font-size:12px;color:${i.amount>=0?'var(--green)':'var(--red)'};font-weight:700;"></td>
+      <td><input value="${i.pay||''}" onchange="updateLedgerCell(${realIdx},'pay',this.value)" style="width:70px;padding:4px 6px;font-size:12px;"></td>
+      <td><input type="number" value="${i.week||1}" onchange="updateLedgerCell(${realIdx},'week',parseInt(this.value)||1)" style="width:50px;padding:4px 6px;font-size:12px;"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteLedgerRow(${realIdx})" style="padding:2px 8px;">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateLedgerCell(idx, field, value) {
+  const db = getDB();
+  if (idx>=0 && idx<db.finance.ledger.length) {
+    db.finance.ledger[idx][field] = value;
+    saveDB(db);
+    // Re-render KPIs without full table refresh
+    const totalIn = db.finance.ledger.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
+    const totalOut = Math.abs(db.finance.ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
+    document.getElementById('finLedgerKPIs').innerHTML = `
+      <div class="kpi-card"><div class="kpi-label">总收入</div><div class="kpi-value">¥${totalIn.toLocaleString()}</div></div>
+      <div class="kpi-card"><div class="kpi-label">总支出</div><div class="kpi-value">¥${totalOut.toLocaleString()}</div></div>
+      <div class="kpi-card"><div class="kpi-label">净现金流</div><div class="kpi-value" style="color:${totalIn-totalOut>=0?'var(--green)':'var(--red)'}">¥${(totalIn-totalOut).toLocaleString()}</div></div>`;
+  }
+}
+
+function addLedgerRow() {
+  const db = getDB();
+  const maxWeek = db.finance.ledger.reduce((max,i)=>Math.max(max,i.week||1),1);
+  db.finance.ledger.push({date:new Date().toISOString().slice(0,10),day:'',cat:'其他支出',desc:'',amount:0,pay:'支付宝',week:maxWeek});
+  saveDB(db);
+  renderFinLedger();
+  toast('新行已添加');
+}
+
+function deleteLedgerRow(idx) {
+  if (!confirm('确定删除这条流水？')) return;
+  const db = getDB();
+  db.finance.ledger.splice(idx,1);
+  saveDB(db);
+  renderFinLedger();
+  toast('已删除');
 }
 
 function renderFinWeekly() {
