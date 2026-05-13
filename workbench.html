@@ -784,12 +784,12 @@ function renderDashOverview() {
   const db=getDB();const periods=db.spuPeriods||[];
   // Init period filter
   const sel=document.getElementById('dashPeriodFilter');
-  if (sel.options.length<=1){sel.innerHTML='<option value=\"all\">全部周期</option>';periods.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.label+' ('+p.days+'天)';sel.appendChild(o);});}
+  if (sel.options.length<=1){sel.innerHTML='<option value="all">全部周期</option>';periods.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.label+' ('+p.days+'天)';sel.appendChild(o);});}
   const pidx=sel.value;
   let products=[];
   if (pidx==='all'){periods.forEach(p=>products=products.concat(p.products));}
   else{const p=periods[parseInt(pidx)];if(p)products=p.products;}
-  if (products.length===0){document.getElementById('dashKPIs').innerHTML='<div style=\"padding:20px;color:var(--text3);\">暂无数据</div>';return;}
+  if (products.length===0){document.getElementById('dashKPIs').innerHTML='<div style="padding:20px;color:var(--text3);">暂无数据</div>';return;}
   const rev=products.reduce((s,x)=>s+(x.payment||0),0);
   const orders=products.reduce((s,x)=>s+(x.orders||0),0);
   const vis=products.reduce((s,x)=>s+(x.visitors||0),0);
@@ -797,10 +797,10 @@ function renderDashOverview() {
   const conv=vis>0?(orders/vis*100):0,retRate=orders>0?(ret/orders*100):0;
   document.getElementById('dashOverviewNote').textContent = pidx==='all'?`${periods.length}个周期 · ${products.length}个SPU`:'';
   document.getElementById('dashKPIs').innerHTML=`
-    <div class=\"kpi-card\"><div class=\"kpi-label\">销售额</div><div class=\"kpi-value\">¥${rev.toLocaleString()}</div></div>
-    <div class=\"kpi-card\"><div class=\"kpi-label\">订单 / 访客</div><div class=\"kpi-value\">${orders}<span style=\"font-size:16px;color:var(--text3);\">/${vis.toLocaleString()}</span></div></div>
-    <div class=\"kpi-card\"><div class=\"kpi-label\">转化率 / 退货率</div><div class=\"kpi-value\">${conv.toFixed(2)}%<span style=\"font-size:16px;color:var(--text3);\">/${retRate.toFixed(1)}%</span></div></div>
-    <div class=\"kpi-card\"><div class=\"kpi-label\">SPU数</div><div class=\"kpi-value\">${products.length}</div><div class=\"kpi-sub\">${products.filter(p=>p.orders>0).length}个有销售</div></div>`;
+    <div class="kpi-card"><div class="kpi-label">销售额</div><div class="kpi-value">¥${rev.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="kpi-label">订单 / 访客</div><div class="kpi-value">${orders}<span style="font-size:16px;color:var(--text3);">/${vis.toLocaleString()}</span></div></div>
+    <div class="kpi-card"><div class="kpi-label">转化率 / 退货率</div><div class="kpi-value">${conv.toFixed(2)}%<span style="font-size:16px;color:var(--text3);">/${retRate.toFixed(1)}%</span></div></div>
+    <div class="kpi-card"><div class="kpi-label">SPU数</div><div class="kpi-value">${products.length}</div><div class="kpi-sub">${products.filter(p=>p.orders>0).length}个有销售</div></div>`;
   // Chart with period-level data
   const pd=periods.map(p=>({label:p.label,rev:p.products.reduce((s,x)=>s+(x.payment||0),0),ord:p.products.reduce((s,x)=>s+(x.orders||0),0),vis:p.products.reduce((s,x)=>s+(x.visitors||0),0)}));
   renderChart('chartDashSales',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:pd.map(p=>p.label),axisLabel:{rotate:20,fontSize:9}},yAxis:{type:'value'},series:[{name:'销售额',type:'bar',data:pd.map(p=>p.rev),itemStyle:{color:'#3370ff'},barMaxWidth:30},{name:'订单数',type:'line',data:pd.map(p=>p.ord),itemStyle:{color:'#34c759'},smooth:true}]});
@@ -812,7 +812,7 @@ function sortSPU(field){spuSortField=field;const labels={payment:'销售额',vis
 
 function renderDashProducts() {
   const db=getDB();const periods=db.spuPeriods||[];const filter=document.getElementById('prodPeriodFilter');
-  if (filter.options.length<=1){filter.innerHTML='<option value=\"all\">全部周期</option>';periods.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.label+' ('+p.days+'天)';filter.appendChild(o);});}
+  if (filter.options.length<=1){filter.innerHTML='<option value="all">全部周期</option>';periods.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.label+' ('+p.days+'天)';filter.appendChild(o);});}
   const pidx=filter.value;
   let products=[];
   if (pidx==='all'){periods.forEach(p=>products=products.concat(p.products));}
@@ -829,11 +829,11 @@ function renderDashProducts() {
   const getPPU=p=>{const dp=dbProds.find(x=>x.name===p.shortName||(p.shortName&&x.name.includes(p.shortName)));return dp?dp.profitPerUnit:0;};
   document.getElementById('dashProductDetailBody').innerHTML=products.slice(0,50).map(p=>{
     const ppu=getPPU(p);const grade=getGrade(p);
-    return `<tr><td><b>${p.shortName||'--'}</b></td><td>${p.brand||'--'}</td><td><span class=\"tag ${grade==='S'?'tag-green':grade==='A'?'tag-blue':'tag-yellow'}\">${grade!=='--'?grade+'级':'--'}</span></td>
+    return `<tr><td><b>${p.shortName||'--'}</b></td><td>${p.brand||'--'}</td><td><span class="tag ${grade==='S'?'tag-green':grade==='A'?'tag-blue':'tag-yellow'}">${grade!=='--'?grade+'级':'--'}</span></td>
     <td>¥${(p.payment||0).toLocaleString()}</td><td>${p.orders||0}</td><td>${(p.visitors||0).toLocaleString()}</td>
     <td>${(p.conversion||0).toFixed(2)}%</td><td>${p.favorites||0}</td><td>${p.returnQty||0}</td>
-    <td style=\"color:${ppu>=0?'var(--green)':'var(--red)'}\">${ppu?'¥'+ppu:'--'}</td>
-    <td><span class=\"tag ${(p.orders||0)>0?'tag-green':'tag-red'}\">${(p.orders||0)>0?'有销售':'无销售'}</span></td></tr>`;}).join('');
+    <td style="color:${ppu>=0?'var(--green)':'var(--red)'}">${ppu?'¥'+ppu:'--'}</td>
+    <td><span class="tag ${(p.orders||0)>0?'tag-green':'tag-red'}">${(p.orders||0)>0?'有销售':'无销售'}</span></td></tr>`;}).join('');
 }
 
 function analyzeCurrentView(){
@@ -899,9 +899,9 @@ function renderDashSPU() {
   products.sort((a,b)=>(b[spuSortField]||0)-(a[spuSortField]||0));
   document.getElementById('spuCount').textContent = `显示 ${products.length}/${period.products.length} 个SPU`;
   document.getElementById('dashSPUBody').innerHTML=products.map(p=>`<tr>
-    <td><b>${p.shortName||'--'}</b></td><td style=\"font-size:10px;\">${(p.code||'').substring(0,25)}</td><td>${p.brand||'--'}</td>
+    <td><b>${p.shortName||'--'}</b></td><td style="font-size:10px;">${(p.code||'').substring(0,25)}</td><td>${p.brand||'--'}</td>
     <td>¥${(p.payment||0).toLocaleString()}</td><td>${p.orders||0}</td><td>${(p.visitors||0).toLocaleString()}</td>
-    <td>${(p.conversion||0).toFixed(2)}%</td><td>${p.favorites||0}</td><td style=\"color:var(--red);\">¥${(p.returnAmt||0).toLocaleString()}</td><td>${p.returnQty||0}</td><td>${p.priceRange||'--'}</td>
+    <td>${(p.conversion||0).toFixed(2)}%</td><td>${p.favorites||0}</td><td style="color:var(--red);">¥${(p.returnAmt||0).toLocaleString()}</td><td>${p.returnQty||0}</td><td>${p.priceRange||'--'}</td>
   </tr>`).join('');
 }
 
@@ -1088,7 +1088,7 @@ function renderFinSummary() {
   // Compare table with more columns
   document.getElementById('finCompareBody').innerHTML = `
     <tr><td><b>销售额</b></td>${bills.map(b=>`<td>¥${b.summary.revenue.toLocaleString()}</td>`).join('')}<td>¥${totalRev.toLocaleString()}</td></tr>
-    <tr><td><b>利润</b></td>${bills.map(b=>`<td style=\"color:${b.summary.profit>=0?'var(--green)':'var(--red)'}\">¥${b.summary.profit.toLocaleString()}</td>`).join('')}<td style=\"color:${totalProfit>=0?'var(--green)':'var(--red)'}\">¥${totalProfit.toLocaleString()}</td></tr>
+    <tr><td><b>利润</b></td>${bills.map(b=>`<td style="color:${b.summary.profit>=0?'var(--green)':'var(--red)'}">¥${b.summary.profit.toLocaleString()}</td>`).join('')}<td style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">¥${totalProfit.toLocaleString()}</td></tr>
     <tr><td><b>利润率</b></td>${bills.map(b=>`<td>${b.summary.profitRate.toFixed(1)}%</td>`).join('')}<td>${profitMargin.toFixed(1)}%</td></tr>
     <tr><td><b>订单/退货</b></td>${bills.map(b=>`<td>${b.summary.orders}/${b.summary.returns}</td>`).join('')}<td>--</td></tr>
     <tr><td><b>退货率</b></td>${bills.map(b=>`<td>${b.summary.returnRate.toFixed(1)}%</td>`).join('')}<td>${avgRet.toFixed(1)}%</td></tr>
@@ -1104,7 +1104,7 @@ function renderFinSummary() {
     成本率 ${costRatio.toFixed(1)}%（含平台佣金+原鞋+定制+固定成本）<br>
     退货率 ${avgRet.toFixed(1)}%（${avgRet<=15?'🟢 正常':'🔴 超标'}）<br>
     周均支出 ¥${weeklyBurn.toFixed(0)} · 资金跑道 ${typeof runway==='string'?runway:runway.toFixed(1)+'周'}<br>
-    ${netCash<0?'<b style=\"color:var(--red);\">⚠ 现金流为负，支出超过收入，需要控制成本或增加销售</b>':'🟢 现金流为正，运营健康'}`;
+    ${netCash<0?'<b style="color:var(--red);">⚠ 现金流为负，支出超过收入，需要控制成本或增加销售</b>':'🟢 现金流为正，运营健康'}`;
 }
 
 function uploadFinanceWorkbench() {
@@ -1334,9 +1334,9 @@ function showOpsGantt() {
   const minStart=Math.min(...allItems.map(i=>i.start));
   const maxEnd=Math.max(...allItems.map(i=>i.end));
   const totalDays=Math.max(1,(maxEnd-minStart)/day);
-  view.innerHTML=`<div class=\"card\"><div class=\"card-title\">📅 甘特图</div><div style=\"position:relative;\">`+
-    allItems.map(i=>{const left=((i.start-minStart)/day/totalDays*100).toFixed(1);const width=Math.max(3,((i.end-i.start)/day/totalDays*100)).toFixed(1);return`<div style=\"margin:4px 0;display:flex;align-items:center;gap:8px;\"><span style=\"font-size:11px;width:150px;text-align:right;\">${i.title.substring(0,15)}</span><div style=\"flex:1;background:#f0f0f0;height:20px;border-radius:4px;position:relative;\"><div style=\"position:absolute;left:${left}%;width:${width}%;height:100%;background:${i.color};border-radius:4px;opacity:0.8;\"></div></div></div>`}).join('')+
-    `<div style=\"font-size:10px;color:var(--text3);margin-top:8px;\">◼ 蓝色=方案 ◼ 红色=高优任务 ◼ 橙色=普通任务</div></div></div>`;
+  view.innerHTML=`<div class="card"><div class="card-title">📅 甘特图</div><div style="position:relative;">`+
+    allItems.map(i=>{const left=((i.start-minStart)/day/totalDays*100).toFixed(1);const width=Math.max(3,((i.end-i.start)/day/totalDays*100)).toFixed(1);return`<div style="margin:4px 0;display:flex;align-items:center;gap:8px;"><span style="font-size:11px;width:150px;text-align:right;">${i.title.substring(0,15)}</span><div style="flex:1;background:#f0f0f0;height:20px;border-radius:4px;position:relative;"><div style="position:absolute;left:${left}%;width:${width}%;height:100%;background:${i.color};border-radius:4px;opacity:0.8;"></div></div></div>`}).join('')+
+    `<div style="font-size:10px;color:var(--text3);margin-top:8px;">◼ 蓝色=方案 ◼ 红色=高优任务 ◼ 橙色=普通任务</div></div></div>`;
 }
 
 function analyzeOps() {
@@ -1346,10 +1346,10 @@ function analyzeOps() {
   const activePlans=plans.filter(p=>p.status==='active').length;
   const highPriority=tasks.filter(t=>!t.done&&t.priority==='high').length;
   let analysis=`<b>📊 运营总览</b><br>策划方案：${plans.length}个（${activePlans}个进行中）<br>任务总数：${total}（✅${done} / ⏳${pending}）<br>完成率：${progress}%<br>高优先级待办：${highPriority}个<br><br>`;
-  if (highPriority>3) analysis+=`<span style=\"color:var(--red);\">⚠ 高优先级任务堆积（${highPriority}个），建议集中处理</span><br>`;
-  if (progress<30&&total>5) analysis+=`<span style=\"color:var(--orange);\">⚡ 任务完成率偏低（${progress}%），需要加快进度</span><br>`;
-  if (activePlans===0&&plans.length>0) analysis+=`<span style=\"color:var(--text2);\">💡 所有方案已完成或未启动，建议制定新方案</span><br>`;
-  if (total===0) analysis+=`<span style=\"color:var(--text3);\">尚无任务，建议从数据预警中创建待办，或制定策划方案后自动生成任务</span><br>`;
+  if (highPriority>3) analysis+=`<span style="color:var(--red);">⚠ 高优先级任务堆积（${highPriority}个），建议集中处理</span><br>`;
+  if (progress<30&&total>5) analysis+=`<span style="color:var(--orange);">⚡ 任务完成率偏低（${progress}%），需要加快进度</span><br>`;
+  if (activePlans===0&&plans.length>0) analysis+=`<span style="color:var(--text2);">💡 所有方案已完成或未启动，建议制定新方案</span><br>`;
+  if (total===0) analysis+=`<span style="color:var(--text3);">尚无任务，建议从数据预警中创建待办，或制定策划方案后自动生成任务</span><br>`;
   analysis+=`<br><b>💡 建议行动：</b><br>1. 根据首页预警自动生成的高优任务优先处理<br>2. 将策划方案拆解为具体任务并设定截止日期<br>3. 每周回顾任务完成情况，调整优先级`;
   document.getElementById('opsAIResult').innerHTML=analysis;
   document.getElementById('opsAIPanel').style.display='block';
