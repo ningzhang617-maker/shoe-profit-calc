@@ -335,7 +335,7 @@ tr:hover td{background:#fafcfd}
           <button class="btn btn-outline btn-sm" onclick="analyzeCurrentView()">🤖 AI分析</button>
           <span style="font-size:11px;color:var(--text3);" id="prodSortLabel">排序：销售额↓</span>
         </div>
-        <div class="card"><div class="table-wrap"><table style="min-width:800px;"><thead><tr><th>商品</th><th>品牌</th><th>等级</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>收藏</th><th>退货</th><th>单均利润</th><th>环比</th></tr></thead><tbody id="dashProductDetailBody"></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table style="min-width:800px;"><thead><tr><th style="cursor:pointer;" onclick="sortDashProducts('shortName')">商品 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('brand')">品牌 ↕</th><th>等级</th><th style="cursor:pointer;color:var(--blue);" onclick="sortDashProducts('payment')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('visitors')">访客 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('conversion')">转化率 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('favorites')">收藏 ↕</th><th>退货</th><th>状态</th></tr></thead><tbody id="dashProductDetailBody"></tbody></table></div></div>
       </div>
       <!-- 周对比 -->
       <div class="dash-view" id="dashWeeks">
@@ -354,7 +354,7 @@ tr:hover td{background:#fafcfd}
           <span style="font-size:12px;color:var(--text3);" id="spuCount"></span>
           <span style="font-size:11px;color:var(--text3);" id="spuSortLabel">排序：销售额↓</span>
         </div>
-        <div class="card"><div class="table-wrap"><table style="min-width:800px;"><thead><tr><th>商品</th><th>货号</th><th>品牌</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>收藏</th><th>退货额</th><th>退货单</th><th>出价区间</th></tr></thead><tbody id="dashSPUBody"></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table style="min-width:800px;"><thead><tr><th style="cursor:pointer;" onclick="sortSPU('shortName')">商品 ↕</th><th>货号</th><th style="cursor:pointer;" onclick="sortSPU('brand')">品牌 ↕</th><th style="cursor:pointer;color:var(--blue);" onclick="sortSPU('payment')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortSPU('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortSPU('visitors')">访客 ↕</th><th style="cursor:pointer;" onclick="sortSPU('conversion')">转化率 ↕</th><th style="cursor:pointer;" onclick="sortSPU('favorites')">收藏 ↕</th><th>退货额</th><th>退货单</th><th>出价区间</th></tr></thead><tbody id="dashSPUBody"></tbody></table></div></div>
       </div>
     </div>
 
@@ -421,7 +421,12 @@ tr:hover td{background:#fafcfd}
         <button class="btn btn-outline btn-sm" onclick="addProduct()">＋ 添加</button>
         <span style="font-size:12px;color:var(--text3);" id="prodCount"></span>
       </div>
-      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th>货号</th><th>品牌</th><th>等级</th><th>总销售额</th><th>订单数</th><th>转化率</th><th>退货率</th><th>单均利润</th><th>状态</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div></div>
+      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th>货号</th><th>品牌</th><th>等级</th><th>总销售额</th><th>订单数</th><th>转化率</th><th>退货率</th><th>单均利润</th><th>状态</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.8;">
+        <b>📊 评级算法：</b>综合评分 = 订单(40%) + 转化率(30%) + 收藏率(20%) + 销售额(10%) ·
+        <span class="tag tag-green">S≥65分</span> <span class="tag tag-blue">A≥40分</span> <span class="tag tag-yellow">B≥15分</span> <span class="tag tag-red">C&lt;15分</span>
+        &nbsp;基于全部周期SPU数据自动计算，每次刷新页面重算
+      </div></div>
     </div>
 
     <!-- OPERATIONS -->
@@ -895,9 +900,9 @@ function renderDashOverview() {
   const brandData=Object.entries(brandMap).sort((a,b)=>b[1]-a[1]);
   renderChart('chartDashBrand',{tooltip:{trigger:'item',formatter:'{b}: ¥{c} ({d}%)'},legend:{orient:'vertical',right:10,top:'center',textStyle:{fontSize:10}},series:[{type:'pie',radius:['50%','75%'],center:['35%','50%'],data:brandData.map(([k,v])=>({name:k,value:v})),label:{formatter:'{b}\n{d}%',fontSize:10}}]});
 
-  // Chart 5: Visitor vs Favorites scatter
-  const scatterData=products.filter(p=>p.visitors>0).map(p=>[p.visitors,p.favorites||0,p.shortName||'',(p.payment||0)]);
-  renderChart('chartDashScatter',{tooltip:{formatter:p=>p.value[2]+'<br>访客:'+p.value[0]+' 收藏:'+p.value[1]+'<br>销售:¥'+p.value[3]},xAxis:{type:'value',name:'访客'},yAxis:{type:'value',name:'收藏'},series:[{type:'scatter',data:scatterData,itemStyle:{color:'#3370ff'},symbolSize:params=>Math.max(8,Math.min(40,(params[2]||100)/50))}]});
+  // Chart 5: Visitor vs Favorites scatter (bubble size = sales)
+  const scatterData=products.filter(p=>p.visitors>0).map(p=>({value:[p.visitors,p.favorites||0,p.payment||0],name:p.shortName||''}));
+  renderChart('chartDashScatter',{tooltip:{formatter:p=>p.name+'<br>访客:'+p.value[0]+' 收藏:'+p.value[1]+'<br>销售:¥'+(p.value[2]||0).toLocaleString()},xAxis:{type:'value',name:'访客'},yAxis:{type:'value',name:'收藏'},series:[{type:'scatter',data:scatterData,itemStyle:{color:'#3370ff',opacity:0.6},symbolSize:val=>Math.max(10,Math.min(50,Math.sqrt((val[2]||0)/100)*8))}]});
 
   // Chart 6: SPU health gauge - pie of product status
   const activeCnt=products.filter(p=>p.orders>=2).length;
@@ -920,8 +925,8 @@ function renderDashOverview() {
     <br><b>💡 建议：</b>${conv<0.5?'优先优化商品主图和详情页，提升转化率；':''}${retRate>15?'排查高退货产品质检和尺码问题；':''}${hasSales<products.length*0.3?'集中资源推广有访客无成交的'+deadCnt+'个潜力SPU，砍掉'+zeroCnt+'个零访客SPU；':''}持续关注${best?best.shortName:'核心产品'}的库存和成本。`;
 }
 
-function sortDashProducts(field){dashSortField=field;const labels={payment:'销售额',visitors:'访客',conversion:'转化率',orders:'订单数'};document.getElementById('prodSortLabel').textContent='排序：'+labels[field]+'↓';renderDashProducts();}
-function sortSPU(field){spuSortField=field;const labels={payment:'销售额',visitors:'访客',conversion:'转化率',favorites:'收藏'};document.getElementById('spuSortLabel').textContent='排序：'+labels[field]+'↓';renderDashSPU();}
+function sortDashProducts(field){dashSortField=field;const labels={payment:'销售额',visitors:'访客',conversion:'转化率',orders:'订单',shortName:'商品名',brand:'品牌',favorites:'收藏'};document.getElementById('prodSortLabel').textContent='排序：'+(labels[field]||field)+'↓';renderDashProducts();}
+function sortSPU(field){spuSortField=field;const labels={payment:'销售额',visitors:'访客',conversion:'转化率',favorites:'收藏',shortName:'商品名',brand:'品牌',orders:'订单'};document.getElementById('spuSortLabel').textContent='排序：'+(labels[field]||field)+'↓';renderDashSPU();}
 
 function renderDashProducts() {
   const db=getDB();const periods=db.spuPeriods||[];
@@ -930,8 +935,12 @@ function renderDashProducts() {
   const seen={};const dedup=[];
   products.forEach(x=>{if(!seen[x.shortName]){seen[x.shortName]=true;dedup.push(x);}});
   products=dedup;
-  // Sort
-  products.sort((a,b)=>(b[dashSortField]||0)-(a[dashSortField]||0));
+  // Sort (handle both numbers and strings)
+  if (dashSortField==='shortName'||dashSortField==='brand'){
+    products.sort((a,b)=>String(a[dashSortField]||'').localeCompare(String(b[dashSortField]||''),'zh'));
+  } else {
+    products.sort((a,b)=>(b[dashSortField]||0)-(a[dashSortField]||0));
+  }
   // Get product grades from db
   const dbProds=db.products||[];
   const getGrade=p=>{const dp=dbProds.find(x=>x.name===p.shortName||(p.shortName&&x.name.includes(p.shortName)));return dp?dp.grade:'--';};
@@ -984,7 +993,8 @@ function renderDashSPU() {
   const search=(document.getElementById('spuSearch').value||'').toLowerCase();
   let products=period.products;
   if (search) products=products.filter(p=>(p.shortName||'').toLowerCase().includes(search)||(p.code||'').toLowerCase().includes(search)||(p.brand||'').toLowerCase().includes(search));
-  products.sort((a,b)=>(b[spuSortField]||0)-(a[spuSortField]||0));
+  if (spuSortField==='shortName'||spuSortField==='brand'){products.sort((a,b)=>String(a[spuSortField]||'').localeCompare(String(b[spuSortField]||''),'zh'));}
+  else{products.sort((a,b)=>(b[spuSortField]||0)-(a[spuSortField]||0));}
   document.getElementById('spuCount').textContent = `显示 ${products.length}/${period.products.length} 个SPU`;
   document.getElementById('dashSPUBody').innerHTML=products.map(p=>`<tr>
     <td><b>${p.shortName||'--'}</b></td><td style="font-size:10px;">${(p.code||'').substring(0,25)}</td><td>${p.brand||'--'}</td>
@@ -1525,8 +1535,20 @@ function exportAllData() {
 // ============================================================
 function renderChart(id, option) {
   const el=document.getElementById(id);if(!el)return;
-  if(!el.__echart){el.__echart=echarts.init(el);}
+  if(!el.__echart){el.__echart=echarts.init(el);el.__echart.off('click');}
   el.__echart.setOption(option,true);el.__echart.resize();
+  // Click interaction for sales trend chart
+  if (id==='chartDashSales'){
+    el.__echart.on('click',function(params){
+      if (params.seriesName==='销售额'&&params.name){
+        const sel=document.getElementById('dashPeriodFilter');
+        for (let i=0;i<sel.options.length;i++){
+          if (sel.options[i].textContent.includes(params.name)){sel.value=sel.options[i].value;break;}
+        }
+        renderDashOverview();toast('已筛选：'+params.name);
+      }
+    });
+  }
 }
 
 function toast(msg) {
