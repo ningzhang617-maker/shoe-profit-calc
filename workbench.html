@@ -284,7 +284,7 @@ tr:hover td{background:#fafcfd}
       </div>
       <!-- 总体概览 -->
       <div class="dash-view active" id="dashOverview">
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
           <select id="dashPeriodFilter" onchange="onPeriodFilterChange('overview')" style="padding:6px 10px;font-size:12px;width:auto;">
             <option value="all">全部周期</option><option value="2w">近2周</option><option value="1m">近一个月</option><option value="3m">近三个月</option><option value="custom">自定义</option>
           </select>
@@ -296,10 +296,25 @@ tr:hover td{background:#fafcfd}
           <button class="btn btn-outline btn-sm" onclick="analyzeCurrentView()">🤖 AI分析</button>
           <span style="font-size:11px;color:var(--text3);" id="dashOverviewNote"></span>
         </div>
+        <!-- KPI 仪表盘行 -->
         <div class="kpi-grid" id="dashKPIs"></div>
+        <!-- 图表矩阵 2x3 -->
         <div class="chart-row">
-          <div class="chart-card"><div class="cc-title">📈 销售趋势</div><div class="chart-box" id="chartDashSales"></div></div>
-          <div class="chart-card"><div class="cc-title">📊 转化/退货率</div><div class="chart-box" id="chartDashRate"></div></div>
+          <div class="chart-card"><div class="cc-title">📈 销售 & 利润趋势</div><div class="chart-box" id="chartDashSales"></div></div>
+          <div class="chart-card"><div class="cc-title">🔄 转化率 vs 退货率</div><div class="chart-box" id="chartDashRate"></div></div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-card"><div class="cc-title">🏆 销售额 TOP10</div><div class="chart-box" id="chartDashBar"></div></div>
+          <div class="chart-card"><div class="cc-title">🍩 品牌销售分布</div><div class="chart-box" id="chartDashBrand"></div></div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-card"><div class="cc-title">👁 访客 vs 收藏 散点分布</div><div class="chart-box" id="chartDashScatter"></div></div>
+          <div class="chart-card"><div class="cc-title">📊 SPU 活跃度分析</div><div class="chart-box" id="chartDashHealth"></div></div>
+        </div>
+        <!-- 数据快报 -->
+        <div class="card" style="margin-top:4px;">
+          <div class="card-title">📋 数据快报 <span style="font-size:11px;color:var(--text3);">（点图可下钻查看）</span></div>
+          <div id="dashDataBrief" style="font-size:12px;line-height:2;"></div>
         </div>
       </div>
       <!-- 商品明细 -->
@@ -797,7 +812,13 @@ let dashSortField='payment'; let spuSortField='payment';
 function onPeriodFilterChange(view){
   const selId=view==='overview'?'dashPeriodFilter':'prodPeriodFilter';
   const rangeId=view==='overview'?'dashCustomRange':'prodCustomRange';
-  const val=document.getElementById(selId).value;
+  const sel=document.getElementById(selId);
+  // Add individual period options if not present
+  if (sel.options.length<=5){
+    const db=getDB();const periods=db.spuPeriods||[];
+    periods.forEach((p,i)=>{const o=document.createElement('option');o.value='p'+i;o.textContent='📅 '+p.label+' ('+p.days+'天)';sel.appendChild(o);});
+  }
+  const val=sel.value;
   document.getElementById(rangeId).style.display=val==='custom'?'flex':'none';
   if (view==='overview') renderDashOverview();
   else renderDashProducts();
@@ -806,6 +827,7 @@ function onPeriodFilterChange(view){
 function getFilteredProducts(periods, filterId){
   const val=document.getElementById(filterId).value;
   if (val==='all'){let all=[];periods.forEach(p=>all=all.concat(p.products));return all;}
+  if (val.startsWith('p')){const idx=parseInt(val.slice(1));return (periods[idx]||{}).products||[];}
   if (val==='custom'){
     const fromId=filterId==='dashPeriodFilter'?'dashDateFrom':'prodDateFrom';
     const toId=filterId==='dashPeriodFilter'?'dashDateTo':'prodDateTo';
@@ -825,24 +847,77 @@ function getFilteredProducts(periods, filterId){
 
 function renderDashOverview() {
   const db=getDB();const periods=db.spuPeriods||[];
+  // Init period dropdown with individual periods
+  const sel=document.getElementById('dashPeriodFilter');
+  if (sel.options.length<=5){ // only default options
+    periods.forEach((p,i)=>{const o=document.createElement('option');o.value='p'+i;o.textContent='📅 '+p.label+' ('+p.days+'天)';sel.appendChild(o);});
+  }
   const products=getFilteredProducts(periods, 'dashPeriodFilter');
   if (products.length===0){document.getElementById('dashKPIs').innerHTML='<div style="padding:20px;color:var(--text3);">暂无数据</div>';return;}
+
   const rev=products.reduce((s,x)=>s+(x.payment||0),0);
   const orders=products.reduce((s,x)=>s+(x.orders||0),0);
   const vis=products.reduce((s,x)=>s+(x.visitors||0),0);
   const ret=products.reduce((s,x)=>s+(x.returnQty||0),0);
-  const conv=vis>0?(orders/vis*100):0,retRate=orders>0?(ret/orders*100):0;
+  const favs=products.reduce((s,x)=>s+(x.favorites||0),0);
+  const conv=vis>0?(orders/vis*100):0;
+  const retRate=orders>0?(ret/orders*100):0;
+  const hasSales=products.filter(p=>p.orders>0).length;
+  const hasVisitors=products.filter(p=>p.visitors>0).length;
+  const avgPrice=orders>0?(rev/orders):0;
+  const favRate=vis>0?(favs/vis*100):0;
+
   const filterVal=document.getElementById('dashPeriodFilter').value;
-  document.getElementById('dashOverviewNote').textContent = filterVal==='all'?`${periods.length}个周期 · ${products.length}个SPU`:'';
+  document.getElementById('dashOverviewNote').textContent = filterVal==='all'?`${periods.length}个周期 · ${products.length}个SPU`:(filterVal.startsWith('p')?`${periods[parseInt(filterVal.slice(1))]?.label}`:'');
+
+  // KPI Row - 6 cards
   document.getElementById('dashKPIs').innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">销售额</div><div class="kpi-value">¥${rev.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">订单 / 访客</div><div class="kpi-value">${orders}<span style="font-size:16px;color:var(--text3);">/${vis.toLocaleString()}</span></div></div>
-    <div class="kpi-card"><div class="kpi-label">转化率 / 退货率</div><div class="kpi-value">${conv.toFixed(2)}%<span style="font-size:16px;color:var(--text3);">/${retRate.toFixed(1)}%</span></div></div>
-    <div class="kpi-card"><div class="kpi-label">SPU数</div><div class="kpi-value">${products.length}</div><div class="kpi-sub">${products.filter(p=>p.orders>0).length}个有销售</div></div>`;
-  // Chart with period-level data
-  const pd=periods.map(p=>({label:p.label,rev:p.products.reduce((s,x)=>s+(x.payment||0),0),ord:p.products.reduce((s,x)=>s+(x.orders||0),0),vis:p.products.reduce((s,x)=>s+(x.visitors||0),0)}));
-  renderChart('chartDashSales',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:pd.map(p=>p.label),axisLabel:{rotate:20,fontSize:9}},yAxis:{type:'value'},series:[{name:'销售额',type:'bar',data:pd.map(p=>p.rev),itemStyle:{color:'#3370ff'},barMaxWidth:30},{name:'订单数',type:'line',data:pd.map(p=>p.ord),itemStyle:{color:'#34c759'},smooth:true}]});
-  renderChart('chartDashRate',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:pd.map(p=>p.label),axisLabel:{rotate:20,fontSize:9}},yAxis:{type:'value'},series:[{name:'转化率%',type:'line',data:pd.map(p=>p.vis>0?(p.ord/p.vis*100):0),itemStyle:{color:'#ff9500'},smooth:true}]});
+    <div class="kpi-card"><div class="kpi-label">💰 销售额</div><div class="kpi-value">¥${rev.toLocaleString()}</div><div class="kpi-sub">客单价 ¥${avgPrice.toFixed(0)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">📦 订单 / 退货</div><div class="kpi-value">${orders}<span style="font-size:16px;color:var(--red);">/${ret}</span></div><div class="kpi-sub">退货率 ${retRate.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">👁 访客 / 转化</div><div class="kpi-value">${vis.toLocaleString()}</div><div class="kpi-sub">转化 ${conv.toFixed(2)}% · 收藏率 ${favRate.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">📋 SPU 活跃度</div><div class="kpi-value">${hasSales}<span style="font-size:16px;color:var(--text3);">/${products.length}</span></div><div class="kpi-sub">${(hasSales/products.length*100).toFixed(0)}%有销售 · ${hasVisitors}个有访客</div></div>
+    <div class="kpi-card"><div class="kpi-label">⭐ 总收藏</div><div class="kpi-value">${favs.toLocaleString()}</div><div class="kpi-sub">均收藏 ${(favs/(products.length||1)).toFixed(0)}个/SPU</div></div>
+    <div class="kpi-card"><div class="kpi-label">🏷 品牌数</div><div class="kpi-value">${new Set(products.map(p=>p.brand)).size}</div><div class="kpi-sub">${new Set(products.map(p=>p.brand).filter(Boolean)).size}个品牌 · ${products.length}个SPU</div></div>`;
+
+  // Chart 1: Sales & Profit trend (period-level)
+  const pd=periods.map(p=>({label:p.label.substring(5),rev:p.products.reduce((s,x)=>s+(x.payment||0),0),ord:p.products.reduce((s,x)=>s+(x.orders||0),0),vis:p.products.reduce((s,x)=>s+(x.visitors||0),0),ret:p.products.reduce((s,x)=>s+(x.returnQty||0),0)}));
+  renderChart('chartDashSales',{tooltip:{trigger:'axis'},legend:{data:['销售额','订单','访客'],bottom:0},xAxis:{type:'category',data:pd.map(p=>p.label),axisLabel:{rotate:20,fontSize:9}},yAxis:[{type:'value',name:'金额'},{type:'value',name:'数量'}],series:[{name:'销售额',type:'bar',data:pd.map(p=>p.rev),itemStyle:{color:'#3370ff'},barMaxWidth:30},{name:'订单',type:'line',data:pd.map(p=>p.ord),itemStyle:{color:'#34c759'},smooth:true},{name:'访客',type:'line',yAxisIndex:1,data:pd.map(p=>p.vis),itemStyle:{color:'#af52de',borderType:'dashed'},smooth:true,lineStyle:{type:'dashed'}}]});
+
+  // Chart 2: Conversion vs Return rate
+  renderChart('chartDashRate',{tooltip:{trigger:'axis'},legend:{data:['转化率%','退货率%','收藏率%'],bottom:0},xAxis:{type:'category',data:pd.map(p=>p.label),axisLabel:{rotate:20,fontSize:9}},yAxis:{type:'value',max:50},series:[{name:'转化率%',type:'line',data:pd.map(p=>p.vis>0?(p.ord/p.vis*100):0),itemStyle:{color:'#ff9500'},smooth:true,markLine:{silent:true,data:[{yAxis:2,label:{formatter:'基准2%'},lineStyle:{color:'#ff9500',type:'dashed'}}]}},{name:'退货率%',type:'line',data:pd.map(p=>p.ord>0?(p.ret/p.ord*100):0),itemStyle:{color:'#ff3b30'},smooth:true,markLine:{silent:true,data:[{yAxis:15,label:{formatter:'警戒15%'},lineStyle:{color:'#ff3b30',type:'dashed'}}]}},{name:'收藏率%',type:'line',data:pd.map(p=>p.vis>0?(products.filter(x=>true).reduce((s,x)=>s+(x.favorites||0),0)/p.vis*100):0),itemStyle:{color:'#06b6d4'},smooth:true}]});
+
+  // Chart 3: Top 10 products by sales (horizontal bar)
+  const top10=[...products].sort((a,b)=>(b.payment||0)-(a.payment||0)).slice(0,10);
+  renderChart('chartDashBar',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:100,right:20},xAxis:{type:'value'},yAxis:{type:'category',data:top10.map(p=>p.shortName||'--'),inverse:true,axisLabel:{fontSize:10}},series:[{name:'销售额',type:'bar',data:top10.map(p=>p.payment||0),itemStyle:{color:params=>{const colors=['#3370ff','#5b8def','#7ba8f0','#9bbdf2','#b8d0f5'];return colors[params.dataIndex]||colors[4]}},label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:18}]});
+
+  // Chart 4: Brand distribution (donut)
+  const brandMap={};products.forEach(p=>{const b=p.brand||'其他';brandMap[b]=(brandMap[b]||0)+(p.payment||0);});
+  const brandData=Object.entries(brandMap).sort((a,b)=>b[1]-a[1]);
+  renderChart('chartDashBrand',{tooltip:{trigger:'item',formatter:'{b}: ¥{c} ({d}%)'},legend:{orient:'vertical',right:10,top:'center',textStyle:{fontSize:10}},series:[{type:'pie',radius:['50%','75%'],center:['35%','50%'],data:brandData.map(([k,v])=>({name:k,value:v})),label:{formatter:'{b}\n{d}%',fontSize:10}}]});
+
+  // Chart 5: Visitor vs Favorites scatter
+  const scatterData=products.filter(p=>p.visitors>0).map(p=>[p.visitors,p.favorites||0,p.shortName||'',(p.payment||0)]);
+  renderChart('chartDashScatter',{tooltip:{formatter:p=>p.value[2]+'<br>访客:'+p.value[0]+' 收藏:'+p.value[1]+'<br>销售:¥'+p.value[3]},xAxis:{type:'value',name:'访客'},yAxis:{type:'value',name:'收藏'},series:[{type:'scatter',data:scatterData,itemStyle:{color:'#3370ff'},symbolSize:params=>Math.max(8,Math.min(40,(params[2]||100)/50))}]});
+
+  // Chart 6: SPU health gauge - pie of product status
+  const activeCnt=products.filter(p=>p.orders>=2).length;
+  const lowCnt=products.filter(p=>p.orders===1).length;
+  const deadCnt=products.filter(p=>p.orders===0&&p.visitors>0).length;
+  const zeroCnt=products.filter(p=>p.visitors===0).length;
+  renderChart('chartDashHealth',{tooltip:{trigger:'item'},legend:{bottom:0,textStyle:{fontSize:9}},series:[{type:'pie',radius:['45%','70%'],data:[{value:activeCnt,name:'活跃(≥2单)',itemStyle:{color:'#34c759'}},{value:lowCnt,name:'低频(1单)',itemStyle:{color:'#ff9500'}},{value:deadCnt,name:'有访客无单',itemStyle:{color:'#ff3b30'}},{value:zeroCnt,name:'零访客',itemStyle:{color:'#d0d5dd'}}],label:{formatter:'{b}\n{d}%',fontSize:10}}]});
+
+  // Data Brief
+  const best=top10[0];const worstRet=[...products].filter(p=>p.returnQty>0).sort((a,b)=>b.returnQty-a.returnQty)[0];
+  document.getElementById('dashDataBrief').innerHTML=`
+    <b>🏆 最佳销售：</b>${best?best.shortName+' ¥'+(best.payment||0).toLocaleString():'--'}
+    <b> · 👁 最高访客：</b>${[...products].sort((a,b)=>b.visitors-a.visitors)[0]?.shortName||'--'}
+    <b> · 📈 最高转化：</b>${[...products].filter(p=>p.orders>0).sort((a,b)=>(b.conversion||0)-(a.conversion||0))[0]?.shortName||'--'}
+    <b> · ⚠ 最多退货：</b>${worstRet?worstRet.shortName+' '+worstRet.returnQty+'单':'--'}
+    <br><b>📊 诊断：</b>${conv<0.5?'🔴 转化率'+conv.toFixed(2)+'%远低于行业2%标准':conv<1?'🟡 转化率偏低，需优化详情页':'🟢 转化率健康'} ·
+    ${retRate>20?'🔴 退货率'+retRate.toFixed(1)+'%严重超标':'🟡 退货率需持续关注'} ·
+    ${hasSales<products.length*0.3?'🔴 '+(hasSales/products.length*100).toFixed(0)+'%SPU有销售，长尾严重':hasSales<products.length*0.5?'🟡 SPU活跃度偏低':'🟢 SPU活跃度正常'} ·
+    共覆盖 <b>${new Set(products.map(p=>p.brand).filter(Boolean)).size}</b> 个品牌
+    <br><b>💡 建议：</b>${conv<0.5?'优先优化商品主图和详情页，提升转化率；':''}${retRate>15?'排查高退货产品质检和尺码问题；':''}${hasSales<products.length*0.3?'集中资源推广有访客无成交的'+deadCnt+'个潜力SPU，砍掉'+zeroCnt+'个零访客SPU；':''}持续关注${best?best.shortName:'核心产品'}的库存和成本。`;
 }
 
 function sortDashProducts(field){dashSortField=field;const labels={payment:'销售额',visitors:'访客',conversion:'转化率',orders:'订单数'};document.getElementById('prodSortLabel').textContent='排序：'+labels[field]+'↓';renderDashProducts();}
