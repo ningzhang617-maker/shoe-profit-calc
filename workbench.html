@@ -1385,7 +1385,22 @@ function renderFinWeekly() {
     var status=margin>=10?'盈利':margin>=0?'微利':'亏损';
     var cls=margin>=10?'tag-green':margin>=0?'tag-yellow':'tag-red';
     var tr=document.createElement('tr');
-    tr.innerHTML='<td><b>'+p.name+'</b></td><td>'+p.count+'单</td><td>¥'+p.totalSales.toLocaleString()+'</td><td>¥'+p.totalIncome.toLocaleString()+'</td><td>¥'+p.cost+'</td><td>¥'+p.custom+'</td><td>¥'+fixedCost.toLocaleString()+'</td><td style="color:'+(p.totalProfit>=0?'var(--green)':'var(--red)')+';font-weight:700;">'+(p.totalProfit>=0?'+':'')+'¥'+p.totalProfit.toLocaleString()+'</td><td>'+(margin>=0?'+':'')+margin.toFixed(1)+'%</td><td><span class="tag '+cls+'">'+status+'</span></td><td></td>';
+    tr.innerHTML='<td><b>'+p.name+'</b></td><td>'+p.count+'单</td><td>¥'+p.totalSales.toLocaleString()+'</td><td>¥'+p.totalIncome.toLocaleString()+'</td><td></td><td></td><td>¥'+fixedCost.toLocaleString()+'</td><td style=\"color:'+(p.totalProfit>=0?'var(--green)':'var(--red)')+';font-weight:700;\">'+(p.totalProfit>=0?'+':'')+'¥'+p.totalProfit.toLocaleString()+'</td><td>'+(margin>=0?'+':'')+margin.toFixed(1)+'%</td><td><span class=\"tag '+cls+'\">'+status+'</span></td><td></td>';
+    // Editable shoe cost
+    var costInput=document.createElement('input');costInput.type='number';costInput.value=p.cost||0;
+    costInput.style.cssText='width:70px;padding:3px 5px;font-size:12px;text-align:center;';
+    costInput.onchange=(function(n,trRef,customVal){return function(){
+      var v=parseFloat(this.value)||0;updateCostFromBill(n,v,customVal);renderFinWeekly();
+    };})(p.name,p.custom);
+    tr.children[4].appendChild(costInput);
+    // Editable custom fee
+    var customInput=document.createElement('input');customInput.type='number';customInput.value=p.custom||0;
+    customInput.style.cssText='width:70px;padding:3px 5px;font-size:12px;text-align:center;';
+    customInput.onchange=(function(n,costVal){return function(){
+      var v=parseFloat(this.value)||0;updateCostFromBill(n,costVal,v);renderFinWeekly();
+    };})(p.name,p.cost);
+    tr.children[5].appendChild(customInput);
+    // Detail button
     var btn=document.createElement('button');btn.className='btn btn-outline btn-sm';
     btn.textContent='明细';btn.style.cssText='padding:2px 8px;font-size:11px;';
     btn.onclick=(function(n){return function(){showFinDetail(n);};})(p.name);
@@ -1424,6 +1439,18 @@ function showFinDetail(name){
   tbl+='</tbody></table></div>';card.innerHTML+=tbl;
   detail.appendChild(card);
   detail.scrollIntoView({behavior:'smooth'});
+}
+
+function updateCostFromBill(name, shoeCost, customFee){
+  var db=getDB();if(!db.costRefs)db.costRefs={};
+  db.costRefs[name]={shoeCost:shoeCost,customFee:customFee};
+  // Apply to all sales in all weekly bills
+  (db.finance.weeklyBills||[]).forEach(function(bill){
+    (bill.sales||[]).forEach(function(sale){
+      if(sale.name===name){sale.cost=shoeCost;sale.custom=customFee;sale.income=sale.price*0.8;sale.profit=sale.income-shoeCost-customFee-47;sale.rate=sale.price>0?sale.profit/sale.price*100:0;}
+    });
+  });
+  saveDB(db);toast(name+' 成本已更新并保存');
 }
 
 function renderFinSummary() {
