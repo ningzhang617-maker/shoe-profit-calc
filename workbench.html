@@ -513,7 +513,6 @@ tr:hover td{background:#fafcfd}
 <div class="toast" id="toast"></div>
 
 <script>
-window.onerror=function(m,s,l,c,e){var ts=Date.now();document.body.innerHTML='<div style=\"padding:40px;text-align:center;font-family:sans-serif;\"><h2>⚠ 加载出错</h2><p style=\"color:#999;\">请尝试：<br>1. 强制刷新 Ctrl+Shift+R<br>2. 清除缓存后重试<br>3. 在网址后加 ?v='+ts+'</p><p style=\"font-size:11px;color:#ccc;\">'+m+'<br>行'+l+'</p></div>';return true;};
 // ============================================================
 // DATA LAYER
 // ============================================================
@@ -1944,10 +1943,13 @@ try{
 initDefaultDataWorkbench();
 renderHome();
 updateTime();
-document.getElementById('loadingMsg').style.display='none';
+var lm=document.getElementById('loadingMsg');if(lm)lm.style.display='none';
 }catch(e){
-var msg=e.message||'未知错误';
-document.getElementById('loadingMsg').innerHTML='<div style=\"font-size:40px;margin-bottom:12px;\">⚠️</div><div style=\"font-size:14px;color:#c00;\">加载失败</div><div style=\"font-size:11px;color:#999;margin-top:8px;\">'+msg+'</div>';
+var lm=document.getElementById('loadingMsg');
+if(lm){lm.innerHTML='';var d1=document.createElement('div');d1.style.cssText='font-size:40px;margin-bottom:12px;';d1.textContent='⚠️';lm.appendChild(d1);
+var d2=document.createElement('div');d2.style.cssText='font-size:14px;color:#c00;';d2.textContent='加载失败: '+(e.message||'未知错误');lm.appendChild(d2);
+var btn=document.createElement('button');btn.textContent='🔄 清除数据重试';btn.style.cssText='margin-top:16px;padding:10px 24px;background:#3370ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;';
+btn.onclick=function(){localStorage.removeItem('dc_data_v3');location.reload();};lm.appendChild(btn);}
 }
 </script>
 </body>
