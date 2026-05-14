@@ -1416,8 +1416,20 @@ function toggleSalesDetail(name, row){
   const detail=document.getElementById('finSalesDetail');
   if(detail.style.display==='block'&&detail._curName===name){detail.style.display='none';return;}
   detail.style.display='block';detail._curName=name;
-  detail.innerHTML='<div class=\"card\" style=\"margin-top:8px;\"><div class=\"card-title\">📋 '+name+' 明细 ('+orders.length+'单) <button class=\"btn btn-outline btn-sm\" onclick=\"document.getElementById(\\'finSalesDetail\\').style.display=\\'none\\'\" style=\"float:right;\">✕ 关闭</button></div><div class=\"table-wrap\"><table><thead><tr><th>尺码</th><th>售价</th><th>原鞋成本</th><th>定制费</th><th>到手</th><th>利润</th><th>利润率</th></tr></thead><tbody>'+orders.map(o=>'<tr><td>'+o.size+'</td><td>¥'+o.price+'</td><td>¥'+o.cost+'</td><td>¥'+o.custom+'</td><td>¥'+o.income+'</td><td style=\"color:'+(o.profit>=0?'var(--green)':'var(--red)')+';\">'+(o.profit>=0?'+':'')+'¥'+o.profit+'</td><td>'+(o.rate>=0?'+':'')+o.rate+'%</td></tr>').join('')+'</tbody></table></div></div>';
-  // Scroll to detail
+  // Build detail with DOM
+  detail.innerHTML='';
+  var card=document.createElement('div');card.className='card';card.style.marginTop='8px';
+  var title=document.createElement('div');title.className='card-title';
+  title.innerHTML='📋 '+name+' 明细 ('+orders.length+'单) ';
+  var closeBtn=document.createElement('button');closeBtn.className='btn btn-outline btn-sm';
+  closeBtn.textContent='✕ 关闭';closeBtn.style.float='right';
+  closeBtn.onclick=function(){detail.style.display='none';};
+  title.appendChild(closeBtn);card.appendChild(title);
+  var wrap=document.createElement('div');wrap.className='table-wrap';
+  var tbl='<table><thead><tr><th>尺码</th><th>售价</th><th>原鞋成本</th><th>定制费</th><th>到手</th><th>利润</th><th>利润率</th></tr></thead><tbody>';
+  orders.forEach(function(o){tbl+='<tr><td>'+o.size+'</td><td>¥'+o.price+'</td><td>¥'+o.cost+'</td><td>¥'+o.custom+'</td><td>¥'+o.income+'</td><td style=\"color:'+(o.profit>=0?'var(--green)':'var(--red)')+';\">'+(o.profit>=0?'+':'')+'¥'+o.profit+'</td><td>'+(o.rate>=0?'+':'')+o.rate+'%</td></tr>';});
+  tbl+='</tbody></table>';wrap.innerHTML=tbl;card.appendChild(wrap);
+  detail.appendChild(card);
   detail.scrollIntoView({behavior:'smooth'});
 }
 
