@@ -157,6 +157,10 @@ tr:hover td{background:#fafcfd}
 </style>
 </head>
 <body>
+<div id="loadingMsg" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:sans-serif;text-align:center;z-index:9999;">
+  <div style="font-size:40px;margin-bottom:12px;">⏳</div>
+  <div style="font-size:14px;color:#666;">加载中...</div>
+</div>
 <div class="app">
 
 <!-- Sidebar -->
@@ -512,6 +516,7 @@ tr:hover td{background:#fafcfd}
 <div class="toast" id="toast"></div>
 
 <script>
+window.onerror=function(m,s,l,c,e){document.body.innerHTML='<div style=\"padding:40px;text-align:center;font-family:sans-serif;\"><h2>⚠ 加载出错</h2><p style=\"color:#999;\">请尝试：<br>1. 强制刷新 Ctrl+Shift+R<br>2. 清除缓存后重试<br>3. 在网址后加 ?v='+Date.now()+'</p><p style=\"font-size:11px;color:#ccc;\">'+m+'<br>行'+l+'</p></div>';return true;};
 // ============================================================
 // DATA LAYER
 // ============================================================
@@ -1900,9 +1905,15 @@ function initDefaultDataWorkbench() {
 
 window.addEventListener('resize',()=>{['homeChart','chartDashSales','chartDashRate','chartDashProducts','chartDashPnL','chartFinCashflow','chartFinExpCat','chartFinWeekProducts','chartFinWeekPnL','chartFinWeeklyProfit','chartFinMonthly'].forEach(id=>{const el=document.getElementById(id);if(el&&el.__echart)el.__echart.resize();});});
 
+try{
 initDefaultDataWorkbench();
 renderHome();
 updateTime();
+document.getElementById('loadingMsg').style.display='none';
+}catch(e){
+document.getElementById('loadingMsg').innerHTML='<div style=\"font-size:40px;margin-bottom:12px;\">⚠️</div><div style=\"font-size:14px;color:#c00;\">加载失败</div><div style=\"font-size:11px;color:#999;margin-top:8px;\">'+e.message+'</div><div style=\"margin-top:16px;\"><button onclick=\"localStorage.removeItem(\\'dc_data_v3\\');location.reload();\" style=\"padding:8px 20px;background:#3370ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;\">🔄 清除数据并重试</button></div>';
+throw e;
+}
 </script>
 </body>
 </html>
