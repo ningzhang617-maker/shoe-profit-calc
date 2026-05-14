@@ -1,0 +1,1389 @@
+[
+  {
+    "id": "b_2026-04-20",
+    "label": "第1周 (04/20-04/26)",
+    "start": "2026-04-20",
+    "end": "2026-04-26",
+    "summary": {
+      "orders": 66,
+      "returns": 5,
+      "revenue": 34871.95,
+      "netIncome": 30607.2,
+      "profit": 7595.2,
+      "profitRate": 21.8,
+      "platformFee": 4754.55,
+      "returnRate": 7.6,
+      "customFee": 2300,
+      "fixedCost": 3102
+    },
+    "sales": [
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 37.5",
+        "price": 639.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 511.2,
+        "profit": 164.2,
+        "rate": 25.7
+      },
+      {
+        "name": "冰川闪银",
+        "size": "珠光蓝 36.5",
+        "price": 598.0,
+        "cost": 254,
+        "custom": 25,
+        "income": 478.4,
+        "profit": 152.4,
+        "rate": 25.5
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36",
+        "price": 359.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 287.2,
+        "profit": -34.8,
+        "rate": -9.7
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 36",
+        "price": 659.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 180.2,
+        "rate": 27.3
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 38.5",
+        "price": 379.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 303.2,
+        "profit": -18.8,
+        "rate": -5.0
+      },
+      {
+        "name": "幻想家",
+        "size": "红白 42.5",
+        "price": 499.0,
+        "cost": 322,
+        "custom": 55,
+        "income": 399.2,
+        "profit": -24.8,
+        "rate": -5.0
+      },
+      {
+        "name": "香柠馒馒",
+        "size": "奶黄 38⅔",
+        "price": 369.0,
+        "cost": 218,
+        "custom": 25,
+        "income": 295.2,
+        "profit": 5.2,
+        "rate": 1.4
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 37.5",
+        "price": 419.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 335.2,
+        "profit": 13.2,
+        "rate": 3.2
+      },
+      {
+        "name": "浮生白马",
+        "size": "黑白 44",
+        "price": 739.0,
+        "cost": 348,
+        "custom": 40,
+        "income": 591.2,
+        "profit": 156.2,
+        "rate": 21.1
+      },
+      {
+        "name": "绿野迷踪",
+        "size": "黑绿 43",
+        "price": 309.0,
+        "cost": 348,
+        "custom": 45,
+        "income": 247.2,
+        "profit": -192.8,
+        "rate": -62.4
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 38.5",
+        "price": 638.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 510.4,
+        "profit": 163.4,
+        "rate": 25.6
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 35⅔",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 36",
+        "price": 419.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 335.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 399.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 319.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 37⅓",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "青谧浮影",
+        "size": "绿白 38",
+        "price": 929.0,
+        "cost": 424,
+        "custom": 65,
+        "income": 743.2,
+        "profit": 207.2,
+        "rate": 22.3
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 38",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 38",
+        "price": 639.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 511.2,
+        "profit": 164.2,
+        "rate": 25.7
+      },
+      {
+        "name": "幻想家",
+        "size": "红白 42.5",
+        "price": 499.0,
+        "cost": 322,
+        "custom": 55,
+        "income": 399.2,
+        "profit": -24.8,
+        "rate": -5.0
+      },
+      {
+        "name": "粉心Kitty",
+        "size": "粉白 36.5",
+        "price": 598.0,
+        "cost": 250,
+        "custom": 30,
+        "income": 478.4,
+        "profit": 151.4,
+        "rate": 25.3
+      },
+      {
+        "name": "青谧浮影",
+        "size": "绿白 42",
+        "price": 989.0,
+        "cost": 424,
+        "custom": 65,
+        "income": 791.2,
+        "profit": 255.2,
+        "rate": 25.8
+      },
+      {
+        "name": "信仰之翼",
+        "size": "黑色 39.5",
+        "price": 219.0,
+        "cost": 142,
+        "custom": 40,
+        "income": 175.2,
+        "profit": -53.8,
+        "rate": -24.6
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 38",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36",
+        "price": 359.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 287.2,
+        "profit": -34.8,
+        "rate": -9.7
+      },
+      {
+        "name": "绯红小马",
+        "size": "安哥拉红",
+        "price": 579.0,
+        "cost": 0,
+        "custom": 55,
+        "income": 463.2,
+        "profit": 361.2,
+        "rate": 62.4
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 369.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 295.2,
+        "profit": -26.8,
+        "rate": -7.3
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 37.5",
+        "price": 419.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 335.2,
+        "profit": 13.2,
+        "rate": 3.2
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 38⅔",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 36.5",
+        "price": 639.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 511.2,
+        "profit": 164.2,
+        "rate": 25.7
+      },
+      {
+        "name": "粉心Kitty",
+        "size": "粉白 35.5",
+        "price": 599.0,
+        "cost": 250,
+        "custom": 30,
+        "income": 479.2,
+        "profit": 152.2,
+        "rate": 25.4
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 38",
+        "price": 639.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 511.2,
+        "profit": 164.2,
+        "rate": 25.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 369.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 295.2,
+        "profit": -26.8,
+        "rate": -7.3
+      },
+      {
+        "name": "幻想家",
+        "size": "红白 41",
+        "price": 499.0,
+        "cost": 322,
+        "custom": 55,
+        "income": 399.2,
+        "profit": -24.8,
+        "rate": -5.0
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 36⅔",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 37⅓",
+        "price": 679.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 543.2,
+        "profit": 205.2,
+        "rate": 30.2
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 38.5",
+        "price": 599.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 479.2,
+        "profit": 157.2,
+        "rate": 26.2
+      },
+      {
+        "name": "雾蓝废土",
+        "size": "蓝白 42",
+        "price": 789.0,
+        "cost": 322,
+        "custom": 50,
+        "income": 631.2,
+        "profit": 212.2,
+        "rate": 26.9
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 35.5",
+        "price": 379.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 303.2,
+        "profit": -18.8,
+        "rate": -5.0
+      },
+      {
+        "name": "登山者",
+        "size": "灰白 40",
+        "price": 869.0,
+        "cost": 323,
+        "custom": 70,
+        "income": 695.2,
+        "profit": 255.2,
+        "rate": 29.4
+      },
+      {
+        "name": "云上舞白",
+        "size": "白色 40.5",
+        "price": 799.0,
+        "cost": 322,
+        "custom": 50,
+        "income": 639.2,
+        "profit": 220.2,
+        "rate": 27.6
+      },
+      {
+        "name": "粉心Kitty",
+        "size": "粉白 36",
+        "price": 599.0,
+        "cost": 250,
+        "custom": 30,
+        "income": 479.2,
+        "profit": 152.2,
+        "rate": 25.4
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 36",
+        "price": 658.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 526.4,
+        "profit": 188.4,
+        "rate": 28.6
+      },
+      {
+        "name": "旧域漫游者",
+        "size": "米红 42.5",
+        "price": 499.0,
+        "cost": 322,
+        "custom": 55,
+        "income": 399.2,
+        "profit": -24.8,
+        "rate": -5.0
+      },
+      {
+        "name": "男女废土银鸦",
+        "size": "黑白 42",
+        "price": 579.0,
+        "cost": 292,
+        "custom": 35,
+        "income": 463.2,
+        "profit": 89.2,
+        "rate": 15.4
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 37.5",
+        "price": 639.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 511.2,
+        "profit": 164.2,
+        "rate": 25.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 35.5",
+        "price": 379.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 303.2,
+        "profit": -18.8,
+        "rate": -5.0
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 369.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 295.2,
+        "profit": -26.8,
+        "rate": -7.3
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 38",
+        "price": 679.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 543.2,
+        "profit": 196.2,
+        "rate": 28.9
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 38",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "蓝粉猫咪",
+        "size": "蓝白 38",
+        "price": 799.0,
+        "cost": 292,
+        "custom": 0,
+        "income": 639.2,
+        "profit": 300.2,
+        "rate": 37.6
+      },
+      {
+        "name": "幻想家",
+        "size": "红白 40.5",
+        "price": 499.0,
+        "cost": 322,
+        "custom": 55,
+        "income": 399.2,
+        "profit": -24.8,
+        "rate": -5.0
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36",
+        "price": 379.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 303.2,
+        "profit": -18.8,
+        "rate": -5.0
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 37⅓",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 36",
+        "price": 659.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 180.2,
+        "rate": 27.3
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 38.5",
+        "price": 599.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 479.2,
+        "profit": 157.2,
+        "rate": 26.2
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 38",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 37⅓",
+        "price": 679.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 543.2,
+        "profit": 205.2,
+        "rate": 30.2
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 39⅓",
+        "price": 659.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 527.2,
+        "profit": 189.2,
+        "rate": 28.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 369.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 295.2,
+        "profit": -26.8,
+        "rate": -7.3
+      },
+      {
+        "name": "云上舞白",
+        "size": "白色 40.5",
+        "price": 789.0,
+        "cost": 322,
+        "custom": 50,
+        "income": 631.2,
+        "profit": 212.2,
+        "rate": 26.9
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36",
+        "price": 359.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 287.2,
+        "profit": -34.8,
+        "rate": -9.7
+      },
+      {
+        "name": "甜酷粉钻",
+        "size": "粉白 37.5",
+        "price": 799.0,
+        "cost": 292,
+        "custom": 45,
+        "income": 639.2,
+        "profit": 255.2,
+        "rate": 31.9
+      },
+      {
+        "name": "绯红小马",
+        "size": "安哥拉红",
+        "price": 579.0,
+        "cost": 0,
+        "custom": 55,
+        "income": 463.2,
+        "profit": 361.2,
+        "rate": 62.4
+      },
+      {
+        "name": "街区涂鸦",
+        "size": "黑灰 40.5",
+        "price": 869.0,
+        "cost": 323,
+        "custom": 75,
+        "income": 695.2,
+        "profit": 250.2,
+        "rate": 28.8
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 369.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 295.2,
+        "profit": -26.8,
+        "rate": -7.3
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 38.5",
+        "price": 638.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 510.4,
+        "profit": 163.4,
+        "rate": 25.6
+      }
+    ],
+    "returns": [
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 粉心心跳  皮革 甜酷少女 小众不撞款 校园甜妹 无性别 Y2K 低帮 板鞋 黑粉 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "GUCCI古驰【定制化妆包】 六六八八 绯红小马 CNY 马年挂饰 新年限定 大气 优雅 约会少女 收纳便携 安可拉红半圆贝壳 红色 聚酯纤维",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 银闪花嫁 皮革 芭蕾风 公主 Lolita甜妹 白月光 少女 缎面 低帮 板鞋 珠光白 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 粉心Kitty 皮革 爱心涂鸦 甜酷 软萌治愈 甜妹 Y2K少女风 低帮 板鞋 粉白 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】adidas neo Entrap 六六八八 棉花喵喵 皮革 时尚 简约 复古小众 少女心 女朋友 可爱 防滑耐磨 低帮 板鞋 男女同款 蓝白",
+        "amount": 1.0,
+        "loss": 50
+      }
+    ],
+    "report": ""
+  },
+  {
+    "id": "b_2026-04-27",
+    "label": "第2周 (04/27-05/03)",
+    "start": "2026-04-27",
+    "end": "2026-05-03",
+    "summary": {
+      "orders": 36,
+      "returns": 5,
+      "revenue": 16377.15,
+      "netIncome": 15045.6,
+      "profit": 2245.6,
+      "profitRate": 13.7,
+      "platformFee": 2779.28,
+      "returnRate": 13.9,
+      "customFee": 1295,
+      "fixedCost": 1692
+    },
+    "sales": [
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36",
+        "price": 359.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 287.2,
+        "profit": -34.8,
+        "rate": -9.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 37.5",
+        "price": 399.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 319.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 399.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 319.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 38⅔",
+        "price": 449.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 359.2,
+        "profit": 21.2,
+        "rate": 4.7
+      },
+      {
+        "name": "香柠馒馒",
+        "size": "奶黄 38⅔",
+        "price": 369.0,
+        "cost": 218,
+        "custom": 25,
+        "income": 295.2,
+        "profit": 5.2,
+        "rate": 1.4
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 37.5",
+        "price": 379.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 303.2,
+        "profit": -18.8,
+        "rate": -5.0
+      },
+      {
+        "name": "男女废土银鸦",
+        "size": "黑白 40",
+        "price": 599.0,
+        "cost": 292,
+        "custom": 35,
+        "income": 479.2,
+        "profit": 105.2,
+        "rate": 17.6
+      },
+      {
+        "name": "雾蓝废土",
+        "size": "蓝白 44.5",
+        "price": 799.0,
+        "cost": 322,
+        "custom": 50,
+        "income": 639.2,
+        "profit": 220.2,
+        "rate": 27.6
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 428.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 342.4,
+        "profit": 20.4,
+        "rate": 4.8
+      },
+      {
+        "name": "粉恋",
+        "size": "银粉 40",
+        "price": 639.0,
+        "cost": 284,
+        "custom": 45,
+        "income": 511.2,
+        "profit": 135.2,
+        "rate": 21.2
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 39⅓",
+        "price": 521.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 416.8,
+        "profit": 78.8,
+        "rate": 15.1
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 35.5",
+        "price": 469.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 375.2,
+        "profit": 28.2,
+        "rate": 6.0
+      },
+      {
+        "name": "登山者",
+        "size": "灰白 42.5",
+        "price": 779.0,
+        "cost": 323,
+        "custom": 70,
+        "income": 623.2,
+        "profit": 183.2,
+        "rate": 23.5
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 37⅓",
+        "price": 429.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 343.2,
+        "profit": 5.2,
+        "rate": 1.2
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 37.5",
+        "price": 439.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 351.2,
+        "profit": 4.2,
+        "rate": 1.0
+      },
+      {
+        "name": "莓莓粉荔",
+        "size": "黑白 37",
+        "price": 469.0,
+        "cost": 205,
+        "custom": 45,
+        "income": 375.2,
+        "profit": 78.2,
+        "rate": 16.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36",
+        "price": 359.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 287.2,
+        "profit": -34.8,
+        "rate": -9.7
+      },
+      {
+        "name": "绿野迷踪",
+        "size": "黑绿 40.5",
+        "price": 689.0,
+        "cost": 348,
+        "custom": 45,
+        "income": 551.2,
+        "profit": 111.2,
+        "rate": 16.1
+      },
+      {
+        "name": "幻想家",
+        "size": "红白 41",
+        "price": 499.0,
+        "cost": 322,
+        "custom": 55,
+        "income": 399.2,
+        "profit": -24.8,
+        "rate": -5.0
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 38",
+        "price": 379.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 303.2,
+        "profit": -18.8,
+        "rate": -5.0
+      },
+      {
+        "name": "登山者",
+        "size": "灰白 44",
+        "price": 859.0,
+        "cost": 323,
+        "custom": 70,
+        "income": 687.2,
+        "profit": 247.2,
+        "rate": 28.8
+      },
+      {
+        "name": "粉心Kitty",
+        "size": "粉白 36.5",
+        "price": 598.0,
+        "cost": 250,
+        "custom": 30,
+        "income": 478.4,
+        "profit": 151.4,
+        "rate": 25.3
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 36",
+        "price": 439.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 351.2,
+        "profit": 4.2,
+        "rate": 1.0
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 40",
+        "price": 521.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 416.8,
+        "profit": 78.8,
+        "rate": 15.1
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 35.5",
+        "price": 399.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 319.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "街区涂鸦",
+        "size": "黑灰 44",
+        "price": 869.0,
+        "cost": 323,
+        "custom": 75,
+        "income": 695.2,
+        "profit": 250.2,
+        "rate": 28.8
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 38",
+        "price": 399.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 319.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 35.5",
+        "price": 419.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 335.2,
+        "profit": 13.2,
+        "rate": 3.2
+      },
+      {
+        "name": "莓莓粉荔",
+        "size": "黑白 37.5",
+        "price": 440.0,
+        "cost": 205,
+        "custom": 45,
+        "income": 352.0,
+        "profit": 55.0,
+        "rate": 12.5
+      },
+      {
+        "name": "灰絮",
+        "size": "黑灰 41",
+        "price": 769.0,
+        "cost": 350,
+        "custom": 30,
+        "income": 615.2,
+        "profit": 188.2,
+        "rate": 24.5
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36",
+        "price": 359.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 287.2,
+        "profit": -34.8,
+        "rate": -9.7
+      },
+      {
+        "name": "雾蓝废土",
+        "size": "蓝白 43",
+        "price": 669.0,
+        "cost": 322,
+        "custom": 50,
+        "income": 535.2,
+        "profit": 116.2,
+        "rate": 17.4
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 37.5",
+        "price": 399.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 319.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "幻影灰",
+        "size": "灰白 38.5",
+        "price": 959.0,
+        "cost": 372,
+        "custom": 65,
+        "income": 767.2,
+        "profit": 283.2,
+        "rate": 29.5
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 38",
+        "price": 439.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 351.2,
+        "profit": 29.2,
+        "rate": 6.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 419.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 335.2,
+        "profit": 13.2,
+        "rate": 3.2
+      }
+    ],
+    "returns": [
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】PUMA彪马 Skye 六六八八 莓莓粉荔 皮革 甜妹 千禧风 户外 可爱 校园 蕾丝带 低帮 板鞋 女款 黑粉",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 粉心心跳  皮革 甜酷少女 小众不撞款 校园甜妹 无性别 Y2K 低帮 板鞋 黑粉 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 粉心心跳  皮革 甜酷少女 小众不撞款 校园甜妹 无性别 Y2K 低帮 板鞋 黑粉 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 粉心心跳  皮革 甜酷少女 小众不撞款 校园甜妹 无性别 Y2K 低帮 板鞋 黑粉 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】FILA斐乐 Mars 2 六六八八 绿野迷踪 皮革 户外运动 百搭 登山 简约 时尚 清新 耐磨 低帮 生活休闲鞋 男款 黑绿",
+        "amount": 1.0,
+        "loss": 50
+      }
+    ],
+    "report": ""
+  },
+  {
+    "id": "b_2026-05-04",
+    "label": "第3周 (05/04-05/10)",
+    "start": "2026-05-04",
+    "end": "2026-05-10",
+    "summary": {
+      "orders": 19,
+      "returns": 8,
+      "revenue": 5902.49,
+      "netIncome": 7853.6,
+      "profit": 1078.6,
+      "profitRate": 18.3,
+      "platformFee": 950.28,
+      "returnRate": 42.1,
+      "customFee": 710,
+      "fixedCost": 893
+    },
+    "sales": [
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 37⅓",
+        "price": 429.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 343.2,
+        "profit": 5.2,
+        "rate": 1.2
+      },
+      {
+        "name": "山海烛龙",
+        "size": "白绿 38.5",
+        "price": 485.0,
+        "cost": 424,
+        "custom": 70,
+        "income": 388.0,
+        "profit": -153.0,
+        "rate": -31.5
+      },
+      {
+        "name": "福马顺遂",
+        "size": "黑红 45",
+        "price": 789.0,
+        "cost": 322,
+        "custom": 45,
+        "income": 631.2,
+        "profit": 217.2,
+        "rate": 27.5
+      },
+      {
+        "name": "幻想家",
+        "size": "红白 40.5",
+        "price": 499.0,
+        "cost": 322,
+        "custom": 55,
+        "income": 399.2,
+        "profit": -24.8,
+        "rate": -5.0
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 37.5",
+        "price": 399.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 319.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "绯红小马",
+        "size": "安哥拉红",
+        "price": 579.0,
+        "cost": 0,
+        "custom": 55,
+        "income": 463.2,
+        "profit": 361.2,
+        "rate": 62.4
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 37.5",
+        "price": 439.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 351.2,
+        "profit": 29.2,
+        "rate": 6.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 35.5",
+        "price": 429.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 343.2,
+        "profit": 21.2,
+        "rate": 4.9
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36.5",
+        "price": 399.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 319.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "银闪花嫁",
+        "size": "珠光白 36",
+        "price": 439.0,
+        "cost": 270,
+        "custom": 30,
+        "income": 351.2,
+        "profit": 4.2,
+        "rate": 1.0
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 38",
+        "price": 399.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 319.2,
+        "profit": -2.8,
+        "rate": -0.7
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 36",
+        "price": 359.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 287.2,
+        "profit": -34.8,
+        "rate": -9.7
+      },
+      {
+        "name": "玉润灵蛇",
+        "size": "白绿 39",
+        "price": 929.0,
+        "cost": 424,
+        "custom": 75,
+        "income": 743.2,
+        "profit": 197.2,
+        "rate": 21.2
+      },
+      {
+        "name": "香柠馒馒",
+        "size": "奶黄 36⅔",
+        "price": 369.0,
+        "cost": 218,
+        "custom": 25,
+        "income": 295.2,
+        "profit": 5.2,
+        "rate": 1.4
+      },
+      {
+        "name": "棉花喵喵",
+        "size": "蓝白 37⅓",
+        "price": 429.0,
+        "cost": 261,
+        "custom": 30,
+        "income": 343.2,
+        "profit": 5.2,
+        "rate": 1.2
+      },
+      {
+        "name": "绿野迷踪",
+        "size": "黑绿 42",
+        "price": 689.0,
+        "cost": 348,
+        "custom": 45,
+        "income": 551.2,
+        "profit": 111.2,
+        "rate": 16.1
+      },
+      {
+        "name": "云上舞白",
+        "size": "白色 44.5",
+        "price": 799.0,
+        "cost": 322,
+        "custom": 50,
+        "income": 639.2,
+        "profit": 220.2,
+        "rate": 27.6
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 39",
+        "price": 519.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 415.2,
+        "profit": 93.2,
+        "rate": 18.0
+      },
+      {
+        "name": "粉心心跳",
+        "size": "黑粉 37.5",
+        "price": 439.0,
+        "cost": 250,
+        "custom": 25,
+        "income": 351.2,
+        "profit": 29.2,
+        "rate": 6.7
+      }
+    ],
+    "returns": [
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 粉心心跳  皮革 甜酷少女 小众不撞款 校园甜妹 无性别 Y2K 低帮 板鞋 黑粉 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 粉心心跳  皮革 甜酷少女 小众不撞款 校园甜妹 无性别 Y2K 低帮 板鞋 黑粉 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 粉心心跳  皮革 甜酷少女 小众不撞款 校园甜妹 无性别 Y2K 低帮 板鞋 黑粉 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 粉心心跳  皮革 甜酷少女 小众不撞款 校园甜妹 无性别 Y2K 低帮 板鞋 黑粉 青少年",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】adidas GRADAS 六六八八 香柠馒馒 皮革 时尚 简约 复古小众 少女心 女朋友 可爱 耐磨防滑 低帮 板鞋 男女同款 奶黄",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】Nike Dunk 六六八八 幻影灰 涂鸦 字母 街头 百搭 休闲 做旧 防滑 低帮 板鞋 男款 灰白",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】Nike Dunk 六六八八 山海烛龙 神兽 新中式 纹样 祥云 国风 百搭 增高 低帮 板鞋 男女同款 白绿",
+        "amount": 1.0,
+        "loss": 50
+      },
+      {
+        "name": "unknown",
+        "size": "【定制球鞋】  NikeCourt Borough 六六八八 银闪花嫁 皮革 芭蕾风 公主 Lolita甜妹 白月光 少女 缎面 低帮 板鞋 珠光白 青少年",
+        "amount": 1.0,
+        "loss": 50
+      }
+    ],
+    "report": ""
+  }
+]
