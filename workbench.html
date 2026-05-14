@@ -380,11 +380,24 @@ tr:hover td{background:#fafcfd}
       </div>
       <div id="finLedgerView" class="fin-view active">
         <div class="kpi-grid" id="finLedgerKPIs"></div>
-        <div class="chart-row">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+          <input type="date" id="ledgerFilterDate" onchange="renderFinLedger()" style="padding:4px 8px;font-size:12px;width:140px;border:1px solid #ddd;border-radius:6px;" title="按日期筛选">
+          <select id="ledgerFilterWeek" onchange="renderFinLedger()" style="padding:4px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;"><option value="">全部周次</option></select>
+          <select id="ledgerFilterCat" onchange="renderFinLedger()" style="padding:4px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;"><option value="">全部分类</option></select>
+          <input type="text" id="ledgerSearch" placeholder="🔍 搜索明细..." oninput="renderFinLedger()" style="padding:4px 8px;font-size:12px;width:150px;border:1px solid #ddd;border-radius:6px;">
+          <div style="flex:1;"></div>
+          <button class="btn btn-outline btn-sm" onclick="showBackupDialog()" title="备份管理">📦 备份</button>
+          <button class="btn btn-primary btn-sm" onclick="addLedgerRow()">＋ 新增一行</button>
+        </div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>备注</th><th>周次</th><th>操作</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div></div>
+        <div class="card" style="margin-top:12px;">
+          <div class="card-title">📊 周汇总（按分类） <span style="font-size:11px;color:var(--text3);">自动从记账流水聚合</span></div>
+          <div class="table-wrap"><table><thead><tr><th>周次</th><th>原鞋</th><th>推广</th><th>设计</th><th>材料</th><th>邮费</th><th>平台</th><th>工作室</th><th>其他支出</th><th>个人消费</th><th>还款债务</th><th>周总支出</th><th>周总收入</th><th>净支出</th></tr></thead><tbody id="finWeekSummaryBody"></tbody></table></div>
+        </div>
+        <div class="chart-row" style="margin-top:16px;">
           <div class="chart-card"><div class="cc-title">📈 每周收支</div><div class="chart-box" id="chartFinCashflow"></div></div>
           <div class="chart-card"><div class="cc-title">🍩 支出分类</div><div class="chart-box" id="chartFinExpCat"></div></div>
         </div>
-        <div class="card"><button class="btn btn-outline btn-sm" style="margin-bottom:8px;" onclick="addLedgerRow()">＋ 新增一行</button><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>周次</th><th>操作</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div></div>
       </div>
       <div id="finWeeklyView" class="fin-view">
         <div style="margin-bottom:10px;"><select id="finWeekSel" onchange="renderFinWeekly(parseInt(this.value))"></select></div>
@@ -548,8 +561,78 @@ function getDB() {
   try { const d = localStorage.getItem('dc_data_v3'); return d ? JSON.parse(d) : {reports:[],products:[],finance:{ledger:[],weeklyBills:[],categories:['原鞋','工作室','推广','设计','材料','邮费','平台','其他支出','个人消费','还款债务','其他收入']},calcHistory:[]}; }
   catch(e) { return {reports:[],products:[],finance:{ledger:[],weeklyBills:[],categories:[]},calcHistory:[]}; }
 }
-function saveDB(db) { localStorage.setItem('dc_data_v3', JSON.stringify(db)); updateTime(); }
+function backupDB() {
+  var db = getDB(); var ts = new Date().toISOString().replace(/[:.]/g,'-');
+  var key = 'dc_backup_' + ts;
+  try { localStorage.setItem(key, JSON.stringify(db)); } catch(e) {}
+  var keys = []; for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i); if (k.startsWith('dc_backup_')) keys.push(k);
+  }
+  keys.sort().reverse();
+  for (var i = 5; i < keys.length; i++) { localStorage.removeItem(keys[i]); }
+  return key;
+}
+function saveDB(db) { backupDB(); localStorage.setItem('dc_data_v3', JSON.stringify(db)); updateTime(); }
 function updateTime() { document.getElementById('tbTime').textContent = new Date().toLocaleTimeString('zh-CN'); }
+function listBackups() {
+  var keys = []; for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i); if (k.startsWith('dc_backup_')) keys.push(k);
+  }
+  return keys.sort().reverse();
+}
+function restoreBackup(key) {
+  if (!confirm('确定恢复此备份？当前数据将被替换。')) return;
+  try {
+    var data = JSON.parse(localStorage.getItem(key));
+    if (!data || !data.finance) { alert('备份数据无效'); return; }
+    data._dataVersion = (getDB()._dataVersion || 3);
+    saveDB(data);
+    alert('已恢复！页面将刷新。');
+    location.reload();
+  } catch(e) { alert('恢复失败: ' + e.message); }
+}
+function exportBackup() {
+  var db = getDB(); var ts = new Date().toISOString().slice(0,10);
+  var blob = new Blob([JSON.stringify(db, null, 2)], {type: 'application/json'});
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = '六六八八_数据备份_' + ts + '.json'; a.click();
+  toast('备份已下载');
+}
+function importBackup() {
+  var input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+  input.onchange = function(e) {
+    var file = e.target.files[0]; if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        var data = JSON.parse(ev.target.result);
+        if (!data.finance) { alert('不是有效的备份文件'); return; }
+        if (!confirm('确定导入此备份？当前数据将被覆盖。')) return;
+        localStorage.setItem('dc_data_v3', JSON.stringify(data));
+        alert('导入成功！页面将刷新。');
+        location.reload();
+      } catch(e) { alert('导入失败: ' + e.message); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+function showBackupDialog() {
+  var backups = listBackups();
+  var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;"><div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);"><h3 style="margin:0 0 16px;">📦 数据备份管理</h3><div style="display:flex;gap:8px;margin-bottom:16px;"><button class="btn btn-primary btn-sm" onclick="exportBackup();document.getElementById('backupDialog').remove();">📥 导出备份</button><button class="btn btn-outline btn-sm" onclick="importBackup();document.getElementById('backupDialog').remove();">📤 导入备份</button></div><div style="font-size:12px;color:var(--text3);margin-bottom:8px;">最近5份自动备份（点击恢复）：</div>';
+  if (backups.length === 0) {
+    html += '<div style="color:var(--text3);padding:16px;text-align:center;">暂无自动备份</div>';
+  } else {
+    backups.forEach(function(k) {
+      var ts = k.replace('dc_backup_', '');
+      var label = ts.replace('T', ' ').slice(0,19);
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border:1px solid #eee;border-radius:8px;margin-bottom:4px;cursor:pointer;" onclick="if(confirm('恢复到此时间点？')){restoreBackup(''+k+'');document.getElementById('backupDialog').remove();}"><span>🕐 '+label+'</span><span style="color:var(--primary);font-size:12px;">恢复 →</span></div>';
+    });
+  }
+  html += '<button class="btn btn-outline btn-sm" style="margin-top:12px;width:100%;" onclick="document.getElementById('backupDialog').remove();">关闭</button></div></div>';
+  var div = document.createElement('div'); div.id = 'backupDialog'; div.innerHTML = html;
+  document.body.appendChild(div);
+}
 
 // ============================================================
 // CORE: Module Switching
@@ -1279,73 +1362,161 @@ function switchFinTab(t) {
 }
 
 function renderFinLedger() {
-  const db = getDB(); const ledger = db.finance.ledger||[];
-  const totalIn = ledger.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
-  const totalOut = Math.abs(ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
-  document.getElementById('finLedgerKPIs').innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">总收入</div><div class="kpi-value">¥${totalIn.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">总支出</div><div class="kpi-value">¥${totalOut.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">净现金流</div><div class="kpi-value" style="color:${totalIn-totalOut>=0?'var(--green)':'var(--red)'}">¥${(totalIn-totalOut).toLocaleString()}</div></div>
-  `;
-  const catMap={}; ledger.filter(i=>i.amount<0).forEach(i=>{catMap[i.cat]=(catMap[i.cat]||0)+Math.abs(i.amount);});
-  const wkMap={}; ledger.forEach(i=>{const w='W'+i.week;if(!wkMap[w])wkMap[w]={in:0,out:0};if(i.amount>0)wkMap[w].in+=i.amount;else wkMap[w].out+=Math.abs(i.amount);});
-  const wKeys=Object.keys(wkMap).sort();
-  renderChart('chartFinCashflow',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:wKeys},yAxis:{type:'value'},series:[{name:'收入',type:'bar',data:wKeys.map(k=>wkMap[k].in),itemStyle:{color:'#34c759'},barMaxWidth:25},{name:'支出',type:'bar',data:wKeys.map(k=>wkMap[k].out),itemStyle:{color:'#ff3b30'},barMaxWidth:25}]});
-  renderChart('chartFinExpCat',{tooltip:{trigger:'item'},series:[{type:'pie',radius:['45%','70%'],data:Object.entries(catMap).map(([k,v])=>({name:k,value:v})),label:{formatter:'{b}\n{d}%'}}]});
-  document.getElementById('finLedgerBody').innerHTML = [...ledger].reverse().map((i,idx)=>{
-    const realIdx = ledger.length-1-idx;
-    const cats = (db.finance.categories||['其他']).map(c=>`<option value="${c}" ${i.cat===c?'selected':''}>${c}</option>`).join('');
-    return `<tr>
-      <td><input value="${i.date}" onchange="updateLedgerCell(${realIdx},'date',this.value)" style="width:100px;padding:4px 6px;font-size:12px;"></td>
-      <td><input value="${i.day||''}" onchange="updateLedgerCell(${realIdx},'day',this.value)" style="width:60px;padding:4px 6px;font-size:12px;"></td>
-      <td><select onchange="updateLedgerCell(${realIdx},'cat',this.value)" style="padding:4px 6px;font-size:12px;">${cats}</select></td>
-      <td><input value="${i.desc||''}" onchange="updateLedgerCell(${realIdx},'desc',this.value)" style="width:140px;padding:4px 6px;font-size:12px;"></td>
-      <td><input type="number" value="${Math.abs(i.amount)}" oninput="this.style.color=parseFloat(this.value)>0&&'${i.cat}'!=='其他收入'?'var(--red)':'var(--green)';this.value=this.value.replace(/^-/,'')" onchange="let v=parseFloat(this.value)||0;if(v>0&&'${i.cat.replace(/'/g,"\\'")}'!=='其他收入')v=-v;updateLedgerCell(${realIdx},'amount',v)" style="width:90px;padding:4px 6px;font-size:12px;color:${i.amount<0?'var(--red)':'var(--green)'};font-weight:700;"></td>
-      <td><input value="${i.pay||''}" onchange="updateLedgerCell(${realIdx},'pay',this.value)" style="width:70px;padding:4px 6px;font-size:12px;"></td>
-      <td><input type="number" value="${i.week||1}" onchange="updateLedgerCell(${realIdx},'week',parseInt(this.value)||1)" style="width:50px;padding:4px 6px;font-size:12px;"></td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteLedgerRow(${realIdx})" style="padding:2px 8px;">✕</button></td>
-    </tr>`;
-  }).join('');
+  const db = getDB(); var ledger = db.finance.ledger||[];
+  const cats = db.finance.categories||['原鞋','工作室','推广','设计','材料','邮费','平台','其他支出','个人消费','还款债务','其他收入'];
+
+  // Apply filters
+  var filterDate = document.getElementById('ledgerFilterDate');
+  var filterWeek = document.getElementById('ledgerFilterWeek');
+  var filterCat = document.getElementById('ledgerFilterCat');
+  var filterSearch = document.getElementById('ledgerSearch');
+
+  if (filterDate) { var fd = filterDate.value; if (fd) ledger = ledger.filter(function(i){ return i.date === fd; }); }
+  if (filterWeek) { var fw = filterWeek.value; if (fw) ledger = ledger.filter(function(i){ return String(i.week) === fw; }); }
+  if (filterCat) { var fc = filterCat.value; if (fc) ledger = ledger.filter(function(i){ return i.cat === fc; }); }
+  if (filterSearch) { var fs = filterSearch.value.toLowerCase(); if (fs) ledger = ledger.filter(function(i){ return (i.desc||'').toLowerCase().indexOf(fs) >= 0; }); }
+
+  // Populate filter dropdowns
+  if (filterWeek && filterWeek.options.length <= 1) {
+    var weeks = {}; (db.finance.ledger||[]).forEach(function(i){ if (i.week) weeks[i.week] = true; });
+    Object.keys(weeks).sort(function(a,b){ return a-b; }).forEach(function(w){
+      var o = document.createElement('option'); o.value = w; o.textContent = 'W' + w; filterWeek.appendChild(o);
+    });
+  }
+  if (filterCat && filterCat.options.length <= 1) {
+    cats.forEach(function(c){
+      var o = document.createElement('option'); o.value = c; o.textContent = c; filterCat.appendChild(o);
+    });
+  }
+
+  // KPI cards
+  var allLedger = db.finance.ledger||[];
+  var totalIn = allLedger.filter(function(i){ return i.amount > 0; }).reduce(function(s,i){ return s + i.amount; }, 0);
+  var totalOut = Math.abs(allLedger.filter(function(i){ return i.amount < 0; }).reduce(function(s,i){ return s + i.amount; }, 0));
+  // This week
+  var thisWeek = Math.floor((new Date() - new Date('2026-05-04')) / 86400000 / 7) + 1;
+  var weekIn = allLedger.filter(function(i){ return i.week === thisWeek && i.amount > 0; }).reduce(function(s,i){ return s + i.amount; }, 0);
+  var weekOut = Math.abs(allLedger.filter(function(i){ return i.week === thisWeek && i.amount < 0; }).reduce(function(s,i){ return s + i.amount; }, 0));
+  // Debt total
+  var debtOut = Math.abs(allLedger.filter(function(i){ return i.cat === '还款债务'; }).reduce(function(s,i){ return s + i.amount; }, 0));
+
+  document.getElementById('finLedgerKPIs').innerHTML =
+    '<div class="kpi-card"><div class="kpi-label">本周支出</div><div class="kpi-value" style="color:var(--red);">-¥' + weekOut.toLocaleString() + '</div><div class="kpi-sub">W' + thisWeek + ' 共' + allLedger.filter(function(i){ return i.week === thisWeek; }).length + '笔</div></div>' +
+    '<div class="kpi-card"><div class="kpi-label">本周收入</div><div class="kpi-value" style="color:var(--green);">+¥' + weekIn.toLocaleString() + '</div><div class="kpi-sub">周净现金流 ¥' + (weekIn - weekOut).toLocaleString() + '</div></div>' +
+    '<div class="kpi-card"><div class="kpi-label">总净现金流</div><div class="kpi-value" style="color:' + (totalIn - totalOut >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + (totalIn - totalOut).toLocaleString() + '</div><div class="kpi-sub">入¥' + totalIn.toLocaleString() + ' / 出¥' + totalOut.toLocaleString() + '</div></div>' +
+    '<div class="kpi-card"><div class="kpi-label">累计债务还款</div><div class="kpi-value" style="color:var(--orange);">¥' + debtOut.toLocaleString() + '</div><div class="kpi-sub">共' + allLedger.filter(function(i){ return i.cat === '还款债务'; }).length + '笔</div></div>';
+
+  // Charts
+  var wkMap = {}; allLedger.forEach(function(i){ var w = 'W' + i.week; if (!wkMap[w]) wkMap[w] = {In: 0, out: 0}; if (i.amount > 0) wkMap[w].In += i.amount; else wkMap[w].out += Math.abs(i.amount); });
+  var wKeys = Object.keys(wkMap).sort();
+  renderChart('chartFinCashflow', {tooltip: {trigger: 'axis'}, xAxis: {type: 'category', data: wKeys}, yAxis: {type: 'value'}, series: [{name: '收入', type: 'bar', data: wKeys.map(function(k){ return wkMap[k].In; }), itemStyle: {color: '#34c759'}, barMaxWidth: 25}, {name: '支出', type: 'bar', data: wKeys.map(function(k){ return wkMap[k].out; }), itemStyle: {color: '#ff3b30'}, barMaxWidth: 25}]});
+  var catMap = {}; allLedger.filter(function(i){ return i.amount < 0; }).forEach(function(i){ catMap[i.cat] = (catMap[i.cat] || 0) + Math.abs(i.amount); });
+  renderChart('chartFinExpCat', {tooltip: {trigger: 'item'}, series: [{type: 'pie', radius: ['45%', '70%'], data: Object.entries(catMap).map(function(e){ return {name: e[0], value: e[1]}; }), label: {formatter: '{b}\n{d}%'}}]});
+
+  // Sort: newest first
+  var sorted = ledger.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+
+  // Build table rows with daily subtotals
+  var rows = ''; var lastDate = '';
+  // Pre-compute daily subtotals for ALL ledger
+  var dailyTotals = {};
+  allLedger.forEach(function(i){
+    if (!dailyTotals[i.date]) dailyTotals[i.date] = {exp: 0, inc: 0};
+    if (i.amount < 0) dailyTotals[i.date].exp += Math.abs(i.amount);
+    else dailyTotals[i.date].inc += i.amount;
+  });
+
+  sorted.forEach(function(i, idx){
+    var realIdx = allLedger.indexOf(i);
+    if (realIdx < 0) realIdx = idx;
+
+    // Insert daily subtotal row when date changes
+    if (i.date !== lastDate && lastDate !== '') {
+      var dt = dailyTotals[lastDate] || {exp: 0, inc: 0};
+      rows += '<tr style="background:#f0f4ff;font-weight:600;font-size:11px;"><td colspan="4" style="text-align:right;color:var(--text2);">' + lastDate + ' 当日合计</td><td style="color:var(--red);">-¥' + dt.exp.toLocaleString() + '</td><td style="color:var(--green);">+¥' + dt.inc.toLocaleString() + '</td><td style="color:' + (dt.inc - dt.exp >= 0 ? 'var(--green)' : 'var(--red)') + ';">净¥' + (dt.inc - dt.exp).toLocaleString() + '</td><td></td><td></td></tr>';
+    }
+    lastDate = i.date;
+
+    var catOpts = cats.map(function(c){ return '<option value="' + c + '" ' + (i.cat === c ? 'selected' : '') + '>' + c + '</option>'; }).join('');
+    var amtAbs = Math.abs(i.amount);
+    var amtColor = i.amount < 0 ? 'var(--red)' : 'var(--green)';
+    var descEscaped = (i.desc || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    rows += '<tr>' +
+      '<td><input value="' + i.date + '" onchange="updateLedgerCell(' + realIdx + ',\'date\',this.value)" style="width:110px;padding:3px 5px;font-size:11px;"></td>' +
+      '<td><input value="' + (i.day || '') + '" readonly style="width:50px;padding:3px 5px;font-size:11px;background:#f5f5f5;border:1px solid #eee;text-align:center;color:var(--text2);"></td>' +
+      '<td><select onchange="updateLedgerCell(' + realIdx + ',\'cat\',this.value)" style="padding:3px 5px;font-size:11px;">' + catOpts + '</select></td>' +
+      '<td><input value="' + descEscaped + '" onchange="updateLedgerCell(' + realIdx + ',\'desc\',this.value)" style="width:130px;padding:3px 5px;font-size:11px;"></td>' +
+      '<td><input type="number" value="' + amtAbs + '" onchange="updateLedgerCell(' + realIdx + ',\'amount\',parseFloat(this.value)||0)" style="width:85px;padding:3px 5px;font-size:11px;color:' + amtColor + ';font-weight:700;text-align:right;"></td>' +
+      '<td><input value="' + (i.pay || '') + '" onchange="updateLedgerCell(' + realIdx + ',\'pay\',this.value)" style="width:65px;padding:3px 5px;font-size:11px;"></td>' +
+      '<td><input value="' + (i.note || '') + '" onchange="updateLedgerCell(' + realIdx + ',\'note\',this.value)" placeholder="备注" style="width:90px;padding:3px 5px;font-size:11px;"></td>' +
+      '<td><span style="font-size:11px;color:var(--text3);">W' + (i.week || 1) + '</span></td>' +
+      '<td><button class="btn btn-danger btn-sm" onclick="deleteLedgerRow(' + realIdx + ')" style="padding:1px 6px;font-size:10px;">✕</button></td>' +
+      '</tr>';
+  });
+
+  // Last date subtotal
+  if (lastDate) {
+    var dt2 = dailyTotals[lastDate] || {exp: 0, inc: 0};
+    rows += '<tr style="background:#f0f4ff;font-weight:600;font-size:11px;"><td colspan="4" style="text-align:right;color:var(--text2);">' + lastDate + ' 当日合计</td><td style="color:var(--red);">-¥' + dt2.exp.toLocaleString() + '</td><td style="color:var(--green);">+¥' + dt2.inc.toLocaleString() + '</td><td style="color:' + (dt2.inc - dt2.exp >= 0 ? 'var(--green)' : 'var(--red)') + ';">净¥' + (dt2.inc - dt2.exp).toLocaleString() + '</td><td></td><td></td></tr>';
+  }
+
+  document.getElementById('finLedgerBody').innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px;">暂无流水记录，点「＋ 新增一行」开始记账</td></tr>';
+  renderFinWeekSummary();
 }
 
 function updateLedgerCell(idx, field, value) {
   const db = getDB();
-  if (idx>=0 && idx<db.finance.ledger.length) {
+  if (idx >= 0 && idx < db.finance.ledger.length) {
     db.finance.ledger[idx][field] = value;
-    // Auto-detect: if date changed, fill weekday and week number
-    if (field==='date' && value) {
-      const d = new Date(value + (value.includes('T')?'':'T00:00:00'));
+    // Auto-calc day and week from date
+    if (field === 'date' && value) {
+      var d = new Date(value + (value.indexOf('T') >= 0 ? '' : 'T00:00:00'));
       if (!isNaN(d.getTime())) {
-        const days = ['周日','周一','周二','周三','周四','周五','周六'];
+        var days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
         db.finance.ledger[idx].day = days[d.getDay()];
-        const startDate = new Date('2026-05-04');
-        const diffDays = Math.floor((d - startDate) / 86400000);
-        db.finance.ledger[idx].week = Math.floor(diffDays / 7) + 1;
-        // Also format date to standard YYYY-MM-DD
-        db.finance.ledger[idx].date = d.toISOString().slice(0,10);
+        var startDate = new Date('2026-05-04');
+        var diffDays = Math.floor((d - startDate) / 86400000);
+        db.finance.ledger[idx].week = Math.max(1, Math.floor(diffDays / 7) + 1);
+        db.finance.ledger[idx].date = d.toISOString().slice(0, 10);
       }
     }
-    // Auto-negate: if category is expense type and amount > 0, make it negative
-    if (field==='amount' && value > 0 && db.finance.ledger[idx].cat !== '其他收入') {
-      db.finance.ledger[idx].amount = -Math.abs(value);
+    // Auto-negate: if expense category and amount > 0, make negative
+    if (field === 'amount') {
+      var cat = db.finance.ledger[idx].cat || '';
+      if (value > 0 && cat !== '其他收入') {
+        db.finance.ledger[idx].amount = -Math.abs(value);
+      }
+    }
+    // If category changed to 其他收入, auto-flip amount to positive
+    if (field === 'cat' && value === '其他收入' && db.finance.ledger[idx].amount < 0) {
+      db.finance.ledger[idx].amount = Math.abs(db.finance.ledger[idx].amount);
+    }
+    if (field === 'cat' && value !== '其他收入' && db.finance.ledger[idx].amount > 0) {
+      db.finance.ledger[idx].amount = -Math.abs(db.finance.ledger[idx].amount);
     }
     saveDB(db);
-    // Re-render to update auto-filled fields
     renderFinLedger();
-    // Update KPIs
-    const totalIn = db.finance.ledger.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
-    const totalOut = Math.abs(db.finance.ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
-    document.getElementById('finLedgerKPIs').innerHTML = `
-      <div class="kpi-card"><div class="kpi-label">总收入</div><div class="kpi-value">¥${totalIn.toLocaleString()}</div></div>
-      <div class="kpi-card"><div class="kpi-label">总支出</div><div class="kpi-value">¥${totalOut.toLocaleString()}</div></div>
-      <div class="kpi-card"><div class="kpi-label">净现金流</div><div class="kpi-value" style="color:${totalIn-totalOut>=0?'var(--green)':'var(--red)'}">¥${(totalIn-totalOut).toLocaleString()}</div></div>`;
   }
 }
 
 function addLedgerRow() {
   const db = getDB();
-  const maxWeek = db.finance.ledger.reduce((max,i)=>Math.max(max,i.week||1),1);
-  db.finance.ledger.unshift({date:new Date().toISOString().slice(0,10),day:'',cat:'其他支出',desc:'',amount:0,pay:'支付宝',week:maxWeek});
+  var today = new Date();
+  var days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  var dayStr = days[today.getDay()];
+  var startDate = new Date('2026-05-04');
+  var diffDays = Math.floor((today - startDate) / 86400000);
+  var week = Math.max(1, Math.floor(diffDays / 7) + 1);
+  db.finance.ledger.unshift({
+    date: today.toISOString().slice(0, 10),
+    day: dayStr,
+    cat: '其他支出',
+    desc: '',
+    amount: 0,
+    pay: '支付宝',
+    note: '',
+    week: week
+  });
   saveDB(db);
   renderFinLedger();
   toast('新行已添加');
@@ -1354,12 +1525,46 @@ function addLedgerRow() {
 function deleteLedgerRow(idx) {
   if (!confirm('确定删除这条流水？')) return;
   const db = getDB();
-  db.finance.ledger.splice(idx,1);
+  db.finance.ledger.splice(idx, 1);
   saveDB(db);
   renderFinLedger();
   toast('已删除');
 }
 
+function renderFinWeekSummary() {
+  const db = getDB(); const ledger = db.finance.ledger||[];
+  var cats = ['原鞋','推广','设计','材料','邮费','平台','工作室','其他支出','个人消费','还款债务'];
+  var weeks = {}; var allWeeks = new Set();
+  ledger.forEach(function(i){
+    var w = i.week || 1; allWeeks.add(w);
+    if (!weeks[w]) weeks[w] = {};
+    if (!weeks[w][i.cat]) weeks[w][i.cat] = 0;
+    weeks[w][i.cat] += Math.abs(Math.min(0, i.amount||0));
+    if (i.cat === '其他收入') weeks[w]['_income'] = (weeks[w]['_income']||0) + (i.amount > 0 ? i.amount : 0);
+  });
+  var sortedWeeks = Array.from(allWeeks).sort(function(a,b){ return a-b; });
+  if (sortedWeeks.length === 0) {
+    document.getElementById('finWeekSummaryBody').innerHTML = '<tr><td colspan="14" style="text-align:center;color:var(--text3);padding:16px;">暂无数据</td></tr>';
+    return;
+  }
+  var rows = '';
+  sortedWeeks.forEach(function(w){
+    var row = weeks[w] || {};
+    var totalExp = cats.reduce(function(s,c){ return s + (row[c]||0); }, 0);
+    var totalInc = row['_income'] || 0;
+    var netExp = totalExp - totalInc;
+    rows += '<tr><td><b>W' + w + '</b></td>';
+    cats.forEach(function(c){
+      var v = row[c] || 0;
+      rows += '<td style="' + (v > 0 ? 'color:var(--red);' : '') + '">' + (v > 0 ? '¥' + v.toLocaleString() : '-') + '</td>';
+    });
+    rows += '<td style="color:var(--red);font-weight:700;">¥' + totalExp.toLocaleString() + '</td>';
+    rows += '<td style="color:var(--green);">' + (totalInc > 0 ? '+¥' + totalInc.toLocaleString() : '-') + '</td>';
+    rows += '<td style="font-weight:700;color:' + (netExp >= 0 ? 'var(--red)' : 'var(--green)') + ';">¥' + netExp.toLocaleString() + '</td>';
+    rows += '</tr>';
+  });
+  document.getElementById('finWeekSummaryBody').innerHTML = rows;
+}
 function initFinWeekSelect() {
   const db = getDB(); const bills = db.finance.weeklyBills||[];
   const sel=document.getElementById('finWeekSel');
@@ -2070,6 +2275,7 @@ window.addEventListener('resize',()=>{['homeChart','chartDashSales','chartDashRa
 try{
 initDefaultDataWorkbench();
 migrateBills();
+  (function(){var db=getDB();var u=false;(db.finance.ledger||[]).forEach(function(e){if(e.note===undefined){e.note='';u=true;}});if(u)saveDB(db);})();
 renderHome();
 updateTime();
 var lm=document.getElementById('loadingMsg');if(lm)lm.style.display='none';
