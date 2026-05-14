@@ -986,7 +986,7 @@ function renderDashWeeks() {
     document.getElementById('dashWeekTableBody').innerHTML='<tr><td colspan=10 style=\"text-align:center;padding:30px;color:var(--text3);\">暂无周期数据，请点「🔄 重置数据」按钮恢复</td></tr>';
     return;
   }
-  periods.forEach(p=>{
+  periods.forEach((p,i)=>{
     const rev=p.products.reduce((s,x)=>s+(x.payment||0),0);
     const orders=p.products.reduce((s,x)=>s+(x.orders||0),0);
     const vis=p.products.reduce((s,x)=>s+(x.visitors||0),0);
