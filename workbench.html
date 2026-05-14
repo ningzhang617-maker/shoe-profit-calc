@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>六六八八 · 经营工作台</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg: #f5f6f8; --card: #fff; --text: #1f2937; --text2: #6b7280; --text3: #9ca3af;
@@ -1861,6 +1859,7 @@ function exportAllData() {
 // SHARED HELPERS
 // ============================================================
 function renderChart(id, option) {
+  if(typeof echarts==='undefined')return;
   const el=document.getElementById(id);if(!el)return;
   if(!el.__echart){el.__echart=echarts.init(el);}
   el.__echart.setOption(option,true);el.__echart.resize();
@@ -1951,6 +1950,13 @@ var d2=document.createElement('div');d2.style.cssText='font-size:14px;color:#c00
 var btn=document.createElement('button');btn.textContent='🔄 清除数据重试';btn.style.cssText='margin-top:16px;padding:10px 24px;background:#3370ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;';
 btn.onclick=function(){localStorage.removeItem('dc_data_v3');location.reload();};lm.appendChild(btn);}
 }
+</script>
+<script>
+// Load CDN scripts dynamically (won't block page if they fail)
+var s1=document.createElement('script');s1.src='https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js';
+s1.onerror=function(){console.warn('ECharts CDN failed');};document.head.appendChild(s1);
+var s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+s2.onerror=function(){console.warn('SheetJS CDN failed');};document.head.appendChild(s2);
 </script>
 </body>
 </html>
