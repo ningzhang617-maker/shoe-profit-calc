@@ -875,13 +875,16 @@ function renderDashOverview() {
 
   const filterVal=document.getElementById('dashPeriodFilter').value;
   // Period quick-filter chips
-  let chipsHtml = '<span style=\"font-size:11px;color:var(--text3);\">快捷筛选：</span>';
-  chipsHtml += '<span onclick=\"document.getElementById(\\'dashPeriodFilter\\').value=\\'all\\';renderDashOverview();\" style=\"cursor:pointer;padding:2px 8px;border-radius:10px;font-size:11px;'+(filterVal==='all'?'background:var(--blue);color:#fff;':'border:1px solid var(--border);')+'\">全部</span> ';
-  periods.forEach((p,i)=>{
-    const sel = filterVal===('p'+i);
-    chipsHtml += '<span onclick=\"document.getElementById(\\'dashPeriodFilter\\').value=\\'p'+i+'\\';renderDashOverview();\" style=\"cursor:pointer;padding:2px 8px;border-radius:10px;font-size:11px;'+(sel?'background:var(--blue);color:#fff;':'border:1px solid var(--border);')+'\">'+p.label.substring(5)+' ('+p.days+'天)</span> ';
-  });
-  document.getElementById('dashOverviewNote').innerHTML = chipsHtml;
+  const noteEl=document.getElementById('dashOverviewNote');
+  noteEl.innerHTML='';
+  const addChip=(label,val,active)=>{
+    const s=document.createElement('span');
+    s.textContent=label;s.style.cssText='cursor:pointer;padding:2px 8px;border-radius:10px;font-size:11px;margin-right:4px;'+(active?'background:var(--blue);color:#fff;':'border:1px solid var(--border);');
+    s.onclick=function(){document.getElementById('dashPeriodFilter').value=val;renderDashOverview();};
+    noteEl.appendChild(s);
+  };
+  addChip('全部','all',filterVal==='all');
+  periods.forEach((p,i)=>addChip(p.label.substring(5)+' ('+p.days+'天)','p'+i,filterVal===('p'+i)));
 
   // KPI Row - 6 cards
   document.getElementById('dashKPIs').innerHTML=`
