@@ -1435,8 +1435,8 @@ function renderFinWeekly() {
   document.getElementById('finReturnsKPIs').innerHTML=
     '<div class="kpi-card"><div class="kpi-label">退货率</div><div class="kpi-value" style="color:'+(retRate>20?'var(--red)':'var(--orange)')+';">'+retRate.toFixed(1)+'%</div><div class="kpi-sub">警戒线 15%</div></div>'+
     '<div class="kpi-card"><div class="kpi-label">退货数量</div><div class="kpi-value">'+totalRetCount+'<span style="font-size:16px;color:var(--text3);">/'+s.orders+'单</span></div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">预估亏损(成本)</div><div class="kpi-value" style="color:var(--red);">-¥'+totalRetLoss.toLocaleString()+'</div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">损失利润</div><div class="kpi-value" style="color:var(--orange);">-¥'+totalProfitLoss.toLocaleString()+'</div></div>';
+    '<div class="kpi-card"><div class="kpi-label">预估亏损(成本)</div><div class="kpi-value" style="color:var(--red);">¥'+totalRetLoss.toLocaleString()+'</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">损失利润</div><div class="kpi-value" style="color:var(--orange);">¥'+totalProfitLoss.toLocaleString()+'</div></div>';
   var retAgg={};
   (bill.returns||[]).forEach(function(r){
     if(!retAgg[r.name])retAgg[r.name]={count:0,costLoss:0,profitLoss:0};
@@ -1444,12 +1444,12 @@ function renderFinWeekly() {
   });
   var retEntries=Object.entries(retAgg).sort(function(a,b){return b[1].count-a[1].count;});
   document.getElementById('finReturnsBody').innerHTML = retEntries.length>0
-    ?retEntries.map(function(e){return '<tr><td><b>'+e[0]+'</b></td><td style=\"color:var(--red);\">'+e[1].count+'单</td><td style=\"color:var(--red);\">-¥'+e[1].costLoss.toLocaleString()+'</td><td style=\"color:var(--orange);\">-¥'+e[1].profitLoss.toLocaleString()+'</td></tr>';}).join('')
+    ?retEntries.map(function(e){return '<tr><td><b>'+e[0]+'</b></td><td style=\"color:var(--red);\">'+e[1].count+'单</td><td style=\"color:var(--red);\">¥'+e[1].costLoss.toLocaleString()+'</td><td style=\"color:var(--orange);\">¥'+e[1].profitLoss.toLocaleString()+'</td></tr>';}).join('')
     :'<tr><td colspan=4 style=\"color:var(--text3);\">无退货</td></tr>';
   // Returns detail table
   var retDetail=(bill.returns||[]).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
   document.getElementById('finReturnsDetailBody').innerHTML = retDetail.length>0
-    ?retDetail.map(function(r){return '<tr><td>'+(r.date||'--')+'</td><td><b>'+r.name+'</b></td><td>'+r.size+'</td><td>¥'+(r.amount||0)+'</td><td style=\"color:var(--red);\">-¥'+r._costLoss.toLocaleString()+'</td><td style=\"color:var(--orange);\">-¥'+r._profitLoss.toLocaleString()+'</td></tr>';}).join('')
+    ?retDetail.map(function(r){return '<tr><td>'+(r.date||'--')+'</td><td><b>'+r.name+'</b></td><td>'+r.size+'</td><td>¥'+(r.amount||0)+'</td><td style=\"color:var(--red);\">¥'+r._costLoss.toLocaleString()+'</td><td style=\"color:var(--orange);\">¥'+r._profitLoss.toLocaleString()+'</td></tr>';}).join('')
     :'<tr><td colspan=6 style=\"color:var(--text3);\">无退货</td></tr>';
 
   // Auto-generated analysis report
