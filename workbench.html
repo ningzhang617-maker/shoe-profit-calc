@@ -341,7 +341,8 @@ tr:hover td{background:#fafcfd}
       </div>
       <!-- 周对比 -->
       <div class="dash-view" id="dashWeeks">
-        <div class="card"><div class="card-title">📅 周期数据对比 <span style="font-size:11px;color:var(--text3);">（周期天数可能不同，注意对比）</span></div>
+        <div class="card"><div class="card-title">📅 周期数据对比 <span style="font-size:11px;color:var(--text3);">（周期天数可能不同，注意对比）</span>
+        <button class="btn btn-danger btn-sm" onclick="resetSPUData()" style="margin-left:8px;">🔄 重置数据</button></div>
         <div class="table-wrap"><table><thead><tr><th>周期</th><th>天数</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>退货</th><th>退货率</th><th>日均销售</th><th>操作</th></tr></thead><tbody id="dashWeekTableBody"></tbody></table></div></div>
       </div>
       <!-- SPU数据 -->
@@ -980,8 +981,11 @@ function analyzeCurrentView(){
 
 function renderDashWeeks() {
   const db=getDB(); const periods=db.spuPeriods||[];
-  // Combine SPU periods + financial weeks
   let rows=[];
+  if (periods.length===0){
+    document.getElementById('dashWeekTableBody').innerHTML='<tr><td colspan=10 style=\"text-align:center;padding:30px;color:var(--text3);\">暂无周期数据，请点「🔄 重置数据」按钮恢复</td></tr>';
+    return;
+  }
   periods.forEach(p=>{
     const rev=p.products.reduce((s,x)=>s+(x.payment||0),0);
     const orders=p.products.reduce((s,x)=>s+(x.orders||0),0);
