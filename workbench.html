@@ -157,7 +157,7 @@ tr:hover td{background:#fafcfd}
 <body>
 <div id="loadingMsg" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:sans-serif;text-align:center;z-index:9999;">
   <div style="font-size:40px;margin-bottom:12px;">⏳</div>
-  <div style="font-size:14px;color:#666;">加载中...</div>
+  <div style="font-size:14px;color:#666;">加载中... <span style="font-size:10px;color:#ccc;">v515</span></div>
 </div>
 <div class="app">
 
@@ -1428,6 +1428,7 @@ function renderFinWeekly() {
     :'<tr><td colspan=3 style=\"color:var(--text3);\">无退货</td></tr>';
   // Returns detail table (individual records)
   var retDetail=(bill.returns||[]).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  console.log('Returns detail count:',retDetail.length,'first:',retDetail[0]);
   document.getElementById('finReturnsDetailBody').innerHTML = retDetail.length>0
     ?retDetail.map(function(r){return '<tr><td>'+(r.date||'--')+'</td><td><b>'+r.name+'</b></td><td>'+r.size+'</td><td style=\"color:var(--red);\">-¥'+(r.amount||0)+'</td></tr>';}).join('')
     :'<tr><td colspan=4 style=\"color:var(--text3);\">无退货</td></tr>';
