@@ -396,7 +396,7 @@ tr:hover td{background:#fafcfd}
           <div class="kpi-grid" id="finReturnsKPIs"></div>
           <div class="table-wrap"><table><thead><tr><th>产品名</th><th>退货数量</th><th>预估损失</th></tr></thead><tbody id="finReturnsBody"></tbody></table></div>
         </div>
-        <div class="card"><div class="card-title">↩ 退货明细 <span style=\"font-size:11px;color:var(--text3);\">（逐笔）</span></div><div class="table-wrap"><table><thead><tr><th>日期</th><th>产品名</th><th>尺码</th><th>退款金额</th></tr></thead><tbody id="finReturnsDetailBody"></tbody></table></div></div>
+        <div class="card"><div class="card-title">↩ 退货明细 <span style="font-size:11px;color:var(--text3);">（逐笔）</span></div><div class="table-wrap"><table><thead><tr><th>日期</th><th>产品名</th><th>尺码</th><th>退款金额</th></tr></thead><tbody id="finReturnsDetailBody"></tbody></table></div></div>
         <div class="card"><div class="card-title">📝 分析报告</div><div id="finWeekReport" style="font-size:13px;line-height:1.8;"></div></div>
       </div>
       <div id="finSummaryView" class="fin-view">
@@ -838,7 +838,7 @@ function onPeriodFilterChange(view){
   const sel=document.getElementById(selId);
   // Add individual period options if not present
   // Add individual period options if missing
-  if (!sel.querySelector('option[value=\"p0\"]')){
+  if (!sel.querySelector('option[value="p0"]')){
     const db=getDB();const periods=db.spuPeriods||[];
     periods.forEach((p,i)=>{const o=document.createElement('option');o.value='p'+i;o.textContent='📅 '+p.label+' ('+p.days+'天)';sel.appendChild(o);});
   }
@@ -874,7 +874,7 @@ function renderDashOverview() {
   const db=getDB();const periods=db.spuPeriods||[];
   // Init period dropdown with individual periods
   const sel=document.getElementById('dashPeriodFilter');
-  if (!sel.querySelector('option[value=\"p0\"]')){
+  if (!sel.querySelector('option[value="p0"]')){
     periods.forEach((p,i)=>{const o=document.createElement('option');o.value='p'+i;o.textContent='📅 '+p.label+' ('+p.days+'天)';sel.appendChild(o);});
   }
   if (periods.length===0){document.getElementById('dashKPIs').innerHTML='<div style="padding:20px;color:var(--text3);">暂无周期数据，请上传SPU报表</div>';return;}
@@ -916,11 +916,11 @@ function renderDashOverview() {
   // KPI Row - 8 cards with financial data
   document.getElementById('dashKPIs').innerHTML=`
     <div class="kpi-card"><div class="kpi-label">💰 销售额</div><div class="kpi-value">¥${rev.toLocaleString()}</div><div class="kpi-sub">客单价 ¥${avgPrice.toFixed(0)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">📦 订单 / 退货</div><div class="kpi-value">${orders}<span style=\"font-size:16px;color:var(--red);\">/${ret}</span></div><div class="kpi-sub">退货率 ${retRate.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">📦 订单 / 退货</div><div class="kpi-value">${orders}<span style="font-size:16px;color:var(--red);">/${ret}</span></div><div class="kpi-sub">退货率 ${retRate.toFixed(1)}%</div></div>
     <div class="kpi-card"><div class="kpi-label">👁 访客 / 转化</div><div class="kpi-value">${vis.toLocaleString()}</div><div class="kpi-sub">转化 ${conv.toFixed(2)}% · 收藏率 ${favRate.toFixed(1)}%</div></div>
-    <div class="kpi-card"><div class="kpi-label">📋 SPU 活跃度</div><div class="kpi-value">${hasSales}<span style=\"font-size:16px;color:var(--text3);\">/${products.length}</span></div><div class="kpi-sub">${(hasSales/products.length*100).toFixed(0)}%有销售 · ${hasVisitors}个有访客</div></div>
-    <div class="kpi-card"><div class="kpi-label">💳 本月支出</div><div class="kpi-value" style=\"color:var(--red);\">¥${totalOut.toLocaleString()}</div><div class="kpi-sub">收入 ¥${totalIn.toLocaleString()} · 净现金流 ${netCash>=0?'+':''}¥${netCash.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">📈 预估利润</div><div class="kpi-value" style=\"color:${estProfit>=0?'var(--green)':'var(--red)'}\">¥${estProfit.toLocaleString()}</div><div class="kpi-sub">品牌 ${new Set(products.map(p=>p.brand).filter(Boolean)).size}个 · SPU ${products.length}个</div></div>`;
+    <div class="kpi-card"><div class="kpi-label">📋 SPU 活跃度</div><div class="kpi-value">${hasSales}<span style="font-size:16px;color:var(--text3);">/${products.length}</span></div><div class="kpi-sub">${(hasSales/products.length*100).toFixed(0)}%有销售 · ${hasVisitors}个有访客</div></div>
+    <div class="kpi-card"><div class="kpi-label">💳 本月支出</div><div class="kpi-value" style="color:var(--red);">¥${totalOut.toLocaleString()}</div><div class="kpi-sub">收入 ¥${totalIn.toLocaleString()} · 净现金流 ${netCash>=0?'+':''}¥${netCash.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="kpi-label">📈 预估利润</div><div class="kpi-value" style="color:${estProfit>=0?'var(--green)':'var(--red)'}">¥${estProfit.toLocaleString()}</div><div class="kpi-sub">品牌 ${new Set(products.map(p=>p.brand).filter(Boolean)).size}个 · SPU ${products.length}个</div></div>`;
 
   // Target progress
   if(!db.targets)db.targets={monthlyRevenue:50000};
@@ -1013,7 +1013,7 @@ function renderDashProducts() {
   document.getElementById('dashProductDetailBody').innerHTML=products.slice(0,80).map(p=>{
     const ppu=getPPU(p);const grade=getGrade(p);
     const code=(p.code||'').replace(/\(Team901-[^)]+\)/,'').trim();
-    return '<tr><td style=\"font-size:11px;font-family:monospace;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\" title=\"'+(p.code||'')+'\">'+(p.code||'--')+'</td><td><b>'+(p.shortName||'--')+'</b></td><td>'+(p.brand||'--')+'</td><td><span class=\"tag '+(grade==='S'?'tag-green':grade==='A'?'tag-blue':'tag-yellow')+'\">'+(grade!=='--'?grade+'级':'--')+'</span></td><td>¥'+(p.payment||0).toLocaleString()+'</td><td>'+(p.orders||0)+'</td><td>'+(p.visitors||0).toLocaleString()+'</td><td>'+(p.conversion||0).toFixed(2)+'%</td><td>'+(p.favorites||0)+'</td><td>'+(p.returnQty||0)+'</td><td style=\"color:'+(ppu>=0?'var(--green)':'var(--red)')+';\">'+(ppu?'¥'+ppu:'--')+'</td><td><span class=\"tag '+(p.orders>0?'tag-green':'tag-red')+'\">'+(p.orders>0?'有销售':'无销售')+'</span></td></tr>';}).join('');
+    return '<tr><td style="font-size:11px;font-family:monospace;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+(p.code||'')+'">'+(p.code||'--')+'</td><td><b>'+(p.shortName||'--')+'</b></td><td>'+(p.brand||'--')+'</td><td><span class="tag '+(grade==='S'?'tag-green':grade==='A'?'tag-blue':'tag-yellow')+'">'+(grade!=='--'?grade+'级':'--')+'</span></td><td>¥'+(p.payment||0).toLocaleString()+'</td><td>'+(p.orders||0)+'</td><td>'+(p.visitors||0).toLocaleString()+'</td><td>'+(p.conversion||0).toFixed(2)+'%</td><td>'+(p.favorites||0)+'</td><td>'+(p.returnQty||0)+'</td><td style="color:'+(ppu>=0?'var(--green)':'var(--red)')+';">'+(ppu?'¥'+ppu:'--')+'</td><td><span class="tag '+(p.orders>0?'tag-green':'tag-red')+'">'+(p.orders>0?'有销售':'无销售')+'</span></td></tr>';}).join('');
 }
 
 function analyzeCurrentView(){
@@ -1033,7 +1033,7 @@ function renderDashWeeks() {
   const db=getDB(); const periods=db.spuPeriods||[];
   let rows=[];
   if (periods.length===0){
-    document.getElementById('dashWeekTableBody').innerHTML='<tr><td colspan=10 style=\"text-align:center;padding:30px;color:var(--text3);\">暂无周期数据，请点「🔄 重置数据」按钮恢复</td></tr>';
+    document.getElementById('dashWeekTableBody').innerHTML='<tr><td colspan=10 style="text-align:center;padding:30px;color:var(--text3);">暂无周期数据，请点「🔄 重置数据」按钮恢复</td></tr>';
     return;
   }
   periods.forEach((p,i)=>{
@@ -1046,7 +1046,7 @@ function renderDashWeeks() {
     const prev=i>0?periods[i-1]:null;
     const prevRev=prev?prev.products.reduce((s,x)=>s+(x.payment||0),0):0;
     const revChg=prevRev>0?((rev-prevRev)/prevRev*100):0;
-    rows.push('<tr><td><b>'+p.label+'</b></td><td>'+p.days+'天</td><td>¥'+rev.toLocaleString()+' <span style=\"font-size:10px;color:'+(revChg>=0?'var(--green)':'var(--red)')+';\">'+(i>0?(revChg>=0?'↑':'↓')+Math.abs(revChg).toFixed(0)+'%':'')+'</span></td><td>'+orders+'</td><td>'+vis.toLocaleString()+'</td><td>'+conv.toFixed(2)+'%</td><td>'+ret+'</td><td>'+retRate.toFixed(1)+'%</td><td>¥'+(rev/(p.days||1)).toFixed(0)+'</td><td><button class=\"btn btn-danger btn-sm\" onclick=\"deletePeriod('+i+')\" style=\"padding:2px 8px;\">✕</button></td></tr>');
+    rows.push('<tr><td><b>'+p.label+'</b></td><td>'+p.days+'天</td><td>¥'+rev.toLocaleString()+' <span style="font-size:10px;color:'+(revChg>=0?'var(--green)':'var(--red)')+';">'+(i>0?(revChg>=0?'↑':'↓')+Math.abs(revChg).toFixed(0)+'%':'')+'</span></td><td>'+orders+'</td><td>'+vis.toLocaleString()+'</td><td>'+conv.toFixed(2)+'%</td><td>'+ret+'</td><td>'+retRate.toFixed(1)+'%</td><td>¥'+(rev/(p.days||1)).toFixed(0)+'</td><td><button class="btn btn-danger btn-sm" onclick="deletePeriod('+i+')" style="padding:2px 8px;">✕</button></td></tr>');
   });
   document.getElementById('dashWeekTableBody').innerHTML=rows.join('');
 }
@@ -1389,7 +1389,7 @@ function renderFinWeekly() {
     var status=margin>=10?'盈利':margin>=0?'微利':'亏损';
     var cls=margin>=10?'tag-green':margin>=0?'tag-yellow':'tag-red';
     var tr=document.createElement('tr');
-    tr.innerHTML='<td><b>'+p.name+'</b></td><td>'+p.count+'单</td><td>¥'+p.totalSales.toLocaleString()+'</td><td>¥'+p.totalIncome.toLocaleString()+'</td><td></td><td></td><td>¥'+fixedCost.toLocaleString()+'</td><td style=\"color:'+(p.totalProfit>=0?'var(--green)':'var(--red)')+';font-weight:700;\">'+(p.totalProfit>=0?'+':'')+'¥'+p.totalProfit.toLocaleString()+'</td><td>'+(margin>=0?'+':'')+margin.toFixed(1)+'%</td><td><span class=\"tag '+cls+'\">'+status+'</span></td><td></td>';
+    tr.innerHTML='<td><b>'+p.name+'</b></td><td>'+p.count+'单</td><td>¥'+p.totalSales.toLocaleString()+'</td><td>¥'+p.totalIncome.toLocaleString()+'</td><td></td><td></td><td>¥'+fixedCost.toLocaleString()+'</td><td style="color:'+(p.totalProfit>=0?'var(--green)':'var(--red)')+';font-weight:700;">'+(p.totalProfit>=0?'+':'')+'¥'+p.totalProfit.toLocaleString()+'</td><td>'+(margin>=0?'+':'')+margin.toFixed(1)+'%</td><td><span class="tag '+cls+'">'+status+'</span></td><td></td>';
     // Editable shoe cost
     var costInput=document.createElement('input');costInput.type='number';costInput.value=p.cost||0;
     costInput.style.cssText='width:70px;padding:3px 5px;font-size:12px;text-align:center;';
@@ -1417,21 +1417,21 @@ function renderFinWeekly() {
   var totalRetLoss=(bill.returns||[]).reduce(function(s,r){return s+(r.loss||50);},0);
   var retRate=s.summary.orders>0?(totalRetCount/s.summary.orders*100):0;
   document.getElementById('finReturnsKPIs').innerHTML=
-    '<div class=\"kpi-card\"><div class=\"kpi-label\">退货率</div><div class=\"kpi-value\" style=\"color:'+(retRate>20?'var(--red)':'var(--orange)')+';\">'+retRate.toFixed(1)+'%</div><div class=\"kpi-sub\">警戒线 15%</div></div>'+
-    '<div class=\"kpi-card\"><div class=\"kpi-label\">退货数量</div><div class=\"kpi-value\">'+totalRetCount+'<span style=\"font-size:16px;color:var(--text3);\">/'+s.summary.orders+'单</span></div></div>'+
-    '<div class=\"kpi-card\"><div class=\"kpi-label\">预估损失</div><div class=\"kpi-value\" style=\"color:var(--red);\">-¥'+totalRetLoss.toLocaleString()+'</div></div>';
+    '<div class="kpi-card"><div class="kpi-label">退货率</div><div class="kpi-value" style="color:'+(retRate>20?'var(--red)':'var(--orange)')+';">'+retRate.toFixed(1)+'%</div><div class="kpi-sub">警戒线 15%</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">退货数量</div><div class="kpi-value">'+totalRetCount+'<span style="font-size:16px;color:var(--text3);">/'+s.summary.orders+'单</span></div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">预估损失</div><div class="kpi-value" style="color:var(--red);">-¥'+totalRetLoss.toLocaleString()+'</div></div>';
   var retAgg={};
   (bill.returns||[]).forEach(function(r){if(!retAgg[r.name])retAgg[r.name]={count:0,totalLoss:0};retAgg[r.name].count++;retAgg[r.name].totalLoss+=(r.loss||50);});
   var retEntries=Object.entries(retAgg).sort(function(a,b){return b[1].count-a[1].count;});
   document.getElementById('finReturnsBody').innerHTML = retEntries.length>0
-    ?retEntries.map(function(e){return '<tr><td><b>'+e[0]+'</b></td><td style=\"color:var(--red);\">'+e[1].count+'单</td><td style=\"color:var(--red);\">-¥'+e[1].totalLoss.toLocaleString()+'</td></tr>';}).join('')
-    :'<tr><td colspan=3 style=\"color:var(--text3);\">无退货</td></tr>';
+    ?retEntries.map(function(e){return '<tr><td><b>'+e[0]+'</b></td><td style="color:var(--red);">'+e[1].count+'单</td><td style="color:var(--red);">-¥'+e[1].totalLoss.toLocaleString()+'</td></tr>';}).join('')
+    :'<tr><td colspan=3 style="color:var(--text3);">无退货</td></tr>';
   // Returns detail table (individual records)
   var retDetail=(bill.returns||[]).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
   console.log('Returns detail count:',retDetail.length,'first:',retDetail[0]);
   document.getElementById('finReturnsDetailBody').innerHTML = retDetail.length>0
-    ?retDetail.map(function(r){return '<tr><td>'+(r.date||'--')+'</td><td><b>'+r.name+'</b></td><td>'+r.size+'</td><td style=\"color:var(--red);\">-¥'+(r.amount||0)+'</td></tr>';}).join('')
-    :'<tr><td colspan=4 style=\"color:var(--text3);\">无退货</td></tr>';
+    ?retDetail.map(function(r){return '<tr><td>'+(r.date||'--')+'</td><td><b>'+r.name+'</b></td><td>'+r.size+'</td><td style="color:var(--red);">-¥'+(r.amount||0)+'</td></tr>';}).join('')
+    :'<tr><td colspan=4 style="color:var(--text3);">无退货</td></tr>';
 
   // Auto-generated analysis report
   var profitProducts=summary.filter(function(p){return p.totalProfit>=0;});
@@ -1443,7 +1443,7 @@ function renderFinWeekly() {
   report+='销售额 ¥'+s.revenue.toLocaleString()+' | 利润 ¥'+s.profit.toLocaleString()+' | 利润率 '+s.profitRate+'%<br><br>';
   report+='<b>✅ 盈利产品：</b>'+profitProducts.length+'款（贡献利润 ¥'+profitProducts.reduce(function(x,p){return x+p.totalProfit;},0).toLocaleString()+'）<br>';
   if(lossProducts.length>0)report+='<b>⚠ 亏损产品：</b>'+lossProducts.length+'款（亏损 ¥'+Math.abs(lossProducts.reduce(function(x,p){return x+p.totalProfit;},0)).toLocaleString()+'）：'+lossProducts.map(function(p){return p.name;}).join('、')+'<br>';
-  report+='<b>↩ 退货率：</b>'+retRate.toFixed(1)+'%'+(retRate>20?' <span style=\"color:var(--red);\">🔴 超标</span>':retRate>10?' <span style=\"color:var(--orange);\">🟡 关注</span>':' <span style=\"color:var(--green);\">🟢 正常</span>')+'<br>';
+  report+='<b>↩ 退货率：</b>'+retRate.toFixed(1)+'%'+(retRate>20?' <span style="color:var(--red);">🔴 超标</span>':retRate>10?' <span style="color:var(--orange);">🟡 关注</span>':' <span style="color:var(--green);">🟢 正常</span>')+'<br>';
   if(retEntries.length>0)report+='<b>最多退货：</b>'+retEntries[0][0]+'（'+retEntries[0][1].count+'单）<br>';
   report+='<br><b>💡 建议：</b>';
   if(lossProducts.length>0)report+='亏损产品考虑调整定价或下架；';
@@ -1475,7 +1475,7 @@ function showFinDetail(name){
   var tbody=tbl.querySelector('tbody');
   orders.forEach(function(o,idx){
     var tr=document.createElement('tr');
-    tr.innerHTML='<td>'+o.size+'</td><td>¥'+o.price+'</td><td>¥'+o.income+'</td><td></td><td></td><td>¥47</td><td style=\"color:'+(o.profit>=0?'var(--green)':'var(--red)')+';font-weight:700;\">'+(o.profit>=0?'+':'')+'¥'+o.profit+'</td><td>'+(o.rate>=0?'+':'')+o.rate+'%</td>';
+    tr.innerHTML='<td>'+o.size+'</td><td>¥'+o.price+'</td><td>¥'+o.income+'</td><td></td><td></td><td>¥47</td><td style="color:'+(o.profit>=0?'var(--green)':'var(--red)')+';font-weight:700;">'+(o.profit>=0?'+':'')+'¥'+o.profit+'</td><td>'+(o.rate>=0?'+':'')+o.rate+'%</td>';
     // Editable cost
     var ci=document.createElement('input');ci.type='number';ci.value=o.cost||0;
     ci.style.cssText='width:70px;padding:2px 4px;font-size:11px;text-align:center;';
@@ -1555,7 +1555,7 @@ function renderCostRefs(){
   const tbody=document.getElementById('costRefBody');
   tbody.innerHTML='';
   if(refs.length===0){
-    tbody.innerHTML='<tr><td colspan=4 style=\"text-align:center;color:var(--text3);padding:16px;\">暂无成本基准，点「🔄 从已有数据提取」或「＋ 添加」</td></tr>';
+    tbody.innerHTML='<tr><td colspan=4 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「🔄 从已有数据提取」或「＋ 添加」</td></tr>';
     return;
   }
   refs.forEach(([name,c])=>{
