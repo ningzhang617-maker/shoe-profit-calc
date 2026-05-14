@@ -1378,13 +1378,20 @@ function renderFinWeekly() {
   var summary=Object.values(agg).sort(function(a,b){return b.totalProfit-a.totalProfit;});
 
   // Product summary table
-  document.getElementById('finSalesBody').innerHTML = summary.map(function(p){
+  document.getElementById('finSalesBody').innerHTML = '';
+  summary.forEach(function(p){
     var fixedCost=p.count*47;
     var margin=p.totalSales>0?(p.totalProfit/p.totalSales*100):0;
     var status=margin>=10?'盈利':margin>=0?'微利':'亏损';
     var cls=margin>=10?'tag-green':margin>=0?'tag-yellow':'tag-red';
-    return '<tr><td><b>'+p.name+'</b></td><td>'+p.count+'单</td><td>¥'+p.totalSales.toLocaleString()+'</td><td>¥'+p.totalIncome.toLocaleString()+'</td><td>¥'+p.cost+'</td><td>¥'+p.custom+'</td><td>¥'+fixedCost.toLocaleString()+'</td><td style=\"color:'+(p.totalProfit>=0?'var(--green)':'var(--red)')+';font-weight:700;\">'+(p.totalProfit>=0?'+':'')+'¥'+p.totalProfit.toLocaleString()+'</td><td>'+(margin>=0?'+':'')+margin.toFixed(1)+'%</td><td><span class=\"tag '+cls+'\">'+status+'</span></td><td><button class=\"btn btn-outline btn-sm\" onclick=\"showFinDetail(\\''+p.name+'\\')\" style=\"padding:2px 8px;font-size:11px;\">明细</button></td></tr>';
-  }).join('');
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td><b>'+p.name+'</b></td><td>'+p.count+'单</td><td>¥'+p.totalSales.toLocaleString()+'</td><td>¥'+p.totalIncome.toLocaleString()+'</td><td>¥'+p.cost+'</td><td>¥'+p.custom+'</td><td>¥'+fixedCost.toLocaleString()+'</td><td style="color:'+(p.totalProfit>=0?'var(--green)':'var(--red)')+';font-weight:700;">'+(p.totalProfit>=0?'+':'')+'¥'+p.totalProfit.toLocaleString()+'</td><td>'+(margin>=0?'+':'')+margin.toFixed(1)+'%</td><td><span class="tag '+cls+'">'+status+'</span></td><td></td>';
+    var btn=document.createElement('button');btn.className='btn btn-outline btn-sm';
+    btn.textContent='明细';btn.style.cssText='padding:2px 8px;font-size:11px;';
+    btn.onclick=(function(n){return function(){showFinDetail(n);};})(p.name);
+    tr.children[10].appendChild(btn);
+    document.getElementById('finSalesBody').appendChild(tr);
+  })
 
   // Returns aggregated
   var retAgg={};
