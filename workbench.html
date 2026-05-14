@@ -1518,17 +1518,22 @@ function exportAllData() {
 // ============================================================
 function renderChart(id, option) {
   const el=document.getElementById(id);if(!el)return;
-  if(!el.__echart){el.__echart=echarts.init(el);el.__echart.off('click');}
+  if(!el.__echart){el.__echart=echarts.init(el);}
   el.__echart.setOption(option,true);el.__echart.resize();
   // Click interaction for sales trend chart
   if (id==='chartDashSales'){
+    el.__echart.off('click');
     el.__echart.on('click',function(params){
-      if (params.seriesName==='销售额'&&params.name){
+      if (params.seriesName==='销售额'&&params.dataIndex!==undefined){
         const sel=document.getElementById('dashPeriodFilter');
-        for (let i=0;i<sel.options.length;i++){
-          if (sel.options[i].textContent.includes(params.name)){sel.value=sel.options[i].value;break;}
+        // The dataIndex matches the period index in pd array
+        // Try to find the matching option by dataIndex
+        const db=getDB();const periods=db.spuPeriods||[];
+        if (periods[params.dataIndex]){
+          sel.value='p'+params.dataIndex;
+          renderDashOverview();
+          toast('已筛选：'+periods[params.dataIndex].label);
         }
-        renderDashOverview();toast('已筛选：'+params.name);
       }
     });
   }
