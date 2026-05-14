@@ -1494,16 +1494,20 @@ function updateLedgerCell(idx, field, value) {
   const db = getDB();
   if (idx >= 0 && idx < db.finance.ledger.length) {
     db.finance.ledger[idx][field] = value;
-    // Auto-calc day and week from date
+    // Auto-calc day and week from date (use local time to avoid timezone shift)
     if (field === 'date' && value) {
-      var d = new Date(value + (value.indexOf('T') >= 0 ? '' : 'T00:00:00'));
-      if (!isNaN(d.getTime())) {
-        var days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-        db.finance.ledger[idx].day = days[d.getDay()];
-        var startDate = new Date('2026-05-04');
-        var diffDays = Math.floor((d - startDate) / 86400000);
-        db.finance.ledger[idx].week = Math.max(1, Math.floor(diffDays / 7) + 1);
-        db.finance.ledger[idx].date = d.toISOString().slice(0, 10);
+      var parts = value.split('-');
+      if (parts.length === 3) {
+        var yr = parseInt(parts[0]), mo = parseInt(parts[1])-1, dy = parseInt(parts[2]);
+        var d = new Date(yr, mo, dy);
+        if (!isNaN(d.getTime())) {
+          var days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+          db.finance.ledger[idx].day = days[d.getDay()];
+          var startDate = new Date(2026, 4, 4); // May 4, 2026
+          var diffDays = Math.floor((d - startDate) / 86400000);
+          db.finance.ledger[idx].week = Math.max(1, Math.floor(diffDays / 7) + 1);
+          db.finance.ledger[idx].date = value; // keep original YYYY-MM-DD string
+        }
       }
     }
     // Auto-negate: if expense category and amount > 0, make negative
@@ -1528,13 +1532,15 @@ function updateLedgerCell(idx, field, value) {
 function addLedgerRow() {
   const db = getDB();
   var today = new Date();
+  var yr = today.getFullYear(), mo = String(today.getMonth()+1).padStart(2,'0'), dy = String(today.getDate()).padStart(2,'0');
   var days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   var dayStr = days[today.getDay()];
-  var startDate = new Date('2026-05-04');
-  var diffDays = Math.floor((today - startDate) / 86400000);
+  var startDate = new Date(2026, 4, 4); // May 4, 2026 local
+  var todayLocal = new Date(yr, today.getMonth(), today.getDate());
+  var diffDays = Math.floor((todayLocal - startDate) / 86400000);
   var week = Math.max(1, Math.floor(diffDays / 7) + 1);
   db.finance.ledger.unshift({
-    date: today.toISOString().slice(0, 10),
+    date: yr + '-' + mo + '-' + dy,
     day: dayStr,
     cat: '其他支出',
     desc: '',
