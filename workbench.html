@@ -1413,7 +1413,9 @@ function renderFinWeekly() {
   })
 
   // Returns KPI + summary + detail
+  try{
   var totalRetCount=(bill.returns||[]).length;
+  console.log('DEBUG totalRetCount:',totalRetCount,'bill.returns isArray:',Array.isArray(bill.returns));
   var totalRetLoss=(bill.returns||[]).reduce(function(s,r){return s+(r.loss||50);},0);
   var retRate=s.summary.orders>0?(totalRetCount/s.summary.orders*100):0;
   document.getElementById('finReturnsKPIs').innerHTML=
@@ -1433,6 +1435,7 @@ function renderFinWeekly() {
     ?retDetail.map(function(r){return '<tr><td>'+(r.date||'--')+'</td><td><b>'+r.name+'</b></td><td>'+r.size+'</td><td style="color:var(--red);">-¥'+(r.amount||0)+'</td></tr>';}).join('')
     :'<tr><td colspan=4 style="color:var(--text3);">无退货</td></tr>';
 
+  }catch(e){console.error('Returns render error:',e);document.getElementById('finReturnsKPIs').innerHTML='<div class=\"kpi-card\" style=\"border:2px solid red;\"><div class=\"kpi-label\">渲染错误</div><div class=\"kpi-value\" style=\"font-size:14px;\">'+e.message+'</div></div>';}
   // Auto-generated analysis report
   var profitProducts=summary.filter(function(p){return p.totalProfit>=0;});
   var lossProducts=summary.filter(function(p){return p.totalProfit<0;});
