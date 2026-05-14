@@ -957,7 +957,7 @@ function renderDashProducts() {
   const dbProds=db.products||[];
   const getGrade=p=>{const dp=dbProds.find(x=>x.name===p.shortName||(p.shortName&&x.name.includes(p.shortName)));return dp?dp.grade:'--';};
   const getPPU=p=>{const dp=dbProds.find(x=>x.name===p.shortName||(p.shortName&&x.name.includes(p.shortName)));return dp?dp.profitPerUnit:0;};
-  document.getElementById('dashProductDetailBody').innerHTML=products.slice(0,50).map(p=>{
+  document.getElementById('dashProductDetailBody').innerHTML=products.slice(0,80).map(p=>{
     const ppu=getPPU(p);const grade=getGrade(p);
     return `<tr><td><b>${p.shortName||'--'}</b></td><td>${p.brand||'--'}</td><td><span class="tag ${grade==='S'?'tag-green':grade==='A'?'tag-blue':'tag-yellow'}">${grade!=='--'?grade+'级':'--'}</span></td>
     <td>¥${(p.payment||0).toLocaleString()}</td><td>${p.orders||0}</td><td>${(p.visitors||0).toLocaleString()}</td>
@@ -990,7 +990,10 @@ function renderDashWeeks() {
     const ret=p.products.reduce((s,x)=>s+(x.returnQty||0),0);
     const conv=vis>0?(orders/vis*100):0;
     const retRate=orders>0?(ret/orders*100):0;
-    rows.push(`<tr><td><b>${p.label}</b></td><td>${p.days||'--'}天</td><td>¥${rev.toLocaleString()}</td><td>${orders}</td><td>${vis.toLocaleString()}</td><td>${conv.toFixed(2)}%</td><td>${ret}</td><td>${retRate.toFixed(1)}%</td><td>¥${(rev/(p.days||1)).toFixed(0)}</td></tr>`);
+    const prev=i>0?periods[i-1]:null;
+    const prevRev=prev?prev.products.reduce((s,x)=>s+(x.payment||0),0):0;
+    const revChg=prevRev>0?((rev-prevRev)/prevRev*100):0;
+    rows.push('<tr><td><b>'+p.label+'</b></td><td>'+p.days+'天</td><td>¥'+rev.toLocaleString()+' <span style=\"font-size:10px;color:'+(revChg>=0?'var(--green)':'var(--red)')+';\">'+(i>0?(revChg>=0?'↑':'↓')+Math.abs(revChg).toFixed(0)+'%':'')+'</span></td><td>'+orders+'</td><td>'+vis.toLocaleString()+'</td><td>'+conv.toFixed(2)+'%</td><td>'+ret+'</td><td>'+retRate.toFixed(1)+'%</td><td>¥'+(rev/(p.days||1)).toFixed(0)+'</td></tr>');
   });
   document.getElementById('dashWeekTableBody').innerHTML=rows.join('');
 }
