@@ -819,7 +819,8 @@ function onPeriodFilterChange(view){
   const rangeId=view==='overview'?'dashCustomRange':'prodCustomRange';
   const sel=document.getElementById(selId);
   // Add individual period options if not present
-  if (sel.options.length<=5){
+  // Add individual period options if missing
+  if (!sel.querySelector('option[value=\"p0\"]')){
     const db=getDB();const periods=db.spuPeriods||[];
     periods.forEach((p,i)=>{const o=document.createElement('option');o.value='p'+i;o.textContent='📅 '+p.label+' ('+p.days+'天)';sel.appendChild(o);});
   }
@@ -855,7 +856,7 @@ function renderDashOverview() {
   const db=getDB();const periods=db.spuPeriods||[];
   // Init period dropdown with individual periods
   const sel=document.getElementById('dashPeriodFilter');
-  if (sel.options.length<=5){ // only default options
+  if (!sel.querySelector('option[value=\"p0\"]')){
     periods.forEach((p,i)=>{const o=document.createElement('option');o.value='p'+i;o.textContent='📅 '+p.label+' ('+p.days+'天)';sel.appendChild(o);});
   }
   const products=getFilteredProducts(periods, 'dashPeriodFilter');
