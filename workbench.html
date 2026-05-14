@@ -392,7 +392,11 @@ tr:hover td{background:#fafcfd}
         <div class="kpi-grid" id="finWeekKPIs"></div>
         <div class="card"><div class="card-title">📦 产品汇总 <span style="font-size:11px;color:var(--text3);">（按产品聚合，点「明细」查看每单详情）</span></div><div class="table-wrap"><table><thead><tr><th>产品名</th><th>销量</th><th>销售金额</th><th>到手金额</th><th>原鞋成本</th><th>定制费</th><th>固定成本</th><th>利润</th><th>利润率</th><th>状态</th><th>操作</th></tr></thead><tbody id="finSalesBody"></tbody></table></div></div>
         <div id="finSalesDetail" style="display:none;"></div>
-        <div class="card"><div class="card-title">↩ 退货汇总</div><div class="table-wrap"><table><thead><tr><th>产品名</th><th>退货数量</th><th>预估损失</th></tr></thead><tbody id="finReturnsBody"></tbody></table></div></div>
+        <div class="card"><div class="card-title">↩ 退货概览</div>
+          <div class="kpi-grid" id="finReturnsKPIs"></div>
+          <div class="table-wrap"><table><thead><tr><th>产品名</th><th>退货数量</th><th>预估损失</th></tr></thead><tbody id="finReturnsBody"></tbody></table></div>
+        </div>
+        <div class="card"><div class="card-title">↩ 退货明细 <span style=\"font-size:11px;color:var(--text3);\">（逐笔）</span></div><div class="table-wrap"><table><thead><tr><th>日期</th><th>产品名</th><th>尺码</th><th>退款金额</th></tr></thead><tbody id="finReturnsDetailBody"></tbody></table></div></div>
         <div class="card"><div class="card-title">📝 分析报告</div><div id="finWeekReport" style="font-size:13px;line-height:1.8;"></div></div>
       </div>
       <div id="finSummaryView" class="fin-view">
@@ -1408,16 +1412,25 @@ function renderFinWeekly() {
     document.getElementById('finSalesBody').appendChild(tr);
   })
 
-  // Returns aggregated with amount
+  // Returns KPI + summary + detail
+  var totalRetCount=(bill.returns||[]).length;
+  var totalRetLoss=(bill.returns||[]).reduce(function(s,r){return s+(r.loss||50);},0);
+  var retRate=s.summary.orders>0?(totalRetCount/s.summary.orders*100):0;
+  document.getElementById('finReturnsKPIs').innerHTML=
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">退货率</div><div class=\"kpi-value\" style=\"color:'+(retRate>20?'var(--red)':'var(--orange)')+';\">'+retRate.toFixed(1)+'%</div><div class=\"kpi-sub\">警戒线 15%</div></div>'+
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">退货数量</div><div class=\"kpi-value\">'+totalRetCount+'<span style=\"font-size:16px;color:var(--text3);\">/'+s.summary.orders+'单</span></div></div>'+
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">预估损失</div><div class=\"kpi-value\" style=\"color:var(--red);\">-¥'+totalRetLoss.toLocaleString()+'</div></div>';
   var retAgg={};
-  (bill.returns||[]).forEach(function(r){
-    if(!retAgg[r.name])retAgg[r.name]={count:0,totalLoss:0};
-    retAgg[r.name].count++;retAgg[r.name].totalLoss+=(r.loss||50);
-  });
+  (bill.returns||[]).forEach(function(r){if(!retAgg[r.name])retAgg[r.name]={count:0,totalLoss:0};retAgg[r.name].count++;retAgg[r.name].totalLoss+=(r.loss||50);});
   var retEntries=Object.entries(retAgg).sort(function(a,b){return b[1].count-a[1].count;});
   document.getElementById('finReturnsBody').innerHTML = retEntries.length>0
     ?retEntries.map(function(e){return '<tr><td><b>'+e[0]+'</b></td><td style=\"color:var(--red);\">'+e[1].count+'单</td><td style=\"color:var(--red);\">-¥'+e[1].totalLoss.toLocaleString()+'</td></tr>';}).join('')
     :'<tr><td colspan=3 style=\"color:var(--text3);\">无退货</td></tr>';
+  // Returns detail table (individual records)
+  var retDetail=(bill.returns||[]).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  document.getElementById('finReturnsDetailBody').innerHTML = retDetail.length>0
+    ?retDetail.map(function(r){return '<tr><td>'+(r.date||'--')+'</td><td><b>'+r.name+'</b></td><td>'+r.size+'</td><td style=\"color:var(--red);\">-¥'+(r.amount||0)+'</td></tr>';}).join('')
+    :'<tr><td colspan=4 style=\"color:var(--text3);\">无退货</td></tr>';
 
   // Auto-generated analysis report
   var profitProducts=summary.filter(function(p){return p.totalProfit>=0;});
