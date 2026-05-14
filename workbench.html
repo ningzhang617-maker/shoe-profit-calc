@@ -859,8 +859,9 @@ function renderDashOverview() {
   if (!sel.querySelector('option[value=\"p0\"]')){
     periods.forEach((p,i)=>{const o=document.createElement('option');o.value='p'+i;o.textContent='📅 '+p.label+' ('+p.days+'天)';sel.appendChild(o);});
   }
+  if (periods.length===0){document.getElementById('dashKPIs').innerHTML='<div style="padding:20px;color:var(--text3);">暂无周期数据，请上传SPU报表</div>';return;}
   const products=getFilteredProducts(periods, 'dashPeriodFilter');
-  if (products.length===0){document.getElementById('dashKPIs').innerHTML='<div style="padding:20px;color:var(--text3);">暂无数据</div>';return;}
+  if (!products||products.length===0){document.getElementById('dashKPIs').innerHTML='<div style="padding:20px;color:var(--text3);">该条件下无数据</div>';return;}
 
   const rev=products.reduce((s,x)=>s+(x.payment||0),0);
   const orders=products.reduce((s,x)=>s+(x.orders||0),0);
