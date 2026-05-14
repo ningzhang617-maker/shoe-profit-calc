@@ -281,6 +281,7 @@ tr:hover td{background:#fafcfd}
         <span style="flex:1;"></span>
         <span style="font-size:12px;color:var(--text3);">共 <b id="dashReportCount">0</b> 份报表</span>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('fileInputDash').click()">📤 上传报表</button>
+        <button class="btn btn-outline btn-sm btn-danger" onclick="resetSPUData()">🔄 重置数据</button>
         <input type="file" id="fileInputDash" accept=".xlsx,.xls" style="display:none" onchange="handleFileUploadDash(event)">
       </div>
       <!-- 总体概览 -->
@@ -1065,6 +1066,15 @@ function handleFileUploadDash(event) {
   };
   reader.readAsArrayBuffer(file);
   event.target.value='';
+}
+
+function resetSPUData(){
+  if(!confirm('⚠ 重置 SPU 数据？\\n这会恢复初始的3个周期（4.27-5.3 / 5.4-5.10 / 5.11-5.12），删除你手动导入的所有数据。\\n\\n建议先点「导出全部数据」备份。'))return;
+  const db=getDB();
+  db.spuPeriods = null; // Force re-init
+  db.products = [];
+  saveDB(db);
+  location.reload();
 }
 
 function deletePeriod(idx){
