@@ -619,21 +619,45 @@ function importBackup() {
 }
 function showBackupDialog() {
   var backups = listBackups();
-  var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;"><div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);"><h3 style="margin:0 0 16px;">📦 数据备份管理</h3><div style="display:flex;gap:8px;margin-bottom:16px;"><button class="btn btn-primary btn-sm" onclick="exportBackup();document.getElementById('backupDialog').remove();">📥 导出备份</button><button class="btn btn-outline btn-sm" onclick="importBackup();document.getElementById('backupDialog').remove();">📤 导入备份</button></div><div style="font-size:12px;color:var(--text3);margin-bottom:8px;">最近5份自动备份（点击恢复）：</div>';
+  var h = '';
+  h += '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;">';
+  h += '<div style="background:#fff;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">';
+  h += '<h3 style="margin:0 0 16px;">📦 数据备份管理</h3>';
+  h += '<div style="display:flex;gap:8px;margin-bottom:16px;">';
+  h += '<button class="btn btn-primary btn-sm" id="btnExportBackup">📥 导出备份</button>';
+  h += '<button class="btn btn-outline btn-sm" id="btnImportBackup">📤 导入备份</button>';
+  h += '</div><div style="font-size:12px;color:var(--text3);margin-bottom:8px;">最近5份自动备份（点击恢复）：</div>';
   if (backups.length === 0) {
-    html += '<div style="color:var(--text3);padding:16px;text-align:center;">暂无自动备份</div>';
+    h += '<div style="color:var(--text3);padding:16px;text-align:center;">暂无自动备份</div>';
   } else {
     backups.forEach(function(k) {
-      var ts = k.replace('dc_backup_', '');
-      var label = ts.replace('T', ' ').slice(0,19);
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border:1px solid #eee;border-radius:8px;margin-bottom:4px;cursor:pointer;" onclick="if(confirm('恢复到此时间点？')){restoreBackup(''+k+'');document.getElementById('backupDialog').remove();}"><span>🕐 '+label+'</span><span style="color:var(--primary);font-size:12px;">恢复 →</span></div>';
+      var ts = k.replace('dc_backup_', '').replace(/T/g, ' ').slice(0, 19);
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border:1px solid #eee;border-radius:8px;margin-bottom:4px;cursor:pointer;" data-key="' + k + '"><span>🕐 ' + ts + '</span><span style="color:var(--primary);font-size:12px;">恢复 →</span></div>';
     });
   }
-  html += '<button class="btn btn-outline btn-sm" style="margin-top:12px;width:100%;" onclick="document.getElementById('backupDialog').remove();">关闭</button></div></div>';
-  var div = document.createElement('div'); div.id = 'backupDialog'; div.innerHTML = html;
+  h += '<button class="btn btn-outline btn-sm" style="margin-top:12px;width:100%;" id="btnCloseBackup">关闭</button>';
+  h += '</div></div>';
+  var div = document.createElement('div'); div.id = 'backupDialog'; div.innerHTML = h;
   document.body.appendChild(div);
+  document.getElementById('btnExportBackup').onclick = function(){ exportBackup(); removeBackupDialog(); };
+  document.getElementById('btnImportBackup').onclick = function(){ importBackup(); removeBackupDialog(); };
+  document.getElementById('btnCloseBackup').onclick = removeBackupDialog;
+  var items = div.querySelectorAll('[data-key]');
+  for (var i = 0; i < items.length; i++) {
+    items[i].onclick = (function(key) {
+      return function() {
+        if (confirm('恢复到此时间点？')) {
+          restoreBackup(key);
+          removeBackupDialog();
+        }
+      };
+    })(items[i].getAttribute('data-key'));
+  }
 }
-
+function removeBackupDialog() {
+  var d = document.getElementById('backupDialog');
+  if (d) d.remove();
+}
 // ============================================================
 // CORE: Module Switching
 // ============================================================
