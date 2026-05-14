@@ -300,6 +300,8 @@ tr:hover td{background:#fafcfd}
         </div>
         <!-- KPI 仪表盘行 -->
         <div class="kpi-grid" id="dashKPIs"></div>
+        <!-- 目标追踪 + 预警 -->
+        <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;" id="dashTargetAlerts"></div>
         <!-- 图表矩阵 2x3 -->
         <div class="chart-row">
           <div class="chart-card"><div class="cc-title">📈 销售 & 利润趋势</div><div class="chart-box" id="chartDashSales"></div></div>
@@ -315,7 +317,10 @@ tr:hover td{background:#fafcfd}
         </div>
         <!-- 数据快报 -->
         <div class="card" style="margin-top:4px;">
-          <div class="card-title">📋 数据快报 <span style="font-size:11px;color:var(--text3);">（点图可下钻查看）</span></div>
+          <div class="card-title">📋 数据快报
+            <button class="btn btn-outline btn-sm" onclick="exportCSV('overview')" style="margin-left:8px;">📥 导出CSV</button>
+            <button class="btn btn-outline btn-sm" onclick="showTargetSettings()">🎯 目标设置</button>
+          </div>
           <div id="dashDataBrief" style="font-size:12px;line-height:2;"></div>
         </div>
       </div>
@@ -342,7 +347,8 @@ tr:hover td{background:#fafcfd}
       <!-- 周对比 -->
       <div class="dash-view" id="dashWeeks">
         <div class="card"><div class="card-title">📅 周期数据对比 <span style="font-size:11px;color:var(--text3);">（周期天数可能不同，注意对比）</span>
-        <button class="btn btn-danger btn-sm" onclick="resetSPUData()" style="margin-left:8px;">🔄 重置数据</button></div>
+        <button class="btn btn-outline btn-sm" onclick="exportCSV('overview')" style="margin-left:4px;">📥 CSV</button>
+        <button class="btn btn-danger btn-sm" onclick="resetSPUData()" style="margin-left:4px;">🔄 重置</button></div>
         <div class="table-wrap"><table><thead><tr><th>周期</th><th>天数</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>退货</th><th>退货率</th><th>日均销售</th><th>操作</th></tr></thead><tbody id="dashWeekTableBody"></tbody></table></div></div>
       </div>
       <!-- SPU数据 -->
@@ -890,14 +896,48 @@ function renderDashOverview() {
   addChip('全部','all',filterVal==='all');
   periods.forEach((p,i)=>addChip(p.label.substring(5)+' ('+p.days+'天)','p'+i,filterVal===('p'+i)));
 
-  // KPI Row - 6 cards
+  // Finance data for互通
+  const ledger=db.finance.ledger||[];
+  const totalIn=ledger.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
+  const totalOut=Math.abs(ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
+  const netCash=totalIn-totalOut;
+  const estProfit=rev*0.8-rev*0.5; // rough: 80% after platform - 50% costs
+
+  // KPI Row - 8 cards with financial data
   document.getElementById('dashKPIs').innerHTML=`
     <div class="kpi-card"><div class="kpi-label">💰 销售额</div><div class="kpi-value">¥${rev.toLocaleString()}</div><div class="kpi-sub">客单价 ¥${avgPrice.toFixed(0)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">📦 订单 / 退货</div><div class="kpi-value">${orders}<span style="font-size:16px;color:var(--red);">/${ret}</span></div><div class="kpi-sub">退货率 ${retRate.toFixed(1)}%</div></div>
+    <div class="kpi-card"><div class="kpi-label">📦 订单 / 退货</div><div class="kpi-value">${orders}<span style=\"font-size:16px;color:var(--red);\">/${ret}</span></div><div class="kpi-sub">退货率 ${retRate.toFixed(1)}%</div></div>
     <div class="kpi-card"><div class="kpi-label">👁 访客 / 转化</div><div class="kpi-value">${vis.toLocaleString()}</div><div class="kpi-sub">转化 ${conv.toFixed(2)}% · 收藏率 ${favRate.toFixed(1)}%</div></div>
-    <div class="kpi-card"><div class="kpi-label">📋 SPU 活跃度</div><div class="kpi-value">${hasSales}<span style="font-size:16px;color:var(--text3);">/${products.length}</span></div><div class="kpi-sub">${(hasSales/products.length*100).toFixed(0)}%有销售 · ${hasVisitors}个有访客</div></div>
-    <div class="kpi-card"><div class="kpi-label">⭐ 总收藏</div><div class="kpi-value">${favs.toLocaleString()}</div><div class="kpi-sub">均收藏 ${(favs/(products.length||1)).toFixed(0)}个/SPU</div></div>
-    <div class="kpi-card"><div class="kpi-label">🏷 品牌数</div><div class="kpi-value">${new Set(products.map(p=>p.brand)).size}</div><div class="kpi-sub">${new Set(products.map(p=>p.brand).filter(Boolean)).size}个品牌 · ${products.length}个SPU</div></div>`;
+    <div class="kpi-card"><div class="kpi-label">📋 SPU 活跃度</div><div class="kpi-value">${hasSales}<span style=\"font-size:16px;color:var(--text3);\">/${products.length}</span></div><div class="kpi-sub">${(hasSales/products.length*100).toFixed(0)}%有销售 · ${hasVisitors}个有访客</div></div>
+    <div class="kpi-card"><div class="kpi-label">💳 本月支出</div><div class="kpi-value" style=\"color:var(--red);\">¥${totalOut.toLocaleString()}</div><div class="kpi-sub">收入 ¥${totalIn.toLocaleString()} · 净现金流 ${netCash>=0?'+':''}¥${netCash.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="kpi-label">📈 预估利润</div><div class="kpi-value" style=\"color:${estProfit>=0?'var(--green)':'var(--red)'}\">¥${estProfit.toLocaleString()}</div><div class="kpi-sub">品牌 ${new Set(products.map(p=>p.brand).filter(Boolean)).size}个 · SPU ${products.length}个</div></div>`;
+
+  // Target progress
+  if(!db.targets)db.targets={monthlyRevenue:50000};
+  const target=db.targets.monthlyRevenue||50000;
+  const progress=target>0?Math.min(100,rev/target*100):0;
+  const progressColor=progress>=80?'var(--green)':progress>=50?'var(--orange)':'var(--red)';
+
+  // Alerts
+  let alerts=[];
+  if(retRate>20)alerts.push({cls:'danger',text:'退货率 '+retRate.toFixed(1)+'% 超标（警戒15%）'});
+  if(conv<0.5)alerts.push({cls:'danger',text:'转化率 '+conv.toFixed(2)+'% 极低（行业2%）'});
+  if(netCash<0)alerts.push({cls:'warn',text:'本月现金流为负 ¥'+Math.abs(netCash).toLocaleString()});
+  if(hasSales<products.length*0.3)alerts.push({cls:'warn',text:'仅'+(hasSales/products.length*100).toFixed(0)+'% SPU有销售'});
+  const lossProds=db.products.filter(p=>p.profitPerUnit<0);
+  if(lossProds.length>0)alerts.push({cls:'warn',text:lossProds.length+'个产品亏损：'+lossProds.slice(0,3).map(p=>p.name).join('、')});
+
+  document.getElementById('dashTargetAlerts').innerHTML=`
+    <div class="card" style="flex:1;min-width:250px;">
+      <div class="card-title">🎯 月度目标 <button class="btn btn-outline btn-sm" onclick="showTargetSettings()" style="font-size:10px;padding:2px 8px;">修改</button></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">销售额 ¥${rev.toLocaleString()} / ¥${target.toLocaleString()}</div>
+      <div style="background:#f0f0f0;border-radius:6px;height:16px;"><div style="width:${progress.toFixed(0)}%;height:100%;background:${progressColor};border-radius:6px;transition:width 0.5s;"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px;">${progress.toFixed(0)}% 完成${progress>=100?' 🎉':progress>=80?' 💪':''}</div>
+    </div>
+    <div class="card" style="flex:1;min-width:250px;">
+      <div class="card-title">🚨 预警中心</div>
+      ${alerts.length===0?'<div style="font-size:12px;color:var(--green);">✅ 各项指标正常</div>':alerts.map(a=>'<div class="alert alert-'+a.cls+'" style="margin-bottom:4px;font-size:11px;padding:6px 10px;">'+a.text+'</div>').join('')}
+    </div>`;
 
   // Chart 1: Sales & Profit trend (period-level)
   const pd=periods.map(p=>({label:p.label.substring(5),rev:p.products.reduce((s,x)=>s+(x.payment||0),0),ord:p.products.reduce((s,x)=>s+(x.orders||0),0),vis:p.products.reduce((s,x)=>s+(x.visitors||0),0),ret:p.products.reduce((s,x)=>s+(x.returnQty||0),0)}));
@@ -1122,6 +1162,33 @@ function resetSPUData(){
   db.products = [];
   saveDB(db);
   location.reload();
+}
+
+function showTargetSettings(){
+  const db=getDB();if(!db.targets)db.targets={monthlyRevenue:50000};
+  const val=prompt('月度销售目标（元）：',db.targets.monthlyRevenue);
+  if(val===null)return;
+  db.targets.monthlyRevenue=parseFloat(val)||50000;
+  saveDB(db);renderDashOverview();toast('目标已更新');
+}
+
+function exportCSV(type){
+  const db=getDB();let csv='',filename='';
+  if(type==='overview'){
+    const periods=db.spuPeriods||[];
+    csv='周期,天数,销售额,订单,访客,转化率,退货,退货率,日均销售\n';
+    periods.forEach(p=>{
+      const rev=p.products.reduce((s,x)=>s+(x.payment||0),0);
+      const ord=p.products.reduce((s,x)=>s+(x.orders||0),0);
+      const vis=p.products.reduce((s,x)=>s+(x.visitors||0),0);
+      const ret=p.products.reduce((s,x)=>s+(x.returnQty||0),0);
+      csv+=p.label+','+p.days+','+rev+','+ord+','+vis+','+(vis>0?(ord/vis*100).toFixed(2):0)+'%,'+ret+','+(ord>0?(ret/ord*100).toFixed(1):0)+'%,'+(rev/(p.days||1)).toFixed(0)+'\n';
+    });
+    filename='周期对比_'+new Date().toISOString().slice(0,10)+'.csv';
+  }
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+  toast('CSV已导出');
 }
 
 function deletePeriod(idx){
