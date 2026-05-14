@@ -1414,14 +1414,17 @@ function renderFinWeekly() {
 
   // Returns KPI + summary + detail
   var totalRetCount=(bill.returns||[]).length;
-  // Returns: match each return to sale for cost data
+  // Returns: get cost from matching sale, use return's own amount as price
   var salesByName={};
   (bill.sales||[]).forEach(function(s){if(!salesByName[s.name])salesByName[s.name]=s;});
   (bill.returns||[]).forEach(function(r){
     var sale=salesByName[r.name]||{};
     r._shoeCost=sale.cost||0; r._customFee=sale.custom||0;
     r._costLoss=r._shoeCost+r._customFee+47;
-    r._profitLoss=(r.amount||sale.price||0)*0.8-r._shoeCost-r._customFee-47;
+    // 损失利润 = 如果没退能赚的钱 = 售价×0.8 - 成本 - 定制 - 47
+    // r.amount 是退货退款金额 = 原售价，直接用
+    var price=r.amount||sale.price||0;
+    r._profitLoss=price*0.8-r._shoeCost-r._customFee-47;
   });
   var totalRetLoss=(bill.returns||[]).reduce(function(s,r){return s+(r._costLoss||0);},0);
   var totalProfitLoss=(bill.returns||[]).reduce(function(s,r){return s+(r._profitLoss||0);},0);
