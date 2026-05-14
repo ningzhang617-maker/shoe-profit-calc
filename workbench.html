@@ -336,7 +336,7 @@ tr:hover td{background:#fafcfd}
           <button class="btn btn-outline btn-sm" onclick="analyzeCurrentView()">🤖 AI分析</button>
           <span style="font-size:11px;color:var(--text3);" id="prodSortLabel">排序：销售额↓</span>
         </div>
-        <div class="card"><div class="table-wrap"><table style="min-width:800px;"><thead><tr><th style="cursor:pointer;" onclick="sortDashProducts('shortName')">商品 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('brand')">品牌 ↕</th><th>等级</th><th style="cursor:pointer;color:var(--blue);" onclick="sortDashProducts('payment')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('visitors')">访客 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('conversion')">转化率 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('favorites')">收藏 ↕</th><th>退货</th><th>状态</th></tr></thead><tbody id="dashProductDetailBody"></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table style="min-width:800px;"><thead><tr><th style="cursor:pointer;" onclick="sortDashProducts('code')">商品货号</th><th style="cursor:pointer;" onclick="sortDashProducts('shortName')">商品名</th><th style="cursor:pointer;" onclick="sortDashProducts('brand')">品牌 ↕</th><th>等级</th><th style="cursor:pointer;color:var(--blue);" onclick="sortDashProducts('payment')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('visitors')">访客 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('conversion')">转化率 ↕</th><th style="cursor:pointer;" onclick="sortDashProducts('favorites')">收藏 ↕</th><th>退货</th><th>状态</th></tr></thead><tbody id="dashProductDetailBody"></tbody></table></div></div>
       </div>
       <!-- 周对比 -->
       <div class="dash-view" id="dashWeeks">
@@ -937,7 +937,7 @@ function renderDashOverview() {
     <br><b>💡 建议：</b>${conv<0.5?'优先优化商品主图和详情页，提升转化率；':''}${retRate>15?'排查高退货产品质检和尺码问题；':''}${hasSales<products.length*0.3?'集中资源推广有访客无成交的'+deadCnt+'个潜力SPU，砍掉'+zeroCnt+'个零访客SPU；':''}持续关注${best?best.shortName:'核心产品'}的库存和成本。`;
 }
 
-function sortDashProducts(field){dashSortField=field;const labels={payment:'销售额',visitors:'访客',conversion:'转化率',orders:'订单',shortName:'商品名',brand:'品牌',favorites:'收藏'};document.getElementById('prodSortLabel').textContent='排序：'+(labels[field]||field)+'↓';renderDashProducts();}
+function sortDashProducts(field){dashSortField=field;const labels={payment:'销售额',visitors:'访客',conversion:'转化率',orders:'订单',shortName:'商品名',brand:'品牌',favorites:'收藏',code:'货号'};document.getElementById('prodSortLabel').textContent='排序：'+(labels[field]||field)+'↓';renderDashProducts();}
 function sortSPU(field){spuSortField=field;const labels={payment:'销售额',visitors:'访客',conversion:'转化率',favorites:'收藏',shortName:'商品名',brand:'品牌',orders:'订单'};document.getElementById('spuSortLabel').textContent='排序：'+(labels[field]||field)+'↓';renderDashSPU();}
 
 function renderDashProducts() {
@@ -948,7 +948,7 @@ function renderDashProducts() {
   products.forEach(x=>{if(!seen[x.shortName]){seen[x.shortName]=true;dedup.push(x);}});
   products=dedup;
   // Sort (handle both numbers and strings)
-  if (dashSortField==='shortName'||dashSortField==='brand'){
+  if (dashSortField==='shortName'||dashSortField==='brand'||dashSortField==='code'){
     products.sort((a,b)=>String(a[dashSortField]||'').localeCompare(String(b[dashSortField]||''),'zh'));
   } else {
     products.sort((a,b)=>(b[dashSortField]||0)-(a[dashSortField]||0));
@@ -959,11 +959,8 @@ function renderDashProducts() {
   const getPPU=p=>{const dp=dbProds.find(x=>x.name===p.shortName||(p.shortName&&x.name.includes(p.shortName)));return dp?dp.profitPerUnit:0;};
   document.getElementById('dashProductDetailBody').innerHTML=products.slice(0,80).map(p=>{
     const ppu=getPPU(p);const grade=getGrade(p);
-    return `<tr><td><b>${p.shortName||'--'}</b></td><td>${p.brand||'--'}</td><td><span class="tag ${grade==='S'?'tag-green':grade==='A'?'tag-blue':'tag-yellow'}">${grade!=='--'?grade+'级':'--'}</span></td>
-    <td>¥${(p.payment||0).toLocaleString()}</td><td>${p.orders||0}</td><td>${(p.visitors||0).toLocaleString()}</td>
-    <td>${(p.conversion||0).toFixed(2)}%</td><td>${p.favorites||0}</td><td>${p.returnQty||0}</td>
-    <td style="color:${ppu>=0?'var(--green)':'var(--red)'}">${ppu?'¥'+ppu:'--'}</td>
-    <td><span class="tag ${(p.orders||0)>0?'tag-green':'tag-red'}">${(p.orders||0)>0?'有销售':'无销售'}</span></td></tr>`;}).join('');
+    const code=(p.code||'').replace(/\(Team901-[^)]+\)/,'').trim();
+    return '<tr><td style=\"font-size:11px;font-family:monospace;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\" title=\"'+(p.code||'')+'\">'+(p.code||'--')+'</td><td><b>'+(p.shortName||'--')+'</b></td><td>'+(p.brand||'--')+'</td><td><span class=\"tag '+(grade==='S'?'tag-green':grade==='A'?'tag-blue':'tag-yellow')+'\">'+(grade!=='--'?grade+'级':'--')+'</span></td><td>¥'+(p.payment||0).toLocaleString()+'</td><td>'+(p.orders||0)+'</td><td>'+(p.visitors||0).toLocaleString()+'</td><td>'+(p.conversion||0).toFixed(2)+'%</td><td>'+(p.favorites||0)+'</td><td>'+(p.returnQty||0)+'</td><td style=\"color:'+(ppu>=0?'var(--green)':'var(--red)')+';\">'+(ppu?'¥'+ppu:'--')+'</td><td><span class=\"tag '+(p.orders>0?'tag-green':'tag-red')+'\">'+(p.orders>0?'有销售':'无销售')+'</span></td></tr>';}).join('');
 }
 
 function analyzeCurrentView(){
@@ -1008,23 +1005,85 @@ function handleFileUploadDash(event) {
       const wb = XLSX.read(e.target.result,{type:'array'});
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+      if (json.length<2){alert('文件为空');return;}
+      const headers = json[0].map(h=>String(h||''));
+      // Check if this is an SPU export (has SPUID column)
+      const isSPU = headers.some(h=>h.includes('SPUID'));
+      const startDate = prompt('数据起始日期（如 2026-05-13）：',new Date().toISOString().slice(0,10));
+      if (!startDate) return;
+      const endDate = prompt('数据结束日期（如 2026-05-19）：',startDate);
+      if (!endDate) return;
       const db = getDB();
-      const date = prompt('报表日期（如 2026-05-13）：', new Date().toISOString().slice(0,10));
-      if (!date) return;
-      const type = prompt('类型（daily/weekly/monthly）：','daily');
-      // Extract numbers
-      let rev=0,orders=0,vis=0,profit=0,ret=0,cost=0;
-      json.slice(1).forEach(row=>{
-        if (!row[0]) return;
-        rev += parseFloat(row[2])||0; orders += parseInt(row[3])||0; vis += parseInt(row[4])||0;
-        profit += parseFloat(row[5])||0; ret += parseInt(row[6])||0;
-      });
-      db.reports.unshift({id:'r_'+Date.now(),type:type||'daily',date,label:file.name.replace(/\.xlsx?$/,''),data:{revenue:rev||1000,orders:orders||1,visitors:vis||100,conversion:orders/(vis||100)*100,returns:ret||0,profit:profit||0,cost:cost||0}});
-      saveDB(db); renderDashboard(); toast('报表已导入');
-    } catch(err) { alert('解析失败：'+err.message); }
+      if (isSPU) {
+        // Parse SPU data
+        const spuIdx = {spuId:headers.indexOf('SPUID'),name:headers.indexOf('商品标题'),code:headers.indexOf('商品货号'),brand:headers.indexOf('品牌名称'),category:headers.indexOf('类目名称'),payment:headers.indexOf('支付金额'),orders:headers.indexOf('支付订单数'),visitors:headers.indexOf('商详访问人数'),conversion:headers.indexOf('商详转化率'),favorites:headers.indexOf('收藏用户数'),returnAmt:headers.indexOf('退货金额（退款时间）'),returnQty:headers.indexOf('退货订单数（退款时间）'),priceRange:headers.indexOf('我的出价（元）')};
+        const products = [];
+        json.slice(1).forEach(row=>{
+          if (!row[spuIdx.spuId]) return;
+          const name = String(row[spuIdx.name]||'');
+          const shortName = name.includes('六六八八') ? name.split('六六八八')[1]?.trim()?.split(/[\s,，]/)[0]?.substring(0,15) || name.substring(0,15) : name.substring(0,15);
+          const pv = (v)=>isNaN(parseFloat(v))?0:parseFloat(String(v).replace(/元|,/g,''));
+          products.push({
+            shortName, code:String(row[spuIdx.code]||''), brand:String(row[spuIdx.brand]||''),
+            payment:pv(row[spuIdx.payment]), orders:parseInt(pv(row[spuIdx.orders]))||0,
+            visitors:parseInt(pv(row[spuIdx.visitors]))||0, conversion:parseFloat(String(row[spuIdx.conversion]||'0').replace('%',''))||0,
+            favorites:parseInt(pv(row[spuIdx.favorites]))||0, returnAmt:pv(row[spuIdx.returnAmt]),
+            returnQty:parseInt(pv(row[spuIdx.returnQty]))||0, priceRange:String(row[spuIdx.priceRange]||'')
+          });
+        });
+        // Check if period exists - merge or add
+        const days = Math.round((new Date(endDate)-new Date(startDate))/86400000)+1;
+        const existingIdx = db.spuPeriods.findIndex(p=>p.start===startDate&&p.end===endDate);
+        if (existingIdx>=0) {
+          if (!confirm('已存在相同日期周期（'+db.spuPeriods[existingIdx].label+'），要覆盖吗？\\n选"取消"将追加到现有周期。')) {
+            db.spuPeriods[existingIdx].products = [...db.spuPeriods[existingIdx].products, ...products];
+          } else {
+            db.spuPeriods[existingIdx].products = products;
+          }
+          db.spuPeriods[existingIdx].days = days;
+          toast('已合并到现有周期');
+        } else {
+          db.spuPeriods.push({start:startDate,end:endDate,days:days,label:startDate+' ~ '+endDate,products:products});
+          db.spuPeriods.sort((a,b)=>new Date(a.start)-new Date(b.start));
+          toast('新周期已添加：'+startDate+' ~ '+endDate);
+        }
+        // Regenerate products
+        regenerateProducts(db);
+      } else {
+        // Simple report import (old format)
+        const date = startDate;
+        let rev=0,orders=0,vis=0,profit=0,ret=0;
+        json.slice(1).forEach(row=>{if(!row[0])return;rev+=parseFloat(row[2])||0;orders+=parseInt(row[3])||0;vis+=parseInt(row[4])||0;profit+=parseFloat(row[5])||0;ret+=parseInt(row[6])||0;});
+        db.reports.unshift({id:'r_'+Date.now(),type:'daily',date,label:file.name.replace(/\.xlsx?$/,''),data:{revenue:rev||1000,orders:orders||1,visitors:vis||100,conversion:orders/(vis||100)*100,returns:ret||0,profit:profit||0,cost:0}});
+      }
+      saveDB(db); renderDashboard(); toast('✅ 导入完成');
+    } catch(err) { alert('解析失败：'+err.message);console.error(err); }
   };
   reader.readAsArrayBuffer(file);
   event.target.value='';
+}
+
+function regenerateProducts(db){
+  const productMap={};
+  db.spuPeriods.forEach(period=>{
+    period.products.forEach(p=>{
+      const key=p.shortName||p.code||'unknown';
+      if(!productMap[key])productMap[key]={name:p.shortName||key,code:p.code||'',brand:p.brand||'',totalSales:0,orders:0,visitors:0,favorites:0,returns:0,priceRange:'',maxConversion:0};
+      productMap[key].totalSales+=(p.payment||0);productMap[key].orders+=(p.orders||0);productMap[key].visitors+=(p.visitors||0);productMap[key].favorites+=(p.favorites||0);productMap[key].returns+=(p.returnQty||0);
+      if((p.conversion||0)>productMap[key].maxConversion)productMap[key].maxConversion=(p.conversion||0);
+      if(p.priceRange&&!productMap[key].priceRange)productMap[key].priceRange=p.priceRange;
+    });
+  });
+  db.products=Object.values(productMap).map((p,i)=>{
+    const conv=p.visitors>0?(p.orders/p.visitors*100):0;const favRate=p.visitors>0?(p.favorites/p.visitors*100):0;
+    let score=0,grade='C';
+    if(p.orders>=10)score+=40;else if(p.orders>=5)score+=30;else if(p.orders>=2)score+=20;else if(p.orders>=1)score+=10;
+    if(conv>=1.0)score+=30;else if(conv>=0.5)score+=25;else if(conv>=0.2)score+=15;else if(conv>0)score+=5;
+    if(favRate>=10)score+=20;else if(favRate>=5)score+=15;else if(favRate>=2)score+=10;else if(favRate>0)score+=5;
+    if(p.totalSales>=5000)score+=10;else if(p.totalSales>=2000)score+=7;else if(p.totalSales>=500)score+=4;
+    if(score>=65)grade='S';else if(score>=40)grade='A';else if(score>=15)grade='B';
+    return{id:'p_spu_'+i,name:p.name,code:p.code,brand:p.brand,grade,totalSales:p.totalSales,orders:p.orders,conversion:conv,returns:p.returns,profitPerUnit:0,maxConversion:p.maxConversion,score};
+  });
 }
 
 // ============================================================
