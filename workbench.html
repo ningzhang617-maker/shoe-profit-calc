@@ -341,7 +341,7 @@ tr:hover td{background:#fafcfd}
       <!-- 周对比 -->
       <div class="dash-view" id="dashWeeks">
         <div class="card"><div class="card-title">📅 周期数据对比 <span style="font-size:11px;color:var(--text3);">（周期天数可能不同，注意对比）</span></div>
-        <div class="table-wrap"><table><thead><tr><th>周期</th><th>天数</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>退货</th><th>退货率</th><th>日均销售</th></tr></thead><tbody id="dashWeekTableBody"></tbody></table></div></div>
+        <div class="table-wrap"><table><thead><tr><th>周期</th><th>天数</th><th>销售额</th><th>订单</th><th>访客</th><th>转化率</th><th>退货</th><th>退货率</th><th>日均销售</th><th>操作</th></tr></thead><tbody id="dashWeekTableBody"></tbody></table></div></div>
       </div>
       <!-- SPU数据 -->
       <div class="dash-view" id="dashSPU">
@@ -990,7 +990,7 @@ function renderDashWeeks() {
     const prev=i>0?periods[i-1]:null;
     const prevRev=prev?prev.products.reduce((s,x)=>s+(x.payment||0),0):0;
     const revChg=prevRev>0?((rev-prevRev)/prevRev*100):0;
-    rows.push('<tr><td><b>'+p.label+'</b></td><td>'+p.days+'天</td><td>¥'+rev.toLocaleString()+' <span style=\"font-size:10px;color:'+(revChg>=0?'var(--green)':'var(--red)')+';\">'+(i>0?(revChg>=0?'↑':'↓')+Math.abs(revChg).toFixed(0)+'%':'')+'</span></td><td>'+orders+'</td><td>'+vis.toLocaleString()+'</td><td>'+conv.toFixed(2)+'%</td><td>'+ret+'</td><td>'+retRate.toFixed(1)+'%</td><td>¥'+(rev/(p.days||1)).toFixed(0)+'</td></tr>');
+    rows.push('<tr><td><b>'+p.label+'</b></td><td>'+p.days+'天</td><td>¥'+rev.toLocaleString()+' <span style=\"font-size:10px;color:'+(revChg>=0?'var(--green)':'var(--red)')+';\">'+(i>0?(revChg>=0?'↑':'↓')+Math.abs(revChg).toFixed(0)+'%':'')+'</span></td><td>'+orders+'</td><td>'+vis.toLocaleString()+'</td><td>'+conv.toFixed(2)+'%</td><td>'+ret+'</td><td>'+retRate.toFixed(1)+'%</td><td>¥'+(rev/(p.days||1)).toFixed(0)+'</td><td><button class=\"btn btn-danger btn-sm\" onclick=\"deletePeriod('+i+')\" style=\"padding:2px 8px;\">✕</button></td></tr>');
   });
   document.getElementById('dashWeekTableBody').innerHTML=rows.join('');
 }
@@ -1009,10 +1009,13 @@ function handleFileUploadDash(event) {
       const headers = json[0].map(h=>String(h||''));
       // Check if this is an SPU export (has SPUID column)
       const isSPU = headers.some(h=>h.includes('SPUID'));
-      const startDate = prompt('数据起始日期（如 2026-05-13）：',new Date().toISOString().slice(0,10));
+      const today=new Date().toISOString().slice(0,10);
+      const startDate = prompt('数据起始日期：\\n（得物后台导出时可看到数据周期，如单日就填同一天）',today);
       if (!startDate) return;
-      const endDate = prompt('数据结束日期（如 2026-05-19）：',startDate);
+      const endDate = prompt('数据结束日期：\\n（单日数据请填和起始日期相同的日期）',startDate);
       if (!endDate) return;
+      const days = Math.round((new Date(endDate)-new Date(startDate))/86400000)+1;
+      if (days>3&&!confirm('⚠ 你填了'+days+'天的周期。\\n如果文件只包含单日数据，点「取消」后重新填同一天。\\n\\n继续以'+days+'天周期导入？')){return;}
       const db = getDB();
       if (isSPU) {
         // Parse SPU data
@@ -1061,6 +1064,17 @@ function handleFileUploadDash(event) {
   };
   reader.readAsArrayBuffer(file);
   event.target.value='';
+}
+
+function deletePeriod(idx){
+  const db=getDB();const p=db.spuPeriods[idx];
+  if(!p)return;
+  if(!confirm('删除周期「'+p.label+'」？\n该周期所有SPU数据将被移除，产品评级会重新计算。'))return;
+  db.spuPeriods.splice(idx,1);
+  regenerateProducts(db);
+  saveDB(db);
+  renderDashboard();
+  toast('周期已删除，产品已重新评级');
 }
 
 function regenerateProducts(db){
