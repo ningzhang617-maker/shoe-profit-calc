@@ -1413,14 +1413,12 @@ function renderFinWeekly() {
   })
 
   // Returns KPI + summary + detail
-  try{
   var totalRetCount=(bill.returns||[]).length;
-  console.log('DEBUG totalRetCount:',totalRetCount,'bill.returns isArray:',Array.isArray(bill.returns));
   var totalRetLoss=(bill.returns||[]).reduce(function(s,r){return s+(r.loss||50);},0);
-  var retRate=s.summary.orders>0?(totalRetCount/s.summary.orders*100):0;
+  var retRate=s.orders>0?(totalRetCount/s.orders*100):0;
   document.getElementById('finReturnsKPIs').innerHTML=
     '<div class="kpi-card"><div class="kpi-label">退货率</div><div class="kpi-value" style="color:'+(retRate>20?'var(--red)':'var(--orange)')+';">'+retRate.toFixed(1)+'%</div><div class="kpi-sub">警戒线 15%</div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">退货数量</div><div class="kpi-value">'+totalRetCount+'<span style="font-size:16px;color:var(--text3);">/'+s.summary.orders+'单</span></div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">退货数量</div><div class="kpi-value">'+totalRetCount+'<span style="font-size:16px;color:var(--text3);">/'+s.orders+'单</span></div></div>'+
     '<div class="kpi-card"><div class="kpi-label">预估损失</div><div class="kpi-value" style="color:var(--red);">-¥'+totalRetLoss.toLocaleString()+'</div></div>';
   var retAgg={};
   (bill.returns||[]).forEach(function(r){if(!retAgg[r.name])retAgg[r.name]={count:0,totalLoss:0};retAgg[r.name].count++;retAgg[r.name].totalLoss+=(r.loss||50);});
@@ -1430,23 +1428,21 @@ function renderFinWeekly() {
     :'<tr><td colspan=3 style="color:var(--text3);">无退货</td></tr>';
   // Returns detail table (individual records)
   var retDetail=(bill.returns||[]).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
-  console.log('Returns detail count:',retDetail.length,'first:',retDetail[0]);
   document.getElementById('finReturnsDetailBody').innerHTML = retDetail.length>0
     ?retDetail.map(function(r){return '<tr><td>'+(r.date||'--')+'</td><td><b>'+r.name+'</b></td><td>'+r.size+'</td><td style="color:var(--red);">-¥'+(r.amount||0)+'</td></tr>';}).join('')
     :'<tr><td colspan=4 style="color:var(--text3);">无退货</td></tr>';
 
-  }catch(e){console.error('Returns render error:',e);document.getElementById('finReturnsKPIs').innerHTML='<div class="kpi-card" style="border:2px solid red;"><div class="kpi-label">渲染错误</div><div class="kpi-value" style="font-size:14px;">'+e.message+'</div></div>';}
   // Auto-generated analysis report
   var profitProducts=summary.filter(function(p){return p.totalProfit>=0;});
   var lossProducts=summary.filter(function(p){return p.totalProfit<0;});
   var topProfit=summary[0];var worstLoss=summary[summary.length-1];
   var totalRetCount=(bill.returns||[]).length;
-  var retRate=s.summary.orders>0?(totalRetCount/s.summary.orders*100):0;
+  var retRate2=s.orders>0?(totalRetCount/s.orders*100):0;
   var report='<b>📊 本周经营诊断</b><br>';
   report+='销售额 ¥'+s.revenue.toLocaleString()+' | 利润 ¥'+s.profit.toLocaleString()+' | 利润率 '+s.profitRate+'%<br><br>';
   report+='<b>✅ 盈利产品：</b>'+profitProducts.length+'款（贡献利润 ¥'+profitProducts.reduce(function(x,p){return x+p.totalProfit;},0).toLocaleString()+'）<br>';
   if(lossProducts.length>0)report+='<b>⚠ 亏损产品：</b>'+lossProducts.length+'款（亏损 ¥'+Math.abs(lossProducts.reduce(function(x,p){return x+p.totalProfit;},0)).toLocaleString()+'）：'+lossProducts.map(function(p){return p.name;}).join('、')+'<br>';
-  report+='<b>↩ 退货率：</b>'+retRate.toFixed(1)+'%'+(retRate>20?' <span style="color:var(--red);">🔴 超标</span>':retRate>10?' <span style="color:var(--orange);">🟡 关注</span>':' <span style="color:var(--green);">🟢 正常</span>')+'<br>';
+  report+='<b>↩ 退货率：</b>'+retRate2.toFixed(1)+'%'+(retRate2>20?' <span style="color:var(--red);">🔴 超标</span>':retRate2>10?' <span style="color:var(--orange);">🟡 关注</span>':' <span style="color:var(--green);">🟢 正常</span>')+'<br>';
   if(retEntries.length>0)report+='<b>最多退货：</b>'+retEntries[0][0]+'（'+retEntries[0][1].count+'单）<br>';
   report+='<br><b>💡 建议：</b>';
   if(lossProducts.length>0)report+='亏损产品考虑调整定价或下架；';
