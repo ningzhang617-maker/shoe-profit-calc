@@ -1416,7 +1416,10 @@ function renderFinWeekly() {
   var totalRetCount=(bill.returns||[]).length;
   // Returns: get cost from matching sale, use return's own amount as price
   var salesByName={};
-  (bill.sales||[]).forEach(function(s){if(!salesByName[s.name])salesByName[s.name]=s;});
+  // Search all periods first for products not in current bill
+  (db.finance.weeklyBills||[]).forEach(function(b){ (b.sales||[]).forEach(function(s){if(!salesByName[s.name])salesByName[s.name]=s;}); });
+  // Current bill takes priority
+  (bill.sales||[]).forEach(function(s){salesByName[s.name]=s;});
   (bill.returns||[]).forEach(function(r){
     var sale=salesByName[r.name]||{};
     r._shoeCost=sale.cost||0; r._customFee=sale.custom||0;
