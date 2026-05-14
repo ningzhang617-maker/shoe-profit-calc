@@ -874,7 +874,14 @@ function renderDashOverview() {
   const favRate=vis>0?(favs/vis*100):0;
 
   const filterVal=document.getElementById('dashPeriodFilter').value;
-  document.getElementById('dashOverviewNote').textContent = filterVal==='all'?`${periods.length}个周期 · ${products.length}个SPU`:(filterVal.startsWith('p')?`${periods[parseInt(filterVal.slice(1))]?.label}`:'');
+  // Period quick-filter chips
+  let chipsHtml = '<span style=\"font-size:11px;color:var(--text3);\">快捷筛选：</span>';
+  chipsHtml += '<span onclick=\"document.getElementById(\\'dashPeriodFilter\\').value=\\'all\\';renderDashOverview();\" style=\"cursor:pointer;padding:2px 8px;border-radius:10px;font-size:11px;'+(filterVal==='all'?'background:var(--blue);color:#fff;':'border:1px solid var(--border);')+'\">全部</span> ';
+  periods.forEach((p,i)=>{
+    const sel = filterVal===('p'+i);
+    chipsHtml += '<span onclick=\"document.getElementById(\\'dashPeriodFilter\\').value=\\'p'+i+'\\';renderDashOverview();\" style=\"cursor:pointer;padding:2px 8px;border-radius:10px;font-size:11px;'+(sel?'background:var(--blue);color:#fff;':'border:1px solid var(--border);')+'\">'+p.label.substring(5)+' ('+p.days+'天)</span> ';
+  });
+  document.getElementById('dashOverviewNote').innerHTML = chipsHtml;
 
   // KPI Row - 6 cards
   document.getElementById('dashKPIs').innerHTML=`
@@ -1520,21 +1527,6 @@ function renderChart(id, option) {
   const el=document.getElementById(id);if(!el)return;
   if(!el.__echart){el.__echart=echarts.init(el);}
   el.__echart.setOption(option,true);el.__echart.resize();
-  // Drill-down: click sales bar to filter by period
-  if (id==='chartDashSales'){
-    if (el.__clickHandler) el.__echart.off('click',el.__clickHandler);
-    el.__clickHandler = function(params){
-      if (params.componentType==='series'&&params.seriesIndex===0){
-        const db=getDB();const periods=db.spuPeriods||[];
-        if (periods[params.dataIndex]){
-          document.getElementById('dashPeriodFilter').value='p'+params.dataIndex;
-          renderDashOverview();
-          toast('已筛选：'+periods[params.dataIndex].label);
-        }
-      }
-    };
-    el.__echart.on('click',el.__clickHandler);
-  }
 }
 
 function toast(msg) {
