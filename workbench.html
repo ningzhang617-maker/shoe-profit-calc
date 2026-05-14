@@ -384,8 +384,7 @@ tr:hover td{background:#fafcfd}
           <div class="chart-card"><div class="cc-title">📈 每周收支</div><div class="chart-box" id="chartFinCashflow"></div></div>
           <div class="chart-card"><div class="cc-title">🍩 支出分类</div><div class="chart-box" id="chartFinExpCat"></div></div>
         </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>周次</th><th>操作</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div>
-        <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="addLedgerRow()">＋ 新增一行</button></div>
+        <div class="card"><button class="btn btn-outline btn-sm" style="margin-bottom:8px;" onclick="addLedgerRow()">＋ 新增一行</button><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>周次</th><th>操作</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div></div>
       </div>
       <div id="finWeeklyView" class="fin-view">
         <div style="margin-bottom:10px;"><select id="finWeekSel" onchange="renderFinWeekly(parseInt(this.value))"></select></div>
@@ -1346,7 +1345,7 @@ function updateLedgerCell(idx, field, value) {
 function addLedgerRow() {
   const db = getDB();
   const maxWeek = db.finance.ledger.reduce((max,i)=>Math.max(max,i.week||1),1);
-  db.finance.ledger.push({date:new Date().toISOString().slice(0,10),day:'',cat:'其他支出',desc:'',amount:0,pay:'支付宝',week:maxWeek});
+  db.finance.ledger.unshift({date:new Date().toISOString().slice(0,10),day:'',cat:'其他支出',desc:'',amount:0,pay:'支付宝',week:maxWeek});
   saveDB(db);
   renderFinLedger();
   toast('新行已添加');
