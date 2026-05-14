@@ -406,6 +406,7 @@ tr:hover td{background:#fafcfd}
           <div class="card-title">📋 产品成本基准 <span style="font-size:11px;color:var(--text3);">（财务和导入时自动引用，避免乱填）</span>
             <button class="btn btn-outline btn-sm" onclick="addCostRef()" style="margin-left:8px;">＋ 添加</button>
             <button class="btn btn-outline btn-sm" onclick="autoFillCostRefs()">🔄 从已有数据提取</button>
+            <button class="btn btn-primary btn-sm" onclick="fixAllBillCosts()">🔧 一键修正全部周账单成本</button>
           </div>
           <div class="table-wrap"><table><thead><tr><th>产品名</th><th>原鞋成本(元)</th><th>定制费(元)</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div>
         </div>
@@ -1354,16 +1355,16 @@ function renderFinWeekly() {
   const idx=parseInt(sel.value)||0;
   const bill=bills[idx];
   if(!bill) return;
-  // Auto-fill missing costs from costRefs
+  // Auto-fill costs from costRefs (fuzzy match, always apply if available)
   let costsUpdated=false;
   (bill.sales||[]).forEach(sale=>{
-    if((!sale.cost||sale.cost===0)&&db.costRefs[sale.name]){
-      sale.cost=db.costRefs[sale.name].shoeCost||0;
-      sale.custom=db.costRefs[sale.name].customFee||0;
-      sale.income=sale.price*0.8;
-      sale.profit=sale.income-sale.cost-sale.custom-47;
-      sale.rate=sale.price>0?sale.profit/sale.price*100:0;
-      costsUpdated=true;
+    let ref=db.costRefs[sale.name];
+    // Fuzzy match: try finding by partial name
+    if(!ref){for(let k in db.costRefs){if(k.includes(sale.name)||sale.name.includes(k)){ref=db.costRefs[k];break;}}}
+    if(ref&&ref.shoeCost>0){
+      sale.cost=ref.shoeCost; sale.custom=ref.customFee||0;
+      sale.income=sale.price*0.8; sale.profit=sale.income-sale.cost-sale.custom-47;
+      sale.rate=sale.price>0?sale.profit/sale.price*100:0; costsUpdated=true;
     }
   });
   if(costsUpdated){saveDB(db);}
@@ -1473,6 +1474,20 @@ function addCostRef(){
 function deleteCostRef(name){
   if(!confirm('删除 '+name+' 的成本基准？'))return;
   const db=getDB();delete db.costRefs[name];saveDB(db);renderCostRefs();
+}
+
+function fixAllBillCosts(){
+  const db=getDB();if(!db.costRefs||Object.keys(db.costRefs).length===0){toast('请先提取成本基准');return;}
+  if(!confirm('将用成本基准覆盖所有周账单中的成本数据，确定？'))return;
+  let fixed=0;
+  (db.finance.weeklyBills||[]).forEach(bill=>{
+    (bill.sales||[]).forEach(sale=>{
+      let ref=db.costRefs[sale.name];
+      if(!ref){for(let k in db.costRefs){if(k.includes(sale.name)||sale.name.includes(k)){ref=db.costRefs[k];break;}}}
+      if(ref&&ref.shoeCost>0){sale.cost=ref.shoeCost;sale.custom=ref.customFee||0;sale.income=sale.price*0.8;sale.profit=sale.income-sale.cost-sale.custom-47;sale.rate=sale.price>0?sale.profit/sale.price*100:0;fixed++;}
+    });
+  });
+  saveDB(db);toast('已修正 '+fixed+' 条销售记录的成本');
 }
 
 function autoFillCostRefs(){
