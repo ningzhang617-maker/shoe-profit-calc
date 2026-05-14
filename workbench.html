@@ -1425,9 +1425,29 @@ function renderFinSummary() {
 function renderCostRefs(){
   const db=getDB();if(!db.costRefs)db.costRefs={};
   const refs=Object.entries(db.costRefs);
-  document.getElementById('costRefBody').innerHTML=refs.length===0
-    ?'<tr><td colspan=4 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「🔄 从已有数据提取」或「＋ 添加」</td></tr>'
-    :refs.map(([name,c])=>'<tr><td><b>'+name+'</b></td><td><input type=\"number\" value=\"'+c.shoeCost+'\" onchange=\"updateCostRef(\\''+name+'\\',\\'shoeCost\\',parseFloat(this.value)||0)\" style=\"width:90px;padding:4px 6px;font-size:12px;\"></td><td><input type=\"number\" value=\"'+c.customFee+'\" onchange=\"updateCostRef(\\''+name+'\\',\\'customFee\\',parseFloat(this.value)||0)\" style=\"width:90px;padding:4px 6px;font-size:12px;\"></td><td><button class=\"btn btn-danger btn-sm\" onclick=\"deleteCostRef(\\''+name+'\\')\" style=\"padding:2px 8px;\">✕</button></td></tr>').join('');
+  const tbody=document.getElementById('costRefBody');
+  tbody.innerHTML='';
+  if(refs.length===0){
+    tbody.innerHTML='<tr><td colspan=4 style=\"text-align:center;color:var(--text3);padding:16px;\">暂无成本基准，点「🔄 从已有数据提取」或「＋ 添加」</td></tr>';
+    return;
+  }
+  refs.forEach(([name,c])=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td><b>'+name+'</b></td><td></td><td></td><td></td>';
+    const shoeInput=document.createElement('input');
+    shoeInput.type='number';shoeInput.value=c.shoeCost||0;shoeInput.style.cssText='width:90px;padding:4px 6px;font-size:12px;';
+    shoeInput.onchange=function(){updateCostRef(name,'shoeCost',parseFloat(this.value)||0);};
+    tr.children[1].appendChild(shoeInput);
+    const customInput=document.createElement('input');
+    customInput.type='number';customInput.value=c.customFee||0;customInput.style.cssText='width:90px;padding:4px 6px;font-size:12px;';
+    customInput.onchange=function(){updateCostRef(name,'customFee',parseFloat(this.value)||0);};
+    tr.children[2].appendChild(customInput);
+    const delBtn=document.createElement('button');
+    delBtn.className='btn btn-danger btn-sm';delBtn.textContent='✕';delBtn.style.cssText='padding:2px 8px;';
+    delBtn.onclick=function(){deleteCostRef(name);};
+    tr.children[3].appendChild(delBtn);
+    tbody.appendChild(tr);
+  });
 }
 
 function updateCostRef(name,field,val){
