@@ -1040,21 +1040,64 @@ function handleFileUploadDash(event) {
             returnQty:parseInt(pv(row[spuIdx.returnQty]))||0, priceRange:String(row[spuIdx.priceRange]||'')
           });
         });
-        // Check if period exists - merge or add
+        // Smart merge: check exact match, adjacent, or overlapping periods
         const days = Math.round((new Date(endDate)-new Date(startDate))/86400000)+1;
-        const existingIdx = db.spuPeriods.findIndex(p=>p.start===startDate&&p.end===endDate);
+        const newStart = new Date(startDate).getTime();
+        const newEnd = new Date(endDate).getTime();
+        const day = 86400000;
+
+        // 1. Exact match
+        let existingIdx = db.spuPeriods.findIndex(p=>p.start===startDate&&p.end===endDate);
         if (existingIdx>=0) {
-          if (!confirm('已存在相同日期周期（'+db.spuPeriods[existingIdx].label+'），要覆盖吗？\\n选"取消"将追加到现有周期。')) {
-            db.spuPeriods[existingIdx].products = [...db.spuPeriods[existingIdx].products, ...products];
-          } else {
+          if (confirm('已存在相同日期周期（'+db.spuPeriods[existingIdx].label+'），覆盖数据？')) {
             db.spuPeriods[existingIdx].products = products;
+          } else {
+            db.spuPeriods[existingIdx].products = [...db.spuPeriods[existingIdx].products, ...products];
           }
-          db.spuPeriods[existingIdx].days = days;
           toast('已合并到现有周期');
         } else {
-          db.spuPeriods.push({start:startDate,end:endDate,days:days,label:startDate+' ~ '+endDate,products:products});
-          db.spuPeriods.sort((a,b)=>new Date(a.start)-new Date(b.start));
-          toast('新周期已添加：'+startDate+' ~ '+endDate);
+          // 2. Check adjacent: new data starts right after an existing period ends
+          let adjacent = db.spuPeriods.findIndex(p=>{
+            const pEnd = new Date(p.end).getTime();
+            return Math.abs(newStart - pEnd) <= day; // within 1 day
+          });
+          if (adjacent>=0) {
+            const p = db.spuPeriods[adjacent];
+            if (confirm('检测到相邻周期「'+p.label+'」\\n要将新数据合并进去，扩展为 '+p.start+' ~ '+endDate+' 吗？\\n\\n选"取消"则创建独立周期。')) {
+              p.end = endDate;
+              p.days = Math.round((new Date(endDate)-new Date(p.start))/86400000)+1;
+              p.label = p.start+' ~ '+p.end;
+              p.products = [...p.products, ...products];
+              toast('已扩展到：'+p.label);
+            } else {
+              db.spuPeriods.push({start:startDate,end:endDate,days:days,label:startDate+' ~ '+endDate,products:products});
+              toast('新周期已创建');
+            }
+          } else {
+            // 3. Check adjacent: new data ends right before an existing period starts
+            let adjBefore = db.spuPeriods.findIndex(p=>{
+              const pStart = new Date(p.start).getTime();
+              return Math.abs(newEnd - pStart) <= day;
+            });
+            if (adjBefore>=0) {
+              const p = db.spuPeriods[adjBefore];
+              if (confirm('检测到相邻周期「'+p.label+'」\\n要扩展为 '+startDate+' ~ '+p.end+' 吗？')) {
+                p.start = startDate;
+                p.days = Math.round((new Date(p.end)-new Date(startDate))/86400000)+1;
+                p.label = p.start+' ~ '+p.end;
+                p.products = [...products, ...p.products];
+                toast('已扩展为：'+p.label);
+              } else {
+                db.spuPeriods.push({start:startDate,end:endDate,days:days,label:startDate+' ~ '+endDate,products:products});
+                toast('新周期已创建');
+              }
+            } else {
+              // 4. No match - create new
+              db.spuPeriods.push({start:startDate,end:endDate,days:days,label:startDate+' ~ '+endDate,products:products});
+              db.spuPeriods.sort((a,b)=>new Date(a.start)-new Date(b.start));
+              toast('新周期已创建：'+startDate+' ~ '+endDate);
+            }
+          }
         }
         // Regenerate products
         regenerateProducts(db);
