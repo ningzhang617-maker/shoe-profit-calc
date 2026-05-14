@@ -152,6 +152,8 @@ tr:hover td{background:#fafcfd}
 .dash-view.active{display:block}
 .ops-view{display:none}
 .ops-view.active{display:block}
+.prod-mode{display:none}
+.prod-mode.active{display:block}
 </style>
 </head>
 <body>
@@ -275,8 +277,7 @@ tr:hover td{background:#fafcfd}
       <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
         <button class="btn btn-sm fin-tab-btn active" id="dashTabOverview" onclick="switchDashTab('overview')" style="border-radius:6px 0 0 6px;">📊 总体概览</button>
         <button class="btn btn-sm fin-tab-btn" id="dashTabProducts" onclick="switchDashTab('products')" style="border-radius:0;">👟 商品明细</button>
-        <button class="btn btn-sm fin-tab-btn" id="dashTabWeeks" onclick="switchDashTab('weeks')" style="border-radius:0;">📅 周期对比</button>
-        <button class="btn btn-sm fin-tab-btn" id="dashTabSPU" onclick="switchDashTab('spu')" style="border-radius:0 6px 6px 0;">📋 SPU数据</button>
+        <button class="btn btn-sm fin-tab-btn" id="dashTabWeeks" onclick="switchDashTab('weeks')" style="border-radius:0 6px 6px 0;">📅 周期对比</button>
         <span style="flex:1;"></span>
         <span style="font-size:12px;color:var(--text3);">共 <b id="dashReportCount">0</b> 份报表</span>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('fileInputDash').click()">📤 上传报表</button>
@@ -286,7 +287,7 @@ tr:hover td{background:#fafcfd}
       <div class="dash-view active" id="dashOverview">
         <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
           <select id="dashPeriodFilter" onchange="onPeriodFilterChange('overview')" style="padding:6px 10px;font-size:12px;width:auto;">
-            <option value="all">全部周期</option><option value="2w">近2周</option><option value="1m">近一个月</option><option value="3m">近三个月</option><option value="custom">自定义</option>
+            <option value="all">全部周期</option><option value="1w">近一周</option><option value="2w">近两周</option><option value="1m">近一个月</option><option value="3m">近三个月</option><option value="custom">自定义</option>
           </select>
           <span id="dashCustomRange" style="display:none;gap:4px;align-items:center;">
             <input type="date" id="dashDateFrom" onchange="renderDashOverview()" style="padding:4px 6px;font-size:11px;width:130px;">
@@ -321,7 +322,7 @@ tr:hover td{background:#fafcfd}
       <div class="dash-view" id="dashProducts">
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
           <select id="prodPeriodFilter" onchange="onPeriodFilterChange('products')" style="padding:6px 10px;font-size:12px;width:auto;">
-            <option value="all">全部周期</option><option value="2w">近2周</option><option value="1m">近一个月</option><option value="3m">近三个月</option><option value="custom">自定义</option>
+            <option value="all">全部周期</option><option value="1w">近一周</option><option value="2w">近两周</option><option value="1m">近一个月</option><option value="3m">近三个月</option><option value="custom">自定义</option>
           </select>
           <span id="prodCustomRange" style="display:none;gap:4px;align-items:center;">
             <input type="date" id="prodDateFrom" onchange="renderDashProducts()" style="padding:4px 6px;font-size:11px;width:130px;">
@@ -796,15 +797,14 @@ function loadCalcRecord(i) {
 // ============================================================
 function switchDashTab(t) {
   document.querySelectorAll('.dash-view').forEach(v=>v.classList.remove('active'));
-  const map={overview:'dashOverview',products:'dashProducts',weeks:'dashWeeks',spu:'dashSPU'};
+  const map={overview:'dashOverview',products:'dashProducts',weeks:'dashWeeks'};
   const el=document.getElementById(map[t]); if(el) el.classList.add('active');
   document.querySelectorAll('#sec-dash .fin-tab-btn').forEach(b=>b.classList.remove('active'));
-  const btnMap={overview:'dashTabOverview',products:'dashTabProducts',weeks:'dashTabWeeks',spu:'dashTabSPU'};
+  const btnMap={overview:'dashTabOverview',products:'dashTabProducts',weeks:'dashTabWeeks'};
   const btn=document.getElementById(btnMap[t]); if(btn) btn.classList.add('active');
   if (t==='overview') renderDashOverview();
-  if (t==='products') renderDashProducts();
+  if (t==='products'){renderDashProducts();}
   if (t==='weeks') renderDashWeeks();
-  if (t==='spu') renderDashSPU();
 }
 
 function renderDashboard() {
@@ -842,7 +842,8 @@ function getFilteredProducts(periods, filterId){
     let all=[];periods.forEach(p=>{if(p.start>=from&&p.end<=to)all=all.concat(p.products);});return all;
   }
   const now=new Date();let cutoff;
-  if (val==='2w') cutoff=new Date(now-14*86400000);
+  if (val==='1w') cutoff=new Date(now-7*86400000);
+  else if (val==='2w') cutoff=new Date(now-14*86400000);
   else if (val==='1m') cutoff=new Date(now-30*86400000);
   else if (val==='3m') cutoff=new Date(now-90*86400000);
   else return [];
@@ -983,25 +984,7 @@ function renderDashWeeks() {
   document.getElementById('dashWeekTableBody').innerHTML=rows.join('');
 }
 
-function renderDashSPU() {
-  const db=getDB();const periods=db.spuPeriods||[];
-  if (periods.length===0){document.getElementById('dashSPUBody').innerHTML='<tr><td colspan=11>暂无SPU数据</td></tr>';return;}
-  // Init period selector
-  const sel=document.getElementById('spuPeriodSelect');
-  if (sel.options.length===0) periods.forEach((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.label+' ('+p.days+'天)';sel.appendChild(o);});
-  const idx=parseInt(sel.value)||0;const period=periods[idx];if(!period)return;
-  const search=(document.getElementById('spuSearch').value||'').toLowerCase();
-  let products=period.products;
-  if (search) products=products.filter(p=>(p.shortName||'').toLowerCase().includes(search)||(p.code||'').toLowerCase().includes(search)||(p.brand||'').toLowerCase().includes(search));
-  if (spuSortField==='shortName'||spuSortField==='brand'){products.sort((a,b)=>String(a[spuSortField]||'').localeCompare(String(b[spuSortField]||''),'zh'));}
-  else{products.sort((a,b)=>(b[spuSortField]||0)-(a[spuSortField]||0));}
-  document.getElementById('spuCount').textContent = `显示 ${products.length}/${period.products.length} 个SPU`;
-  document.getElementById('dashSPUBody').innerHTML=products.map(p=>`<tr>
-    <td><b>${p.shortName||'--'}</b></td><td style="font-size:10px;">${(p.code||'').substring(0,25)}</td><td>${p.brand||'--'}</td>
-    <td>¥${(p.payment||0).toLocaleString()}</td><td>${p.orders||0}</td><td>${(p.visitors||0).toLocaleString()}</td>
-    <td>${(p.conversion||0).toFixed(2)}%</td><td>${p.favorites||0}</td><td style="color:var(--red);">¥${(p.returnAmt||0).toLocaleString()}</td><td>${p.returnQty||0}</td><td>${p.priceRange||'--'}</td>
-  </tr>`).join('');
-}
+function switchProdMode(mode){document.querySelectorAll(".prod-mode").forEach(v=>v.classList.remove("active"));const map={summary:"prodModeSummaryView",period:"prodModePeriodView",trend:"prodModeTrendView"};const el=document.getElementById(map[mode]);if(el)el.classList.add("active");["prodModeSummary","prodModePeriod","prodModeTrend"].forEach(id=>document.getElementById(id).classList.remove("active"));document.getElementById("prodMode"+mode.charAt(0).toUpperCase()+mode.slice(1)).classList.add("active");if(mode==="summary")renderDashProducts();if(mode==="period")renderProdPeriod();if(mode==="trend")renderProdTrend();}function renderProdPeriod(){const db=getDB();const periods=db.spuPeriods||[];if(periods.length===0){document.getElementById("dashSPUBody").innerHTML="<tr><td colspan=11>暂无数据</td></tr>";return;}const sel=document.getElementById("spuPeriodSelect");if(sel.options.length===0)periods.forEach((p,i)=>{const o=document.createElement("option");o.value=i;o.textContent=p.label+" ("+p.days+"天)";sel.appendChild(o);});const idx=parseInt(sel.value)||0;const period=periods[idx];if(!period)return;const search=(document.getElementById("spuSearch").value||"").toLowerCase();let prods=period.products;if(search)prods=prods.filter(p=>(p.shortName||"").toLowerCase().includes(search)||(p.code||"").toLowerCase().includes(search)||(p.brand||"").toLowerCase().includes(search));if(spuSortField==="shortName"||spuSortField==="brand"){prods.sort((a,b)=>String(a[spuSortField]||"").localeCompare(String(b[spuSortField]||""),"zh"));}else{prods.sort((a,b)=>(b[spuSortField]||0)-(a[spuSortField]||0));}document.getElementById("spuCount").textContent=prods.length+"/"+period.products.length+" 个SPU";document.getElementById("dashSPUBody").innerHTML=prods.map(p=>"<tr><td><b>"+(p.shortName||"--")+"</b></td><td style=font-size:10px;>"+(p.code||"").substring(0,28)+"</td><td>"+(p.brand||"--")+"</td><td>¥"+(p.payment||0).toLocaleString()+"</td><td>"+(p.orders||0)+"</td><td>"+(p.visitors||0).toLocaleString()+"</td><td>"+(p.conversion||0).toFixed(2)+"%</td><td>"+(p.favorites||0)+"</td><td style=color:var(--red);>¥"+(p.returnAmt||0).toLocaleString()+"</td><td>"+(p.returnQty||0)+"</td><td>"+(p.priceRange||"--")+"</td></tr>").join("");}function renderProdTrend(){const db=getDB();const periods=db.spuPeriods||[];const products=db.products||[];const sel=document.getElementById("trendProductSelect");if(sel.options.length===0){products.forEach((p,i)=>{const o=document.createElement("option");o.value=i;o.textContent=p.name;sel.appendChild(o);});}const idx=parseInt(sel.value)||0;const prod=products[idx];if(!prod)return;const trendData=periods.map(p=>{const spu=p.products.find(x=>x.shortName===prod.name||(prod.name&&x.shortName&&x.shortName.includes(prod.name)));return spu?{label:p.label.substring(5),payment:spu.payment||0,orders:spu.orders||0,visitors:spu.visitors||0,conversion:spu.conversion||0,favorites:spu.favorites||0}:{label:p.label.substring(5),payment:0,orders:0,visitors:0,conversion:0,favorites:0};});renderChart("chartProdTrend",{tooltip:{trigger:"axis"},legend:{data:["销售额","订单","访客"],bottom:0},xAxis:{type:"category",data:trendData.map(d=>d.label),axisLabel:{fontSize:9}},yAxis:[{type:"value"},{type:"value"}],series:[{name:"销售额",type:"bar",data:trendData.map(d=>d.payment),itemStyle:{color:"#3370ff"},barMaxWidth:25},{name:"订单",type:"line",data:trendData.map(d=>d.orders),itemStyle:{color:"#34c759"},smooth:true},{name:"访客",type:"line",yAxisIndex:1,data:trendData.map(d=>d.visitors),itemStyle:{color:"#af52de",borderType:"dashed"},smooth:true,lineStyle:{type:"dashed"}}]});document.getElementById("trendTableBody").innerHTML=trendData.map(d=>"<tr><td>"+d.label+"</td><td>¥"+d.payment.toLocaleString()+"</td><td>"+d.orders+"</td><td>"+d.visitors.toLocaleString()+"</td><td>"+(d.visitors>0?(d.orders/d.visitors*100).toFixed(2):"0.00")+"%</td><td>"+d.favorites+"</td></tr>").join("");}
 
 function handleFileUploadDash(event) {
   const file = event.target.files[0]; if (!file) return;
