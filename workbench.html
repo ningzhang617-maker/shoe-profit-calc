@@ -398,6 +398,13 @@ tr:hover td{background:#fafcfd}
       </div>
       <div id="finSummaryView" class="fin-view">
         <div class="kpi-grid" id="finSummaryKPIs"></div>
+        <div class="card">
+          <div class="card-title">📋 产品成本基准 <span style="font-size:11px;color:var(--text3);">（财务和导入时自动引用，避免乱填）</span>
+            <button class="btn btn-outline btn-sm" onclick="addCostRef()" style="margin-left:8px;">＋ 添加</button>
+            <button class="btn btn-outline btn-sm" onclick="autoFillCostRefs()">🔄 从已有数据提取</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>产品名</th><th>原鞋成本(元)</th><th>定制费(元)</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div>
+        </div>
         <div class="card"><div class="card-title">📅 周对比表</div><div class="table-wrap"><table><thead><tr><th>指标</th></tr></thead><tbody id="finCompareBody"></tbody></table></div></div>
         <div class="chart-row">
           <div class="chart-card"><div class="cc-title">📈 周利润趋势</div><div class="chart-box" id="chartFinWeeklyProfit"></div></div>
@@ -1239,7 +1246,7 @@ function switchFinTab(t) {
   if (btnEl) btnEl.classList.add('active');
   if (t==='ledger') renderFinLedger();
   if (t==='weekly') renderFinWeekly();
-  if (t==='summary') renderFinSummary();
+  if (t==='summary') {renderFinSummary();renderCostRefs();}
 }
 
 function renderFinLedger() {
@@ -1278,14 +1285,15 @@ function updateLedgerCell(idx, field, value) {
     db.finance.ledger[idx][field] = value;
     // Auto-detect: if date changed, fill weekday and week number
     if (field==='date' && value) {
-      const d = new Date(value);
+      const d = new Date(value + (value.includes('T')?'':'T00:00:00'));
       if (!isNaN(d.getTime())) {
         const days = ['周日','周一','周二','周三','周四','周五','周六'];
         db.finance.ledger[idx].day = days[d.getDay()];
-        // Calculate week number (from May 4 = Week 1)
         const startDate = new Date('2026-05-04');
         const diffDays = Math.floor((d - startDate) / 86400000);
         db.finance.ledger[idx].week = Math.floor(diffDays / 7) + 1;
+        // Also format date to standard YYYY-MM-DD
+        db.finance.ledger[idx].date = d.toISOString().slice(0,10);
       }
     }
     // Auto-negate: if category is expense type and amount > 0, make it negative
@@ -1332,6 +1340,7 @@ function initFinWeekSelect() {
 
 function renderFinWeekly() {
   const db = getDB(); const bills = db.finance.weeklyBills||[];
+  if(!db.costRefs)db.costRefs={};
   const sel=document.getElementById('finWeekSel');
   // Initialize dropdown if empty
   if (sel && sel.options.length===0) {
@@ -1339,7 +1348,20 @@ function renderFinWeekly() {
   }
   const idx=parseInt(sel.value)||0;
   const bill=bills[idx];
-  if(!bill) { console.log('No bill at index',idx,'bills length',bills.length); return; }
+  if(!bill) return;
+  // Auto-fill missing costs from costRefs
+  let costsUpdated=false;
+  (bill.sales||[]).forEach(sale=>{
+    if((!sale.cost||sale.cost===0)&&db.costRefs[sale.name]){
+      sale.cost=db.costRefs[sale.name].shoeCost||0;
+      sale.custom=db.costRefs[sale.name].customFee||0;
+      sale.income=sale.price*0.8;
+      sale.profit=sale.income-sale.cost-sale.custom-47;
+      sale.rate=sale.price>0?sale.profit/sale.price*100:0;
+      costsUpdated=true;
+    }
+  });
+  if(costsUpdated){saveDB(db);}
   const s=bill.summary;
   document.getElementById('finWeekKPIs').innerHTML = `
     <div class="kpi-card"><div class="kpi-label">销售额 / 订单</div><div class="kpi-value">¥${s.revenue.toLocaleString()}<span style="font-size:16px;">/${s.orders}</span></div></div>
@@ -1398,6 +1420,53 @@ function renderFinSummary() {
     退货率 ${avgRet.toFixed(1)}%（${avgRet<=15?'🟢 正常':'🔴 超标'}）<br>
     周均支出 ¥${weeklyBurn.toFixed(0)} · 资金跑道 ${typeof runway==='string'?runway:runway.toFixed(1)+'周'}<br>
     ${netCash<0?'<b style="color:var(--red);">⚠ 现金流为负，支出超过收入，需要控制成本或增加销售</b>':'🟢 现金流为正，运营健康'}`;
+}
+
+function renderCostRefs(){
+  const db=getDB();if(!db.costRefs)db.costRefs={};
+  const refs=Object.entries(db.costRefs);
+  document.getElementById('costRefBody').innerHTML=refs.length===0
+    ?'<tr><td colspan=4 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「🔄 从已有数据提取」或「＋ 添加」</td></tr>'
+    :refs.map(([name,c])=>'<tr><td><b>'+name+'</b></td><td><input type=\"number\" value=\"'+c.shoeCost+'\" onchange=\"updateCostRef(\\''+name+'\\',\\'shoeCost\\',parseFloat(this.value)||0)\" style=\"width:90px;padding:4px 6px;font-size:12px;\"></td><td><input type=\"number\" value=\"'+c.customFee+'\" onchange=\"updateCostRef(\\''+name+'\\',\\'customFee\\',parseFloat(this.value)||0)\" style=\"width:90px;padding:4px 6px;font-size:12px;\"></td><td><button class=\"btn btn-danger btn-sm\" onclick=\"deleteCostRef(\\''+name+'\\')\" style=\"padding:2px 8px;\">✕</button></td></tr>').join('');
+}
+
+function updateCostRef(name,field,val){
+  const db=getDB();if(!db.costRefs)db.costRefs={};
+  if(!db.costRefs[name])db.costRefs[name]={shoeCost:0,customFee:0};
+  db.costRefs[name][field]=val;saveDB(db);
+}
+
+function addCostRef(){
+  const name=prompt('产品名：');if(!name)return;
+  const shoe=parseFloat(prompt('原鞋成本（元）：','0'))||0;
+  const custom=parseFloat(prompt('定制费（元）：','0'))||0;
+  const db=getDB();if(!db.costRefs)db.costRefs={};
+  db.costRefs[name]={shoeCost:shoe,customFee:custom};
+  saveDB(db);renderCostRefs();toast('已添加');
+}
+
+function deleteCostRef(name){
+  if(!confirm('删除 '+name+' 的成本基准？'))return;
+  const db=getDB();delete db.costRefs[name];saveDB(db);renderCostRefs();
+}
+
+function autoFillCostRefs(){
+  const db=getDB();if(!db.costRefs)db.costRefs={};
+  // Extract from existing weekly bills
+  (db.finance.weeklyBills||[]).forEach(bill=>{
+    (bill.sales||[]).forEach(sale=>{
+      if(sale.name&&sale.cost>0&&!db.costRefs[sale.name]){
+        db.costRefs[sale.name]={shoeCost:sale.cost,customFee:sale.custom||0};
+      }
+    });
+  });
+  // Also extract from products
+  (db.products||[]).forEach(p=>{
+    if(p.name&&p.profitPerUnit&&!db.costRefs[p.name]){
+      db.costRefs[p.name]={shoeCost:0,customFee:0};
+    }
+  });
+  saveDB(db);renderCostRefs();toast('已从账单和产品中提取 '+Object.keys(db.costRefs).length+' 条成本基准');
 }
 
 function uploadFinanceWorkbench() {
