@@ -392,7 +392,7 @@ tr:hover td{background:#fafcfd}
         <div class="kpi-grid" id="finWeekKPIs"></div>
         <div class="card"><div class="card-title">📦 产品汇总 <span style="font-size:11px;color:var(--text3);">（按产品聚合，点「明细」查看每单详情）</span></div><div class="table-wrap"><table><thead><tr><th>产品名</th><th>销量</th><th>销售金额</th><th>到手金额</th><th>原鞋成本</th><th>定制费</th><th>固定成本</th><th>利润</th><th>利润率</th><th>状态</th><th>操作</th></tr></thead><tbody id="finSalesBody"></tbody></table></div></div>
         <div id="finSalesDetail" style="display:none;"></div>
-        <div class="card"><div class="card-title">↩ 退货汇总</div><div class="table-wrap"><table><thead><tr><th>产品名</th><th>退货数量</th></tr></thead><tbody id="finReturnsBody"></tbody></table></div></div>
+        <div class="card"><div class="card-title">↩ 退货汇总</div><div class="table-wrap"><table><thead><tr><th>产品名</th><th>退货数量</th><th>预估损失</th></tr></thead><tbody id="finReturnsBody"></tbody></table></div></div>
         <div class="card"><div class="card-title">📝 分析报告</div><div id="finWeekReport" style="font-size:13px;line-height:1.8;"></div></div>
       </div>
       <div id="finSummaryView" class="fin-view">
@@ -1408,14 +1408,35 @@ function renderFinWeekly() {
     document.getElementById('finSalesBody').appendChild(tr);
   })
 
-  // Returns aggregated
+  // Returns aggregated with amount
   var retAgg={};
-  (bill.returns||[]).forEach(function(r){retAgg[r.name]=(retAgg[r.name]||0)+1;});
-  var retEntries=Object.entries(retAgg).sort(function(a,b){return b[1]-a[1];});
+  (bill.returns||[]).forEach(function(r){
+    if(!retAgg[r.name])retAgg[r.name]={count:0,totalLoss:0};
+    retAgg[r.name].count++;retAgg[r.name].totalLoss+=(r.loss||50);
+  });
+  var retEntries=Object.entries(retAgg).sort(function(a,b){return b[1].count-a[1].count;});
   document.getElementById('finReturnsBody').innerHTML = retEntries.length>0
-    ?retEntries.map(function(e){return '<tr><td><b>'+e[0]+'</b></td><td style=\"color:var(--red);\">'+e[1]+'单</td></tr>';}).join('')
-    :'<tr><td colspan=2 style=\"color:var(--text3);\">无退货</td></tr>';
-  document.getElementById('finWeekReport').innerHTML = bill.report||'暂无分析报告';
+    ?retEntries.map(function(e){return '<tr><td><b>'+e[0]+'</b></td><td style=\"color:var(--red);\">'+e[1].count+'单</td><td style=\"color:var(--red);\">-¥'+e[1].totalLoss.toLocaleString()+'</td></tr>';}).join('')
+    :'<tr><td colspan=3 style=\"color:var(--text3);\">无退货</td></tr>';
+
+  // Auto-generated analysis report
+  var profitProducts=summary.filter(function(p){return p.totalProfit>=0;});
+  var lossProducts=summary.filter(function(p){return p.totalProfit<0;});
+  var topProfit=summary[0];var worstLoss=summary[summary.length-1];
+  var totalRetCount=(bill.returns||[]).length;
+  var retRate=s.summary.orders>0?(totalRetCount/s.summary.orders*100):0;
+  var report='<b>📊 本周经营诊断</b><br>';
+  report+='销售额 ¥'+s.revenue.toLocaleString()+' | 利润 ¥'+s.profit.toLocaleString()+' | 利润率 '+s.profitRate+'%<br><br>';
+  report+='<b>✅ 盈利产品：</b>'+profitProducts.length+'款（贡献利润 ¥'+profitProducts.reduce(function(x,p){return x+p.totalProfit;},0).toLocaleString()+'）<br>';
+  if(lossProducts.length>0)report+='<b>⚠ 亏损产品：</b>'+lossProducts.length+'款（亏损 ¥'+Math.abs(lossProducts.reduce(function(x,p){return x+p.totalProfit;},0)).toLocaleString()+'）：'+lossProducts.map(function(p){return p.name;}).join('、')+'<br>';
+  report+='<b>↩ 退货率：</b>'+retRate.toFixed(1)+'%'+(retRate>20?' <span style=\"color:var(--red);\">🔴 超标</span>':retRate>10?' <span style=\"color:var(--orange);\">🟡 关注</span>':' <span style=\"color:var(--green);\">🟢 正常</span>')+'<br>';
+  if(retEntries.length>0)report+='<b>最多退货：</b>'+retEntries[0][0]+'（'+retEntries[0][1].count+'单）<br>';
+  report+='<br><b>💡 建议：</b>';
+  if(lossProducts.length>0)report+='亏损产品考虑调整定价或下架；';
+  if(retRate>15)report+='退货率偏高，检查产品质检和尺码描述；';
+  if(s.profitRate<10)report+='利润率偏低，建议降价采购成本或提高售价；';
+  if(lossProducts.length===0&&retRate<=15)report+='本周经营健康，继续保持。';
+  document.getElementById('finWeekReport').innerHTML = report;
 }
 
 function showFinDetail(name){
@@ -1434,9 +1455,26 @@ function showFinDetail(name){
   closeBtn.textContent='✕ 关闭';closeBtn.style.cssText='float:right;';
   closeBtn.onclick=function(){detail.style.display='none';};
   titleDiv.appendChild(closeBtn);card.appendChild(titleDiv);
-  var tbl='<div class=\"table-wrap\"><table><thead><tr><th>尺码</th><th>售价</th><th>到手</th><th>原鞋成本</th><th>定制费</th><th>固定成本</th><th>利润</th><th>利润率</th></tr></thead><tbody>';
-  orders.forEach(function(o){tbl+='<tr><td>'+o.size+'</td><td>¥'+o.price+'</td><td>¥'+o.income+'</td><td>¥'+o.cost+'</td><td>¥'+o.custom+'</td><td>¥47</td><td style=\"color:'+(o.profit>=0?'var(--green)':'var(--red)')+';\">'+(o.profit>=0?'+':'')+'¥'+o.profit+'</td><td>'+(o.rate>=0?'+':'')+o.rate+'%</td></tr>';});
-  tbl+='</tbody></table></div>';card.innerHTML+=tbl;
+  var wrap=document.createElement('div');wrap.className='table-wrap';
+  var tbl=document.createElement('table');
+  tbl.innerHTML='<thead><tr><th>尺码</th><th>售价</th><th>到手</th><th>原鞋成本</th><th>定制费</th><th>固定成本</th><th>利润</th><th>利润率</th></tr></thead><tbody></tbody>';
+  var tbody=tbl.querySelector('tbody');
+  orders.forEach(function(o,idx){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+o.size+'</td><td>¥'+o.price+'</td><td>¥'+o.income+'</td><td></td><td></td><td>¥47</td><td style=\"color:'+(o.profit>=0?'var(--green)':'var(--red)')+';font-weight:700;\">'+(o.profit>=0?'+':'')+'¥'+o.profit+'</td><td>'+(o.rate>=0?'+':'')+o.rate+'%</td>';
+    // Editable cost
+    var ci=document.createElement('input');ci.type='number';ci.value=o.cost||0;
+    ci.style.cssText='width:70px;padding:2px 4px;font-size:11px;text-align:center;';
+    ci.onchange=(function(nm,cust){return function(){var v=parseFloat(this.value)||0;updateCostFromBill(nm,v,cust);showFinDetail(nm);};})(name,o.custom);
+    tr.children[3].appendChild(ci);
+    // Editable custom
+    var fi=document.createElement('input');fi.type='number';fi.value=o.custom||0;
+    fi.style.cssText='width:70px;padding:2px 4px;font-size:11px;text-align:center;';
+    fi.onchange=(function(nm,cst){return function(){var v=parseFloat(this.value)||0;updateCostFromBill(nm,cst,v);showFinDetail(nm);};})(name,o.cost);
+    tr.children[4].appendChild(fi);
+    tbody.appendChild(tr);
+  });
+  wrap.appendChild(tbl);card.appendChild(wrap);
   detail.appendChild(card);
   detail.scrollIntoView({behavior:'smooth'});
 }
