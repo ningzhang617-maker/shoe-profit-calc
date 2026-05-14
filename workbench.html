@@ -396,8 +396,9 @@ tr:hover td{background:#fafcfd}
           <div class="chart-card"><div class="cc-title">🏆 款式利润</div><div class="chart-box" id="chartFinWeekProducts"></div></div>
           <div class="chart-card"><div class="cc-title">📐 盈亏分布</div><div class="chart-box" id="chartFinWeekPnL"></div></div>
         </div>
-        <div class="card"><div class="card-title">📦 销售明细</div><div class="table-wrap"><table><thead><tr><th>款式</th><th>尺码</th><th>售价</th><th>原鞋成本</th><th>定制费</th><th>到手</th><th>利润</th><th>利润率</th><th>状态</th></tr></thead><tbody id="finSalesBody"></tbody></table></div></div>
-        <div class="card"><div class="card-title">↩ 退货明细</div><div class="table-wrap"><table><thead><tr><th>款式</th><th>尺码</th><th>退款金额</th><th>退货损失</th></tr></thead><tbody id="finReturnsBody"></tbody></table></div></div>
+        <div class="card"><div class="card-title">📦 产品汇总 <span style="font-size:11px;color:var(--text3);">（点产品名展开明细）</span></div><div class="table-wrap"><table><thead><tr><th>产品</th><th>销量</th><th>总销售额</th><th>原鞋成本</th><th>定制费</th><th>总利润</th><th>均利润/单</th><th>状态</th></tr></thead><tbody id="finSalesBody"></tbody></table></div></div>
+        <div id="finSalesDetail" style="display:none;"></div>
+        <div class="card"><div class="card-title">↩ 退货明细</div><div class="table-wrap"><table><thead><tr><th>款式</th><th>数量</th></tr></thead><tbody id="finReturnsBody"></tbody></table></div></div>
         <div class="card"><div class="card-title">📝 分析报告</div><div id="finWeekReport" style="font-size:13px;line-height:1.8;"></div></div>
       </div>
       <div id="finSummaryView" class="fin-view">
@@ -1375,13 +1376,49 @@ function renderFinWeekly() {
     <div class="kpi-card"><div class="kpi-label">退货率</div><div class="kpi-value">${s.returnRate.toFixed(1)}%</div></div>
     <div class="kpi-card"><div class="kpi-label">到手 / 平台费</div><div class="kpi-value" style="font-size:18px;">¥${s.netIncome.toLocaleString()}<span style="font-size:13px;">/¥${s.platformFee.toLocaleString()}</span></div></div>
   `;
-  const prods=(bill.sales||[]).sort((a,b)=>(b.profit||0)-(a.profit||0));
-  renderChart('chartFinWeekProducts',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:100},xAxis:{type:'value'},yAxis:{type:'category',data:prods.map(p=>p.name),inverse:true,axisLabel:{fontSize:10}},series:[{name:'利润',type:'bar',data:prods.map(p=>p.profit||0),itemStyle:{color:params=>params.value>=0?'#34c759':'#ff3b30'},label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:16}]});
-  const pc=prods.filter(p=>(p.profit||0)>=0).length,lc=prods.length-pc;
+  // Aggregate sales by product
+  const agg={};
+  (bill.sales||[]).forEach(s=>{
+    if(!agg[s.name]) agg[s.name]={name:s.name,cost:s.cost,custom:s.custom,count:0,totalRevenue:0,totalProfit:0,orders:[]};
+    agg[s.name].count++; agg[s.name].totalRevenue+=s.price; agg[s.name].totalProfit+=s.profit; agg[s.name].orders.push(s);
+  });
+  const summary=Object.values(agg).sort((a,b)=>b.totalProfit-a.totalProfit);
+
+  // Chart: product profit bar
+  renderChart('chartFinWeekProducts',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:100},xAxis:{type:'value'},yAxis:{type:'category',data:summary.map(p=>p.name),inverse:true,axisLabel:{fontSize:10}},series:[{name:'利润',type:'bar',data:summary.map(p=>p.totalProfit),itemStyle:{color:params=>params.value>=0?'#34c759':'#ff3b30'},label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:16}]});
+  const pc=summary.filter(p=>p.totalProfit>=0).length,lc=summary.length-pc;
   renderChart('chartFinWeekPnL',{tooltip:{trigger:'item'},series:[{type:'pie',radius:['50%','72%'],data:[{value:pc,name:'盈利款',itemStyle:{color:'#34c759'}},{value:lc,name:'亏损款',itemStyle:{color:'#ff3b30'}}],label:{formatter:'{b}\n{d}%'}}]});
-  document.getElementById('finSalesBody').innerHTML = prods.map(p=>`<tr><td><b>${p.name}</b></td><td>${p.size||'--'}</td><td>¥${p.price}</td><td>¥${p.cost}</td><td>¥${p.custom}</td><td>¥${p.income}</td><td style="color:${p.profit>=0?'var(--green)':'var(--red)'};font-weight:700;">${p.profit>=0?'+':''}¥${p.profit}</td><td>${p.rate.toFixed(1)}%</td><td><span class="tag ${p.profit>=50?'tag-green':p.profit>=0?'tag-yellow':'tag-red'}">${p.profit>=50?'盈利':p.profit>=0?'微利':'亏损'}</span></td></tr>`).join('');
-  document.getElementById('finReturnsBody').innerHTML = (bill.returns||[]).map(r=>`<tr><td><b>${r.name}</b></td><td>${r.size}</td><td style="color:var(--red);">-¥${r.amount}</td><td style="color:var(--red);">-¥${r.loss}</td></tr>`).join('');
+
+  // Product summary table
+  document.getElementById('finSalesBody').innerHTML = summary.map(p=>{
+    const avgProfit=p.totalProfit/p.count;
+    const status=avgProfit>=50?'盈利':avgProfit>=0?'微利':'亏损';
+    const cls=avgProfit>=50?'tag-green':avgProfit>=0?'tag-yellow':'tag-red';
+    return `<tr style="cursor:pointer;" onclick="toggleSalesDetail('${p.name.replace(/'/g,\"\\\\'\")}',this)">
+      <td><b>${p.name}</b></td><td>${p.count}单</td><td>¥${p.totalRevenue.toLocaleString()}</td><td>¥${p.cost}/双</td><td>¥${p.custom}/双</td>
+      <td style="color:${p.totalProfit>=0?'var(--green)':'var(--red)'};font-weight:700;">${p.totalProfit>=0?'+':''}¥${p.totalProfit.toLocaleString()}</td>
+      <td style="color:${avgProfit>=0?'var(--green)':'var(--red)'};">${avgProfit>=0?'+':''}¥${avgProfit.toFixed(0)}</td>
+      <td><span class="tag ${cls}">${status}</span></td></tr>`;
+  }).join('');
+
+  // Returns: aggregate by product
+  const retAgg={};
+  (bill.returns||[]).forEach(r=>{retAgg[r.name]=(retAgg[r.name]||0)+1;});
+  document.getElementById('finReturnsBody').innerHTML = Object.entries(retAgg).sort((a,b)=>b[1]-a[1]).map(([name,cnt])=>`<tr><td><b>${name}</b></td><td style="color:var(--red);">${cnt}单</td></tr>`).join('')||'<tr><td colspan=2>无退货</td></tr>';
   document.getElementById('finWeekReport').innerHTML = bill.report||'暂无分析报告';
+}
+
+function toggleSalesDetail(name, row){
+  const db=getDB();const bills=db.finance.weeklyBills||[];
+  const sel=document.getElementById('finWeekSel');const bill=bills[parseInt(sel.value)||0];
+  if(!bill)return;
+  const orders=(bill.sales||[]).filter(s=>s.name===name);
+  const detail=document.getElementById('finSalesDetail');
+  if(detail.style.display==='block'&&detail._curName===name){detail.style.display='none';return;}
+  detail.style.display='block';detail._curName=name;
+  detail.innerHTML='<div class=\"card\" style=\"margin-top:8px;\"><div class=\"card-title\">📋 '+name+' 明细 ('+orders.length+'单) <button class=\"btn btn-outline btn-sm\" onclick=\"document.getElementById(\\'finSalesDetail\\').style.display=\\'none\\'\" style=\"float:right;\">✕ 关闭</button></div><div class=\"table-wrap\"><table><thead><tr><th>尺码</th><th>售价</th><th>原鞋成本</th><th>定制费</th><th>到手</th><th>利润</th><th>利润率</th></tr></thead><tbody>'+orders.map(o=>'<tr><td>'+o.size+'</td><td>¥'+o.price+'</td><td>¥'+o.cost+'</td><td>¥'+o.custom+'</td><td>¥'+o.income+'</td><td style=\"color:'+(o.profit>=0?'var(--green)':'var(--red)')+';\">'+(o.profit>=0?'+':'')+'¥'+o.profit+'</td><td>'+(o.rate>=0?'+':'')+o.rate+'%</td></tr>').join('')+'</tbody></table></div></div>';
+  // Scroll to detail
+  detail.scrollIntoView({behavior:'smooth'});
 }
 
 function renderFinSummary() {
