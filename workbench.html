@@ -1410,13 +1410,13 @@ function renderFinWeekly() {
 
 function toggleSalesDetail(name, row){
   const db=getDB();const bills=db.finance.weeklyBills||[];
-  const sel=document.getElementById(&apos;finWeekSel&apos;);const bill=bills[parseInt(sel.value)||0];
+  const sel=document.getElementById('finWeekSel');const bill=bills[parseInt(sel.value)||0];
   if(!bill)return;
   const orders=(bill.sales||[]).filter(s=>s.name===name);
-  const detail=document.getElementById(&apos;finSalesDetail&apos;);
-  if(detail.style.display===&apos;block&apos;&&detail._curName===name){detail.style.display=&apos;none&apos;;return;}
-  detail.style.display=&apos;block&apos;;detail._curName=name;
-  detail.innerHTML=&apos;<div class=\"card\" style=\"margin-top:8px;\"><div class=\"card-title\">📋 &apos;+name+&apos; 明细 (&apos;+orders.length+&apos;单) <button class=\"btn btn-outline btn-sm\" onclick=\"document.getElementById(\\&apos;finSalesDetail\\&apos;).style.display=\\&apos;none\\&apos;\" style=\"float:right;\">✕ 关闭</button></div><div class=\"table-wrap\"><table><thead><tr><th>尺码</th><th>售价</th><th>原鞋成本</th><th>定制费</th><th>到手</th><th>利润</th><th>利润率</th></tr></thead><tbody>&apos;+orders.map(o=>&apos;<tr><td>&apos;+o.size+&apos;</td><td>¥&apos;+o.price+&apos;</td><td>¥&apos;+o.cost+&apos;</td><td>¥&apos;+o.custom+&apos;</td><td>¥&apos;+o.income+&apos;</td><td style=\"color:&apos;+(o.profit>=0?&apos;var(--green)&apos;:&apos;var(--red)&apos;)+&apos;;\">&apos;+(o.profit>=0?&apos;+&apos;:&apos;&apos;)+&apos;¥&apos;+o.profit+&apos;</td><td>&apos;+(o.rate>=0?&apos;+&apos;:&apos;&apos;)+o.rate+&apos;%</td></tr>&apos;).join(&apos;&apos;)+&apos;</tbody></table></div></div>&apos;;
+  const detail=document.getElementById('finSalesDetail');
+  if(detail.style.display==='block'&&detail._curName===name){detail.style.display='none';return;}
+  detail.style.display='block';detail._curName=name;
+  detail.innerHTML='<div class=\"card\" style=\"margin-top:8px;\"><div class=\"card-title\">📋 '+name+' 明细 ('+orders.length+'单) <button class=\"btn btn-outline btn-sm\" onclick=\"document.getElementById(\\'finSalesDetail\\').style.display=\\'none\\'\" style=\"float:right;\">✕ 关闭</button></div><div class=\"table-wrap\"><table><thead><tr><th>尺码</th><th>售价</th><th>原鞋成本</th><th>定制费</th><th>到手</th><th>利润</th><th>利润率</th></tr></thead><tbody>'+orders.map(o=>'<tr><td>'+o.size+'</td><td>¥'+o.price+'</td><td>¥'+o.cost+'</td><td>¥'+o.custom+'</td><td>¥'+o.income+'</td><td style=\"color:'+(o.profit>=0?'var(--green)':'var(--red)')+';\">'+(o.profit>=0?'+':'')+'¥'+o.profit+'</td><td>'+(o.rate>=0?'+':'')+o.rate+'%</td></tr>').join('')+'</tbody></table></div></div>';
   // Scroll to detail
   detail.scrollIntoView({behavior:'smooth'});
 }
