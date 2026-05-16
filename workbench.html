@@ -152,6 +152,7 @@ tr:hover td{background:#fafcfd}
 .ops-view.active{display:block}
 .prod-mode{display:none}
 .prod-mode.active{display:block}
+@media (max-width:768px){.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}.table-wrap table{min-width:700px;}}
 </style>
 </head>
 <body>
@@ -385,8 +386,10 @@ tr:hover td{background:#fafcfd}
           <select id="ledgerFilterWeek" onchange="renderFinLedger()" style="padding:4px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;"><option value="">全部周次</option></select>
           <select id="ledgerFilterCat" onchange="renderFinLedger()" style="padding:4px 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;"><option value="">全部分类</option></select>
           <input type="text" id="ledgerSearch" placeholder="🔍 搜索明细..." oninput="renderFinLedger()" style="padding:4px 8px;font-size:12px;width:150px;border:1px solid #ddd;border-radius:6px;">
+          <button class="btn btn-outline btn-sm" onclick="clearLedgerFilters()" title="清空筛选" style="padding:4px 10px;font-size:11px;">🔄 清空</button>
           <div style="flex:1;"></div>
           <button class="btn btn-outline btn-sm" onclick="showBackupDialog()" title="备份管理">📦 备份</button>
+          <button class="btn btn-outline btn-sm" onclick="importLedgerCSV()" title="导入支付宝/微信CSV账单">📤 导入CSV</button>
           <button class="btn btn-primary btn-sm" onclick="addLedgerRow()">＋ 新增一行</button>
         </div>
         <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>备注</th><th>周次</th><th>操作</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div></div>
@@ -1561,6 +1564,144 @@ function addLedgerRow() {
   toast('新行已添加');
 }
 
+function importLedgerCSV() {
+  var input = document.createElement('input'); input.type = 'file'; input.accept = '.csv';
+  input.onchange = function(e) {
+    var file = e.target.files[0]; if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var text = ev.target.result;
+      var lines = text.split(/\r?\n/).filter(function(l){ return l.trim(); });
+      if (lines.length < 2) { alert('CSV文件为空或格式不对'); return; }
+      var header = lines[0];
+      var isAlipay = header.indexOf('交易时间') >= 0 && header.indexOf('交易对方') >= 0;
+      var isWechat = header.indexOf('交易时间') >= 0 && header.indexOf('交易类型') >= 0;
+      if (!isAlipay && !isWechat) {
+        if (!confirm('无法自动识别CSV格式（支付宝/微信）。是否尝试通用导入？列顺序：日期,分类,明细,金额,支付方式')) return;
+        genericImport(lines); return;
+      }
+      var source = isAlipay ? '支付宝' : '微信';
+      var count = 0; var db = getDB();
+      var startDate = new Date(2026, 4, 4);
+      var days = ['周日','周一','周二','周三','周四','周五','周六'];
+      var cols = header.split(',').map(function(h){ return h.trim(); });
+      var idxTime = cols.indexOf('交易时间');
+      var idxAmt = isAlipay ? cols.indexOf('金额') : cols.indexOf('金额(元)');
+      var idxType = isAlipay ? cols.indexOf('收/支') : (cols.indexOf('收/支') >= 0 ? cols.indexOf('收/支') : cols.indexOf('交易类型'));
+      var idxDesc = isAlipay ? cols.indexOf('商品说明') : cols.indexOf('商品');
+      var idxCounterparty = isAlipay ? cols.indexOf('交易对方') : cols.indexOf('交易对方');
+
+      if (idxTime < 0 || idxAmt < 0) { alert('CSV列名不匹配，请确认是支付宝或微信导出的账单'); return; }
+
+      for (var i = 1; i < lines.length; i++) {
+        var vals = parseCSVLine(lines[i]);
+        if (vals.length < 3) continue;
+        var timeStr = (vals[idxTime] || '').trim();
+        var amt = parseFloat(vals[idxAmt]) || 0;
+        var desc = (vals[idxDesc] || vals[idxCounterparty] || '').trim();
+        if (!timeStr || !amt) continue;
+
+        var isIncome = false;
+        if (idxType >= 0) {
+          var typeStr = (vals[idxType] || '').trim();
+          isIncome = (typeStr.indexOf('收入') >= 0 || typeStr === '入');
+        }
+
+        var dateStr = timeStr.slice(0, 10);
+        if (dateStr.indexOf('/') >= 0) {
+          var parts = dateStr.split(/[\/ \-]/);
+          if (parts.length >= 3) dateStr = parts[0] + '-' + parts[1].padStart(2,'0') + '-' + parts[2].padStart(2,'0');
+        }
+        var d = new Date(dateStr + 'T00:00:00');
+        if (isNaN(d.getTime())) continue;
+        var yr = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,'0'), dy = String(d.getDate()).padStart(2,'0');
+        dateStr = yr + '-' + mo + '-' + dy;
+
+        var cat = autoCat(desc, isIncome);
+        var amtVal = isIncome ? Math.abs(amt) : -Math.abs(amt);
+        if (cat === '其他收入') amtVal = Math.abs(amt);
+
+        var dayStr = days[d.getDay()];
+        var diffDays = Math.floor((d - startDate) / 86400000);
+        var week = Math.max(1, Math.floor(diffDays / 7) + 1);
+
+        db.finance.ledger.unshift({
+          date: dateStr, day: dayStr, cat: cat, desc: desc,
+          amount: amtVal, pay: source, note: '', week: week
+        });
+        count++;
+      }
+      saveDB(db); renderFinLedger();
+      toast('已导入 ' + count + ' 条' + source + '账单');
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+function parseCSVLine(line) {
+  var result = []; var current = ''; var inQuotes = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
+    else { current += ch; }
+  }
+  result.push(current);
+  return result;
+}
+function autoCat(desc, isIncome) {
+  if (isIncome) return '其他收入';
+  var d = desc.toLowerCase();
+  if (d.indexOf('鞋') >= 0 || d.indexOf('货款') >= 0 || d.indexOf('进货') >= 0) return '原鞋';
+  if (d.indexOf('快递') >= 0 || d.indexOf('邮费') >= 0 || d.indexOf('物流') >= 0 || d.indexOf('闪送') >= 0) return '邮费';
+  if (d.indexOf('推广') >= 0 || d.indexOf('得物') >= 0) return '推广';
+  if (d.indexOf('设计') >= 0 || d.indexOf('稿') >= 0 || d.indexOf('ai') >= 0 || d.indexOf('AI') >= 0) return '设计';
+  if (d.indexOf('房租') >= 0 || d.indexOf('物业') >= 0 || d.indexOf('空调') >= 0 || d.indexOf('电费') >= 0 || d.indexOf('水费') >= 0) return '工作室';
+  if (d.indexOf('还款') >= 0 || d.indexOf('还钱') >= 0 || d.indexOf('借呗') >= 0 || d.indexOf('花呗') >= 0 || d.indexOf('信用卡') >= 0) return '还款债务';
+  if (d.indexOf('工资') >= 0 || d.indexOf('劳务') >= 0) return '其他支出';
+  if (d.indexOf('材料') >= 0 || d.indexOf('颜料') >= 0 || d.indexOf('耗材') >= 0) return '材料';
+  if (d.indexOf('看牙') >= 0 || d.indexOf('医院') >= 0 || d.indexOf('药') >= 0 || d.indexOf('话费') >= 0 || d.indexOf('餐') >= 0 || d.indexOf('吃') >= 0 || d.indexOf('生活') >= 0) return '个人消费';
+  return '其他支出';
+}
+function genericImport(lines) {
+  var count = 0; var db = getDB(); var days = ['周日','周一','周二','周三','周四','周五','周六'];
+  var startDate = new Date(2026, 4, 4);
+  for (var i = 1; i < lines.length; i++) {
+    var vals = parseCSVLine(lines[i]);
+    if (vals.length < 3) continue;
+    var dateStr = (vals[0]||'').trim();
+    var cat = (vals[1]||'').trim() || '其他支出';
+    var desc = (vals[2]||'').trim();
+    var amt = parseFloat(vals[3]) || 0;
+    var pay = (vals[4]||'').trim() || '其他';
+    if (!dateStr || !desc) continue;
+    var d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) continue;
+    var yr = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,'0'), dy = String(d.getDate()).padStart(2,'0');
+    dateStr = yr + '-' + mo + '-' + dy;
+    var dayStr = days[d.getDay()];
+    var diffDays = Math.floor((d - startDate) / 86400000);
+    var week = Math.max(1, Math.floor(diffDays / 7) + 1);
+    var amtVal = (cat === '其他收入') ? Math.abs(amt) : -Math.abs(amt);
+    db.finance.ledger.unshift({
+      date: dateStr, day: dayStr, cat: cat, desc: desc,
+      amount: amtVal, pay: pay, note: '', week: week
+    });
+    count++;
+  }
+  saveDB(db); renderFinLedger();
+  toast('已导入 ' + count + ' 条');
+}
+
+function clearLedgerFilters(){
+
+  document.getElementById('ledgerFilterDate').value='';
+  document.getElementById('ledgerFilterWeek').value='';
+  document.getElementById('ledgerFilterCat').value='';
+  document.getElementById('ledgerSearch').value='';
+  renderFinLedger();
+}
+
 function deleteLedgerRow(idx) {
   if (!confirm('确定删除这条流水？')) return;
   const db = getDB();
@@ -1810,12 +1951,20 @@ function renderFinSummary() {
   const weeklyBurn = totalOut/weeks;
   const runway = netCash>0?'充裕':weeklyBurn>0?Math.abs(netCash)/weeklyBurn:'--';
 
-  document.getElementById('finSummaryKPIs').innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">累计销售额</div><div class="kpi-value">¥${totalRev.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">累计利润</div><div class="kpi-value" style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">¥${totalProfit.toLocaleString()}</div><div class="kpi-sub">利润率 ${profitMargin.toFixed(1)}%</div></div>
-    <div class="kpi-card"><div class="kpi-label">净现金流</div><div class="kpi-value" style="color:${netCash>=0?'var(--green)':'var(--red)'}">¥${netCash.toLocaleString()}</div><div class="kpi-sub">周均支出 ¥${weeklyBurn.toFixed(0)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">成本率 / 退货率</div><div class="kpi-value">${costRatio.toFixed(1)}%<span style="font-size:14px;">/${avgRet.toFixed(1)}%</span></div><div class="kpi-sub">资金跑道：${typeof runway==='string'?runway:runway.toFixed(1)+'周'}</div></div>
-  `;
+  // Split cash flow: business vs personal
+  var bizIn = bills.reduce(function(s,b){ return s + (b.summary.netIncome||0); }, 0);
+  var bizCats = ['原鞋','推广','设计','材料','邮费','平台','工作室'];
+  var bizOut = Math.abs(ledger.filter(function(i){ return i.amount < 0 && bizCats.indexOf(i.cat) >= 0; }).reduce(function(s,i){ return s + i.amount; }, 0));
+  var personalIn = ledger.filter(function(i){ return i.cat === '其他收入'; }).reduce(function(s,i){ return s + (i.amount > 0 ? i.amount : 0); }, 0);
+  var personalOut = Math.abs(ledger.filter(function(i){ return i.amount < 0 && bizCats.indexOf(i.cat) < 0 && i.cat !== '其他收入'; }).reduce(function(s,i){ return s + i.amount; }, 0));
+  var bizCash = bizIn - bizOut;
+  var personalCash = personalIn - personalOut;
+
+  document.getElementById('finSummaryKPIs').innerHTML =
+    '<div class="kpi-card"><div class="kpi-label">累计销售额</div><div class="kpi-value">¥' + totalRev.toLocaleString() + '</div></div>' +
+    '<div class="kpi-card"><div class="kpi-label">累计利润</div><div class="kpi-value" style="color:' + (totalProfit >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + totalProfit.toLocaleString() + '</div><div class="kpi-sub">利润率 ' + profitMargin.toFixed(1) + '%</div></div>' +
+    '<div class="kpi-card"><div class="kpi-label">经营现金流</div><div class="kpi-value" style="color:' + (bizCash >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + bizCash.toLocaleString() + '</div><div class="kpi-sub">入¥' + bizIn.toLocaleString() + ' / 出¥' + bizOut.toLocaleString() + '</div></div>' +
+    '<div class="kpi-card"><div class="kpi-label">私人现金流</div><div class="kpi-value" style="color:' + (personalCash >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + personalCash.toLocaleString() + '</div><div class="kpi-sub">入¥' + personalIn.toLocaleString() + ' / 出¥' + personalOut.toLocaleString() + '</div></div>';
   // Compare table with more columns
   document.getElementById('finCompareBody').innerHTML = `
     <tr><td><b>销售额</b></td>${bills.map(b=>`<td>¥${b.summary.revenue.toLocaleString()}</td>`).join('')}<td>¥${totalRev.toLocaleString()}</td></tr>
