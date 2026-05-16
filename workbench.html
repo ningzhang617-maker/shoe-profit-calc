@@ -81,7 +81,7 @@ input[type=number]{font-variant-numeric:tabular-nums}
 .tag-red{background:var(--red-light);color:var(--red)}
 .tag-yellow{background:var(--orange-light);color:var(--orange)}
 .tag-green{background:var(--green-light);color:var(--green)}
-.tag-blue{background:var(--blue-light);color:var(--blue)}
+.tag-blue{background:var(--blue-light);color:var(--blue)}.tag-gray{background:#f0f0f0;color:#888}.tag-orange{background:#fff3e0;color:#e65100}
 
 /* Tables */
 .table-wrap{overflow-x:auto}
@@ -450,7 +450,7 @@ tr:hover td{background:#fafcfd}
     <div class="section" id="sec-prod">
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
         <input type="text" id="prodSearch" placeholder="🔍 搜索..." oninput="renderProducts()" style="max-width:200px;">
-        <select id="prodGrade" onchange="renderProducts()"><option value="all">全部等级</option><option value="S">S级(≥5单)</option><option value="A">A级(≥2单)</option><option value="B">B级(有访客)</option><option value="C">C级(无数据)</option></select>
+        <select id="prodGrade" onchange="renderProducts()"><option value="all">全部等级</option><option value="S">S级(≥5单)</option><option value="A">A级(≥2单)</option><option value="B">B级(有访客)</option><option value="C">C级(无数据)</option><option value="cold">🥶 冷启动</option><option value="growth">🔥 成长期</option><option value="decline">📉 下滑中</option><option value="loss">⚠️ 亏损</option></select>
         <select id="prodBrand" onchange="renderProducts()"><option value="all">全部品牌</option></select>
         <button class="btn btn-outline btn-sm" onclick="addProduct()">＋ 添加</button>
         <span style="font-size:12px;color:var(--text3);" id="prodCount"></span>
@@ -2148,6 +2148,51 @@ function analyzeLatestReport() {
 // ============================================================
 // MODULE 6: PRODUCTS
 // ============================================================
+function getProductLifecycle(p, db) {
+  // SPU data thresholds
+  var hasVisitors = (p.visitors||0) > 0;
+  var hasOrders = (p.orders||0) > 0;
+  var hasSales = (p.totalSales||0) > 0;
+  var ppu = p.profitPerUnit||0;
+  var conv = p.conversion||0;
+  var ret = p.returns||0;
+  var retRate = hasOrders ? ret / p.orders * 100 : 0;
+
+  // Enrich profit from weekly bills if missing
+  if (ppu === 0 && db.finance && db.finance.weeklyBills) {
+    var totalProfit = 0; var totalOrders = 0;
+    db.finance.weeklyBills.forEach(function(bill){
+      (bill.sales||[]).forEach(function(sale){
+        if (sale.name === p.name) { totalProfit += sale.profit||0; totalOrders++; }
+      });
+    });
+    if (totalOrders > 0) ppu = totalProfit / totalOrders;
+  }
+
+  // Detect weekly trend from SPU periods
+  var trend = 'flat';
+  if (db.spuPeriods && db.spuPeriods.length >= 2) {
+    var recentOrders = 0; var prevOrders = 0;
+    var lastPeriod = db.spuPeriods[db.spuPeriods.length-1];
+    var prevPeriod = db.spuPeriods[db.spuPeriods.length-2];
+    (lastPeriod.products||[]).forEach(function(sp){ if (sp.shortName === p.name) recentOrders += (sp.orders||0); });
+    (prevPeriod.products||[]).forEach(function(sp){ if (sp.shortName === p.name) prevOrders += (sp.orders||0); });
+    if (recentOrders < prevOrders && prevOrders > 0) trend = 'down';
+    else if (recentOrders > prevOrders) trend = 'up';
+  }
+
+  // Lifecycle determination
+  if (!hasVisitors) return {stage:'cold',label:'🥶 冷启动',cls:'tag-gray',tip:'新品待上架或暂无访客，建议铺设穿搭精选'};
+  if (!hasOrders) return {stage:'test',label:'🔍 待破零',cls:'tag-blue',tip:'有访客无成交，建议优化主图/详情或降价测试'};
+  if (ppu < -20) return {stage:'loss',label:'⚠️ 亏损中',cls:'tag-red',tip:'单均亏损¥'+Math.abs(Math.round(ppu))+',建议检查成本或提价'};
+  if (retRate > 25) return {stage:'risk',label:'🟡 高退货',cls:'tag-yellow',tip:'退货率'+retRate.toFixed(0)+'%超标，检查尺码和质量'};
+  if (trend === 'down' && p.orders >= 3) return {stage:'decline',label:'📉 下滑中',cls:'tag-orange',tip:'订单较上期下降，考虑调整策略'};
+  if ((p.orders >= 5 || ppu >= 50) && trend !== 'down') return {stage:'growth',label:'🔥 成长期',cls:'tag-green',tip:'核心利润款，优先补货加推广'};
+  if (hasOrders && ppu >= 0 && trend !== 'down') return {stage:'build',label:'🌱 爬坡期',cls:'tag-blue',tip:'有成交有利润，持续优化冲量'};
+  if (hasOrders && ppu < 0) return {stage:'breakeven',label:'⚖️ 盈亏线',cls:'tag-yellow',tip:'微亏或持平，需优化成本结构'};
+  return {stage:'stable',label:'💚 稳定',cls:'tag-green',tip:'运营正常，保持关注'};
+}
+
 function renderProducts() {
   const db = getDB(); const search=(document.getElementById('prodSearch').value||'').toLowerCase(); const grade=document.getElementById('prodGrade').value;
   const brand=(document.getElementById('prodBrand').value||'all');
@@ -2156,34 +2201,47 @@ function renderProducts() {
   const brands=[...new Set(db.products.map(p=>p.brand).filter(Boolean))].sort();
   const brandSel=document.getElementById('prodBrand');
   if (brandSel.options.length<=1) brands.forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;brandSel.appendChild(o);});
-  if (grade!=='all') products=products.filter(p=>p.grade===grade);
+  if (grade==='cold') products=products.filter(function(p){ var lc=getProductLifecycle(p,db); return lc.stage==='cold'; });
+  else if (grade==='growth') products=products.filter(function(p){ var lc=getProductLifecycle(p,db); return lc.stage==='growth'; });
+  else if (grade==='decline') products=products.filter(function(p){ var lc=getProductLifecycle(p,db); return lc.stage==='decline'; });
+  else if (grade==='loss') products=products.filter(function(p){ var lc=getProductLifecycle(p,db); return lc.stage==='loss'||lc.stage==='risk'; });
+  else if (grade!=='all') products=products.filter(function(p){ return p.grade===grade; });
   if (brand!=='all') products=products.filter(p=>p.brand===brand);
   if (search) products=products.filter(p=>p.name.toLowerCase().includes(search)||(p.code||'').toLowerCase().includes(search));
+  // Enrich products with profit data from bills
+  var billProfit = {};
+  (db.finance.weeklyBills||[]).forEach(function(bill){
+    (bill.sales||[]).forEach(function(sale){
+      if (!billProfit[sale.name]) billProfit[sale.name] = {totalProfit:0, totalOrders:0};
+      billProfit[sale.name].totalProfit += (sale.profit||0);
+      billProfit[sale.name].totalOrders++;
+    });
+  });
+  products.forEach(function(p){
+    var bp = billProfit[p.name];
+    if (bp && bp.totalOrders > 0) { p._billProfit = bp.totalProfit; p._billOrders = bp.totalOrders; p._billPPU = Math.round(bp.totalProfit / bp.totalOrders); }
+    else { p._billProfit = 0; p._billOrders = 0; p._billPPU = p.profitPerUnit||0; }
+  });
+
   document.getElementById('prodCount').textContent = products.length+'/'+db.products.length+' 个产品';
-  document.getElementById('prodBody').innerHTML = products.map(p=>{
-    const ppu = p.profitPerUnit||0;
-    const score=p.score||0;
-    let status='', tagCls='';
-    if (score>=65) { status='⭐ 明星'; tagCls='tag-green'; }
-    else if (score>=40) { status='🔵 潜力'; tagCls='tag-blue'; }
-    else if (score>=15) { status='🟡 观察'; tagCls='tag-yellow'; }
-    else { status='🔴 长尾'; tagCls='tag-red'; }
-    return `<tr>
-      <td><b>${p.name}</b></td>
-      <td><input value="${p.code||''}" onchange="updateProductField('${p.id}','code',this.value)" style="width:110px;padding:3px 5px;font-size:10px;font-family:monospace;" placeholder="货号"></td>
-      <td>${p.brand||'--'}</td>
-      <td><span class="tag ${p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red'}">${p.grade}级</span></td>
-      <td>¥${(p.totalSales||0).toLocaleString()}</td>
-      <td>${p.orders||0}单</td>
-      <td>${(p.conversion||0).toFixed(1)}%</td>
-      <td>${(p.returns||0).toFixed(0)}%</td>
-      <td style="color:${ppu>=0?'var(--green)':'var(--red)'};font-weight:700;">${ppu>=0?'+':''}¥${ppu}</td>
-      <td><span class="tag ${tagCls}">${status}</span></td>
-      <td style="white-space:nowrap;">
-        <button class="btn btn-outline btn-sm" onclick="editProduct('${p.id}')" style="padding:3px 8px;">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')" style="padding:3px 8px;">✕</button>
-      </td>
-    </tr>`;}).join('');
+  document.getElementById('prodBody').innerHTML = products.map(function(p){
+    var lc = getProductLifecycle(p, db);
+    var ppu = p._billPPU || p.profitPerUnit || 0;
+    var score = p.score || 0;
+    return '<tr>'+
+      '<td><b>'+p.name+'</b><div style="font-size:10px;color:var(--text3);">💡 '+lc.tip+'</div></td>'+
+      '<td><input value="'+(p.code||'')+'" onchange="updateProductField(\''+p.id+'\',\'code\',this.value)" style="width:110px;padding:3px 5px;font-size:10px;font-family:monospace;" placeholder="货号"></td>'+
+      '<td>'+(p.brand||'--')+'</td>'+
+      '<td><span class="tag '+(p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red')+'">'+p.grade+'级</span></td>'+
+      '<td>¥'+(p.totalSales||0).toLocaleString()+'</td>'+
+      '<td>'+(p.orders||0)+'单</td>'+
+      '<td>'+(p.conversion||0).toFixed(1)+'%</td>'+
+      '<td>'+(p.returns||0)+'</td>'+
+      '<td style="color:'+(ppu>=0?'var(--green)':'var(--red)')+';font-weight:700;">'+(ppu>=0?'+':'')+'¥'+ppu+'</td>'+
+      '<td><span class="tag '+lc.cls+'">'+lc.label+'</span></td>'+
+      '<td style="white-space:nowrap;"><button class="btn btn-outline btn-sm" onclick="editProduct(\''+p.id+'\')" style="padding:3px 8px;">✏️</button> <button class="btn btn-danger btn-sm" onclick="deleteProduct(\''+p.id+'\')" style="padding:3px 8px;">✕</button></td>'+
+      '</tr>';
+  }).join('');
 }
 
 function addProduct() {
