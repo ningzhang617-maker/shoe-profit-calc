@@ -430,22 +430,14 @@ tr:hover td{background:#fafcfd}
     </div>
 
     <!-- AI ASSISTANT -->
-    <div class="sectiid="sec-ai">
-      <div class="card">
-        <div class="card-title">🤖 AI 决策助手 <span style="font-size:11px;color:var(--text3);">基于 Claude/DeepSeek API</span></div>
-        <div class="kpi-grid" id="aiScores"></div>
+    <div class="section" id="sec-ai">
+      <div class="card" style="text-align:center;padding:30px;">
+        <div style="font-size:48px;margin-bottom:12px;">🤖</div>
+        <div style="font-size:14px;color:var(--text2);margin-bottom:8px;">AI 决策助手已移至右下角浮动按钮</div>
+        <div style="font-size:12px;color:var(--text3);">点击页面右下角 🤖 图标即可使用</div>
+        <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="runAIAnalysis()">🔄 刷新健康评分</button>
+        <div class="kpi-grid" id="aiScores" style="margin-top:12px;"></div>
         <div id="aiInsights"></div>
-        <div class="btn-row" style="flex-wrap:wrap;gap:6px;">
-          <button class="btn btn-primary btn-sm" onclick="quickAnalysis('weekly')">📊 本周诊断</button>
-          <button class="btn btn-outline btn-sm" onclick="quickAnalysis('cash')">💳 现金流分析</button>
-          <button class="btn btn-outline btn-sm" onclick="quickAnalysis('product')">👟 产品组合分析</button>
-          <button class="btn btn-outline btn-sm" onclick="runAIAnalysis()">🔄 健康评分</button>
-        </div>
-        <div style="margin-top:10px;display:flex;gap:6px;">
-          <input type="text" id="aiFreePrompt" placeholder="💬 随便问... 比如：哪个产品该下架？" style="flex:1;padding:6px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;">
-          <button class="btn btn-primary btn-sm" onclick="quickAnalysis('free')">发送</button>
-        </div>
-        <div id="aiResult" style="display:none;margin-top:12px;padding:14px;background:#f8fafc;border-radius:8px;border:1px solid var(--border);max-height:500px;overflow-y:auto;"></div>
       </div>
     </div>
 <!-- PRODUCTS -->
