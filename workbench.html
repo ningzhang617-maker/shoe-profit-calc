@@ -455,7 +455,7 @@ tr:hover td{background:#fafcfd}
         <button class="btn btn-outline btn-sm" onclick="addProduct()">＋ 添加</button>
         <span style="font-size:12px;color:var(--text3);" id="prodCount"></span>
       </div>
-      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th>📸穿搭</th><th>📝详情</th><th>📢推广</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
+      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
       <div id="prodPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div>
       <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.8;">
         <b>📊 评级算法：</b>综合评分 = 订单(40%) + 转化率(30%) + 收藏率(20%) + 销售额(10%) ·
@@ -2194,19 +2194,6 @@ function sortProducts(field) {
   renderProducts();
 }
 function goProdPage(n) { prodPage = n; renderProducts(); }
-function toggleOpsStatus(pid, field) {
-  var db=getDB(); var p=db.products.find(function(x){ return x.id===pid; });
-  if(!p) return;
-  if(!p._ops) p._ops={};
-  var cycle;
-  if (field==='dress') cycle=['none','done','optimized'];
-  else if (field==='detail') cycle=['none','optimized'];
-  else cycle=['none','active','paused'];
-  var cur=p._ops[field]||'none';
-  var next=cycle[(cycle.indexOf(cur)+1)%cycle.length];
-  p._ops[field]=next;
-  saveDB(db); renderProducts();
-}
 function getProductInsights(p, db) {
   // Returns array of {level:'danger'|'warn'|'info', text:'...'}
   var insights = [];
@@ -2335,10 +2322,24 @@ function renderProducts() {
       billProfit[sale.name].totalOrders++;
     });
   });
+  var costRefs = db.costRefs||{};
   products.forEach(function(p){
     var bp = billProfit[p.name];
-    if (bp && bp.totalOrders > 0) { p._billProfit = bp.totalProfit; p._billOrders = bp.totalOrders; p._billPPU = Math.round(bp.totalProfit / bp.totalOrders); }
-    else { p._billProfit = 0; p._billOrders = 0; p._billPPU = p.profitPerUnit||0; }
+    if (bp && bp.totalOrders > 0) {
+      p._billProfit = bp.totalProfit; p._billOrders = bp.totalOrders; p._billPPU = Math.round(bp.totalProfit / bp.totalOrders);
+    } else {
+      // Fallback: try costRefs to estimate profit from SPU data
+      var cr = costRefs[p.name];
+      if (cr && p.orders > 0 && p.totalSales > 0) {
+        var estIncome = p.totalSales * 0.8;
+        var estCost = (cr.shoeCost||0) + (cr.customFee||0) + 47;
+        p._billPPU = Math.round(estIncome / p.orders - estCost);
+        p._billProfit = Math.round(estIncome - estCost * p.orders);
+        p._billOrders = p.orders;
+      } else {
+        p._billProfit = 0; p._billOrders = 0; p._billPPU = p.profitPerUnit||0;
+      }
+    }
   });
 
   // Compute insights and priority for all products
@@ -2444,7 +2445,7 @@ function renderProducts() {
       '</tr>';
   });
 
-  document.getElementById('prodBody').innerHTML = rows || '<tr><td colspan="14" style="text-align:center;color:var(--text3);padding:24px;">暂无匹配产品</td></tr>';
+  document.getElementById('prodBody').innerHTML = rows || '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:24px;">暂无匹配产品</td></tr>';
 
   // Pagination controls
   var pager = document.getElementById('prodPager');
