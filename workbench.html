@@ -483,6 +483,7 @@ tr:hover td{background:#fafcfd}
       <div id="costProcView" class="fin-view">
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
           <button class="btn btn-primary btn-sm" onclick="addProcurement()">＋ 新增采购</button>
+          <button class="btn btn-outline btn-sm" onclick="importProcurements()">📤 导入Excel</button>
           <span style="font-size:12px;color:var(--text3);" id="procCount"></span>
         </div>
         <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>产品</th><th>货号</th><th>数量</th><th>单价</th><th>总金额</th><th>供应商</th><th>备注</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
@@ -1502,6 +1503,37 @@ function deleteProcurement(id){
   var db=getDB();db.procurements=(db.procurements||[]).filter(function(p){ return p.id!==id; });
   saveDB(db);renderProcurements();
 }
+function importProcurements(){
+  var input=document.createElement('input');input.type='file';input.accept='.xlsx,.xls';
+  input.onchange=function(e){
+    var file=e.target.files[0];if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var wb=XLSX.read(ev.target.result,{type:'array'});
+        var json=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+        var db=getDB();if(!db.procurements)db.procurements=[];
+        var count=0;
+        json.slice(1).forEach(function(row){
+          if(!row[0]&&!row[1])return;
+          var name=row[1]||row[0]||'';if(!name)return;
+          var date=row[0]||new Date().toISOString().slice(0,10);
+          if(date.length>10)date=date.slice(0,10);
+          var code=row[2]||'';var qty=parseInt(row[3])||1;
+          var price=parseFloat(row[4])||0;
+          var supplier=row[5]||'';var note=row[6]||'';
+          db.procurements.unshift({id:'proc_'+Date.now()+Math.random(),date:date,name:name,code:code,quantity:qty,unitPrice:price,totalAmount:qty*price,supplier:supplier,note:note});
+          if(!db.costRefs)db.costRefs={};
+          if(!db.costRefs[name])db.costRefs[name]={shoeCost:price,customFee:0,supplier:supplier,updatedAt:date,history:[],subSkus:[]};
+          count++;
+        });
+        saveDB(db);renderProcurements();toast('已导入 '+count+' 条采购记录');
+      }catch(err){alert('导入失败：'+err.message);}
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  input.click();
+}
 function renderProcurements(){
   var db=getDB();var procs=db.procurements||[];
   procs.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
@@ -1509,643 +1541,7 @@ function renderProcurements(){
   var tbody=document.getElementById('procBody');
   var totalAmt=procs.reduce(function(s,p){ return s+(p.totalAmount||0); },0);
   tbody.innerHTML=procs.map(function(p){
-    return '<tr><td>'+p.date+'</td><td><b>'+p.name+'</b></td><td style="font-size:10px;font-family:monospace;">'+(p.code||'--')+'</td><td>'+p.quantity+'</td><td>¥'+p.unitPrice+'</td><td style="font-weight:700;">¥'+p.totalAmount.toLocaleString()+'</td><td>'+(p.supplier||'--')+'</td><td style="font-size:10px;color:var(--text3);">'+(p.note||'')+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteProcurement(\''+p.id+'\')" style="padding:1px 6px;font-size:10px;">✕</button></td></tr>';
-  }).join('');
-  tbody.innerHTML+='<tr style="background:#f0f4ff;font-weight:600;"><td colspan="5" style="text-align:right;">采购总计</td><td>¥'+totalAmt.toLocaleString()+'</td><td colspan="3"></td></tr>';
-}
-function switchFinTab(t) {
-  currentFinTab=t;
-  document.querySelectorAll('.fin-view').forEach(v=>v.classList.remove('active'));
-  const viewEl = document.getElementById({'ledger':'finLedgerView','weekly':'finWeeklyView','summary':'finSummaryView'}[t]);
-  if (viewEl) viewEl.classList.add('active');
-  document.querySelectorAll('.fin-tab-btn').forEach(b=>b.classList.remove('active'));
-  const btnEl = document.getElementById({'ledger':'fTabLedger','weekly':'fTabWeekly','summary':'fTabSummary'}[t]);
-  if (btnEl) btnEl.classList.add('active');
-  if (t==='ledger') renderFinLedger();
-  if (t==='weekly') renderFinWeekly();
-  if (t==='summary') {renderFinSummary();}
-}
-
-function renderFinLedger() {
-  const db = getDB(); var ledger = db.finance.ledger||[];
-  const cats = db.finance.categories||['原鞋','工作室','推广','设计','材料','邮费','平台','其他支出','个人消费','还款债务','其他收入'];
-
-  // Apply filters
-  var filterDate = document.getElementById('ledgerFilterDate');
-  var filterWeek = document.getElementById('ledgerFilterWeek');
-  var filterCat = document.getElementById('ledgerFilterCat');
-  var filterSearch = document.getElementById('ledgerSearch');
-
-  if (filterDate) { var fd = filterDate.value; if (fd) ledger = ledger.filter(function(i){ return i.date === fd; }); }
-  if (filterWeek) { var fw = filterWeek.value; if (fw) ledger = ledger.filter(function(i){ return String(i.week) === fw; }); }
-  if (filterCat) { var fc = filterCat.value; if (fc) ledger = ledger.filter(function(i){ return i.cat === fc; }); }
-  if (filterSearch) { var fs = filterSearch.value.toLowerCase(); if (fs) ledger = ledger.filter(function(i){ return (i.desc||'').toLowerCase().indexOf(fs) >= 0; }); }
-
-  // Populate filter dropdowns
-  if (filterWeek && filterWeek.options.length <= 1) {
-    var weeks = {}; (db.finance.ledger||[]).forEach(function(i){ if (i.week) weeks[i.week] = true; });
-    Object.keys(weeks).sort(function(a,b){ return a-b; }).forEach(function(w){
-      var o = document.createElement('option'); o.value = w; o.textContent = 'W' + w; filterWeek.appendChild(o);
-    });
-  }
-  if (filterCat && filterCat.options.length <= 1) {
-    cats.forEach(function(c){
-      var o = document.createElement('option'); o.value = c; o.textContent = c; filterCat.appendChild(o);
-    });
-  }
-
-  // KPI cards
-  var allLedger = db.finance.ledger||[];
-  var totalIn = allLedger.filter(function(i){ return i.amount > 0; }).reduce(function(s,i){ return s + i.amount; }, 0);
-  var totalOut = Math.abs(allLedger.filter(function(i){ return i.amount < 0; }).reduce(function(s,i){ return s + i.amount; }, 0));
-  // This week
-  var thisWeek = Math.floor((new Date() - new Date('2026-05-04')) / 86400000 / 7) + 1;
-  var weekIn = allLedger.filter(function(i){ return i.week === thisWeek && i.amount > 0; }).reduce(function(s,i){ return s + i.amount; }, 0);
-  var weekOut = Math.abs(allLedger.filter(function(i){ return i.week === thisWeek && i.amount < 0; }).reduce(function(s,i){ return s + i.amount; }, 0));
-  // Debt total
-  var debtOut = Math.abs(allLedger.filter(function(i){ return i.cat === '还款债务'; }).reduce(function(s,i){ return s + i.amount; }, 0));
-
-  document.getElementById('finLedgerKPIs').innerHTML =
-    '<div class="kpi-card"><div class="kpi-label">本周支出</div><div class="kpi-value" style="color:var(--red);">-¥' + weekOut.toLocaleString() + '</div><div class="kpi-sub">W' + thisWeek + ' 共' + allLedger.filter(function(i){ return i.week === thisWeek; }).length + '笔</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">本周收入</div><div class="kpi-value" style="color:var(--green);">+¥' + weekIn.toLocaleString() + '</div><div class="kpi-sub">周净现金流 ¥' + (weekIn - weekOut).toLocaleString() + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">总净现金流</div><div class="kpi-value" style="color:' + (totalIn - totalOut >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + (totalIn - totalOut).toLocaleString() + '</div><div class="kpi-sub">入¥' + totalIn.toLocaleString() + ' / 出¥' + totalOut.toLocaleString() + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">累计债务还款</div><div class="kpi-value" style="color:var(--orange);">¥' + debtOut.toLocaleString() + '</div><div class="kpi-sub">共' + allLedger.filter(function(i){ return i.cat === '还款债务'; }).length + '笔</div></div>';
-
-  // Charts
-  var wkMap = {}; allLedger.forEach(function(i){ var w = 'W' + i.week; if (!wkMap[w]) wkMap[w] = {In: 0, out: 0}; if (i.amount > 0) wkMap[w].In += i.amount; else wkMap[w].out += Math.abs(i.amount); });
-  var wKeys = Object.keys(wkMap).sort();
-  renderChart('chartFinCashflow', {tooltip: {trigger: 'axis'}, xAxis: {type: 'category', data: wKeys}, yAxis: {type: 'value'}, series: [{name: '收入', type: 'bar', data: wKeys.map(function(k){ return wkMap[k].In; }), itemStyle: {color: '#34c759'}, barMaxWidth: 25}, {name: '支出', type: 'bar', data: wKeys.map(function(k){ return wkMap[k].out; }), itemStyle: {color: '#ff3b30'}, barMaxWidth: 25}]});
-  var catMap = {}; allLedger.filter(function(i){ return i.amount < 0; }).forEach(function(i){ catMap[i.cat] = (catMap[i.cat] || 0) + Math.abs(i.amount); });
-  renderChart('chartFinExpCat', {tooltip: {trigger: 'item'}, series: [{type: 'pie', radius: ['45%', '70%'], data: Object.entries(catMap).map(function(e){ return {name: e[0], value: e[1]}; }), label: {formatter: '{b}\n{d}%'}}]});
-
-  // Sort: newest first
-  var sorted = ledger.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
-
-  // Build table rows with daily subtotals
-  var rows = ''; var lastDate = '';
-  // Pre-compute daily subtotals for ALL ledger
-  var dailyTotals = {};
-  allLedger.forEach(function(i){
-    if (!dailyTotals[i.date]) dailyTotals[i.date] = {exp: 0, inc: 0};
-    if (i.amount < 0) dailyTotals[i.date].exp += Math.abs(i.amount);
-    else dailyTotals[i.date].inc += i.amount;
-  });
-
-  sorted.forEach(function(i, idx){
-    var realIdx = allLedger.indexOf(i);
-    if (realIdx < 0) realIdx = idx;
-
-    // Insert daily subtotal row when date changes
-    if (i.date !== lastDate && lastDate !== '') {
-      var dt = dailyTotals[lastDate] || {exp: 0, inc: 0};
-      rows += '<tr style="background:#f0f4ff;font-weight:600;font-size:11px;"><td colspan="4" style="text-align:right;color:var(--text2);">' + lastDate + ' 当日合计</td><td style="color:var(--red);">-¥' + dt.exp.toLocaleString() + '</td><td style="color:var(--green);">+¥' + dt.inc.toLocaleString() + '</td><td style="color:' + (dt.inc - dt.exp >= 0 ? 'var(--green)' : 'var(--red)') + ';">净¥' + (dt.inc - dt.exp).toLocaleString() + '</td><td></td><td></td></tr>';
-    }
-    lastDate = i.date;
-
-    var catOpts = cats.map(function(c){ return '<option value="' + c + '" ' + (i.cat === c ? 'selected' : '') + '>' + c + '</option>'; }).join('');
-    var amtAbs = Math.abs(i.amount);
-    var amtColor = i.amount < 0 ? 'var(--red)' : 'var(--green)';
-    var descEscaped = (i.desc || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    rows += '<tr>' +
-      '<td><input value="' + i.date + '" onchange="updateLedgerCell(' + realIdx + ',\'date\',this.value)" style="width:110px;padding:3px 5px;font-size:11px;"></td>' +
-      '<td><input value="' + (i.day || '') + '" readonly style="width:50px;padding:3px 5px;font-size:11px;background:#f5f5f5;border:1px solid #eee;text-align:center;color:var(--text2);"></td>' +
-      '<td><select onchange="updateLedgerCell(' + realIdx + ',\'cat\',this.value)" style="padding:3px 5px;font-size:11px;">' + catOpts + '</select></td>' +
-      '<td><input value="' + descEscaped + '" onchange="updateLedgerCell(' + realIdx + ',\'desc\',this.value)" style="width:130px;padding:3px 5px;font-size:11px;"></td>' +
-      '<td><input type="number" value="' + amtAbs + '" onchange="updateLedgerCell(' + realIdx + ',\'amount\',parseFloat(this.value)||0)" style="width:85px;padding:3px 5px;font-size:11px;color:' + amtColor + ';font-weight:700;text-align:right;"></td>' +
-      '<td><input value="' + (i.pay || '') + '" onchange="updateLedgerCell(' + realIdx + ',\'pay\',this.value)" style="width:65px;padding:3px 5px;font-size:11px;"></td>' +
-      '<td><input value="' + (i.note || '') + '" onchange="updateLedgerCell(' + realIdx + ',\'note\',this.value)" placeholder="备注" style="width:90px;padding:3px 5px;font-size:11px;"></td>' +
-      '<td><span style="font-size:11px;color:var(--text3);">W' + (i.week || 1) + '</span></td>' +
-      '<td><button class="btn btn-danger btn-sm" onclick="deleteLedgerRow(' + realIdx + ')" style="padding:1px 6px;font-size:10px;">✕</button></td>' +
-      '</tr>';
-  });
-
-  // Last date subtotal
-  if (lastDate) {
-    var dt2 = dailyTotals[lastDate] || {exp: 0, inc: 0};
-    rows += '<tr style="background:#f0f4ff;font-weight:600;font-size:11px;"><td colspan="4" style="text-align:right;color:var(--text2);">' + lastDate + ' 当日合计</td><td style="color:var(--red);">-¥' + dt2.exp.toLocaleString() + '</td><td style="color:var(--green);">+¥' + dt2.inc.toLocaleString() + '</td><td style="color:' + (dt2.inc - dt2.exp >= 0 ? 'var(--green)' : 'var(--red)') + ';">净¥' + (dt2.inc - dt2.exp).toLocaleString() + '</td><td></td><td></td></tr>';
-  }
-
-  document.getElementById('finLedgerBody').innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px;">暂无流水记录，点「＋ 新增一行」开始记账</td></tr>';
-  renderFinWeekSummary();
-}
-
-function updateLedgerCell(idx, field, value) {
-  const db = getDB();
-  if (idx >= 0 && idx < db.finance.ledger.length) {
-    db.finance.ledger[idx][field] = value;
-    // Auto-calc day and week from date (use local time to avoid timezone shift)
-    if (field === 'date' && value) {
-      var parts = value.split('-');
-      if (parts.length === 3) {
-        var yr = parseInt(parts[0]), mo = parseInt(parts[1])-1, dy = parseInt(parts[2]);
-        var d = new Date(yr, mo, dy);
-        if (!isNaN(d.getTime())) {
-          var days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-          db.finance.ledger[idx].day = days[d.getDay()];
-          var startDate = new Date(2026, 4, 4); // May 4, 2026
-          var diffDays = Math.floor((d - startDate) / 86400000);
-          db.finance.ledger[idx].week = Math.max(1, Math.floor(diffDays / 7) + 1);
-          db.finance.ledger[idx].date = value; // keep original YYYY-MM-DD string
-        }
-      }
-    }
-    // Auto-negate: if expense category and amount > 0, make negative
-    if (field === 'amount') {
-      var cat = db.finance.ledger[idx].cat || '';
-      if (value > 0 && cat !== '其他收入') {
-        db.finance.ledger[idx].amount = -Math.abs(value);
-      }
-    }
-    // If category changed to 其他收入, auto-flip amount to positive
-    if (field === 'cat' && value === '其他收入' && db.finance.ledger[idx].amount < 0) {
-      db.finance.ledger[idx].amount = Math.abs(db.finance.ledger[idx].amount);
-    }
-    if (field === 'cat' && value !== '其他收入' && db.finance.ledger[idx].amount > 0) {
-      db.finance.ledger[idx].amount = -Math.abs(db.finance.ledger[idx].amount);
-    }
-    saveDB(db);
-    renderFinLedger();
-  }
-}
-
-function addLedgerRow() {
-  const db = getDB();
-  var today = new Date();
-  var yr = today.getFullYear(), mo = String(today.getMonth()+1).padStart(2,'0'), dy = String(today.getDate()).padStart(2,'0');
-  var days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-  var dayStr = days[today.getDay()];
-  var startDate = new Date(2026, 4, 4); // May 4, 2026 local
-  var todayLocal = new Date(yr, today.getMonth(), today.getDate());
-  var diffDays = Math.floor((todayLocal - startDate) / 86400000);
-  var week = Math.max(1, Math.floor(diffDays / 7) + 1);
-  db.finance.ledger.unshift({
-    date: yr + '-' + mo + '-' + dy,
-    day: dayStr,
-    cat: '其他支出',
-    desc: '',
-    amount: 0,
-    pay: '支付宝',
-    note: '',
-    week: week
-  });
-  saveDB(db);
-  renderFinLedger();
-  toast('新行已添加');
-}
-
-function importLedgerCSV() {
-  var input = document.createElement('input'); input.type = 'file'; input.accept = '.csv';
-  input.onchange = function(e) {
-    var file = e.target.files[0]; if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      var text = ev.target.result;
-      var lines = text.split(/\r?\n/).filter(function(l){ return l.trim(); });
-      if (lines.length < 2) { alert('CSV文件为空或格式不对'); return; }
-      var header = lines[0];
-      var isAlipay = header.indexOf('交易时间') >= 0 && header.indexOf('交易对方') >= 0;
-      var isWechat = header.indexOf('交易时间') >= 0 && header.indexOf('交易类型') >= 0;
-      if (!isAlipay && !isWechat) {
-        if (!confirm('无法自动识别CSV格式（支付宝/微信）。是否尝试通用导入？列顺序：日期,分类,明细,金额,支付方式')) return;
-        genericImport(lines); return;
-      }
-      var source = isAlipay ? '支付宝' : '微信';
-      var count = 0; var db = getDB();
-      var startDate = new Date(2026, 4, 4);
-      var days = ['周日','周一','周二','周三','周四','周五','周六'];
-      var cols = header.split(',').map(function(h){ return h.trim(); });
-      var idxTime = cols.indexOf('交易时间');
-      var idxAmt = isAlipay ? cols.indexOf('金额') : cols.indexOf('金额(元)');
-      var idxType = isAlipay ? cols.indexOf('收/支') : (cols.indexOf('收/支') >= 0 ? cols.indexOf('收/支') : cols.indexOf('交易类型'));
-      var idxDesc = isAlipay ? cols.indexOf('商品说明') : cols.indexOf('商品');
-      var idxCounterparty = isAlipay ? cols.indexOf('交易对方') : cols.indexOf('交易对方');
-
-      if (idxTime < 0 || idxAmt < 0) { alert('CSV列名不匹配，请确认是支付宝或微信导出的账单'); return; }
-
-      for (var i = 1; i < lines.length; i++) {
-        var vals = parseCSVLine(lines[i]);
-        if (vals.length < 3) continue;
-        var timeStr = (vals[idxTime] || '').trim();
-        var amt = parseFloat(vals[idxAmt]) || 0;
-        var desc = (vals[idxDesc] || vals[idxCounterparty] || '').trim();
-        if (!timeStr || !amt) continue;
-
-        var isIncome = false;
-        if (idxType >= 0) {
-          var typeStr = (vals[idxType] || '').trim();
-          isIncome = (typeStr.indexOf('收入') >= 0 || typeStr === '入');
-        }
-
-        var dateStr = timeStr.slice(0, 10);
-        if (dateStr.indexOf('/') >= 0) {
-          var parts = dateStr.split(/[\/ \-]/);
-          if (parts.length >= 3) dateStr = parts[0] + '-' + parts[1].padStart(2,'0') + '-' + parts[2].padStart(2,'0');
-        }
-        var d = new Date(dateStr + 'T00:00:00');
-        if (isNaN(d.getTime())) continue;
-        var yr = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,'0'), dy = String(d.getDate()).padStart(2,'0');
-        dateStr = yr + '-' + mo + '-' + dy;
-
-        var cat = autoCat(desc, isIncome);
-        var amtVal = isIncome ? Math.abs(amt) : -Math.abs(amt);
-        if (cat === '其他收入') amtVal = Math.abs(amt);
-
-        var dayStr = days[d.getDay()];
-        var diffDays = Math.floor((d - startDate) / 86400000);
-        var week = Math.max(1, Math.floor(diffDays / 7) + 1);
-
-        db.finance.ledger.unshift({
-          date: dateStr, day: dayStr, cat: cat, desc: desc,
-          amount: amtVal, pay: source, note: '', week: week
-        });
-        count++;
-      }
-      saveDB(db); renderFinLedger();
-      toast('已导入 ' + count + ' 条' + source + '账单');
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
-function parseCSVLine(line) {
-  var result = []; var current = ''; var inQuotes = false;
-  for (var i = 0; i < line.length; i++) {
-    var ch = line[i];
-    if (ch === '"') { inQuotes = !inQuotes; }
-    else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
-    else { current += ch; }
-  }
-  result.push(current);
-  return result;
-}
-function autoCat(desc, isIncome) {
-  if (isIncome) return '其他收入';
-  var d = desc.toLowerCase();
-  if (d.indexOf('鞋') >= 0 || d.indexOf('货款') >= 0 || d.indexOf('进货') >= 0) return '原鞋';
-  if (d.indexOf('快递') >= 0 || d.indexOf('邮费') >= 0 || d.indexOf('物流') >= 0 || d.indexOf('闪送') >= 0) return '邮费';
-  if (d.indexOf('推广') >= 0 || d.indexOf('得物') >= 0) return '推广';
-  if (d.indexOf('设计') >= 0 || d.indexOf('稿') >= 0 || d.indexOf('ai') >= 0 || d.indexOf('AI') >= 0) return '设计';
-  if (d.indexOf('房租') >= 0 || d.indexOf('物业') >= 0 || d.indexOf('空调') >= 0 || d.indexOf('电费') >= 0 || d.indexOf('水费') >= 0) return '工作室';
-  if (d.indexOf('还款') >= 0 || d.indexOf('还钱') >= 0 || d.indexOf('借呗') >= 0 || d.indexOf('花呗') >= 0 || d.indexOf('信用卡') >= 0) return '还款债务';
-  if (d.indexOf('工资') >= 0 || d.indexOf('劳务') >= 0) return '其他支出';
-  if (d.indexOf('材料') >= 0 || d.indexOf('颜料') >= 0 || d.indexOf('耗材') >= 0) return '材料';
-  if (d.indexOf('看牙') >= 0 || d.indexOf('医院') >= 0 || d.indexOf('药') >= 0 || d.indexOf('话费') >= 0 || d.indexOf('餐') >= 0 || d.indexOf('吃') >= 0 || d.indexOf('生活') >= 0) return '个人消费';
-  return '其他支出';
-}
-function genericImport(lines) {
-  var count = 0; var db = getDB(); var days = ['周日','周一','周二','周三','周四','周五','周六'];
-  var startDate = new Date(2026, 4, 4);
-  for (var i = 1; i < lines.length; i++) {
-    var vals = parseCSVLine(lines[i]);
-    if (vals.length < 3) continue;
-    var dateStr = (vals[0]||'').trim();
-    var cat = (vals[1]||'').trim() || '其他支出';
-    var desc = (vals[2]||'').trim();
-    var amt = parseFloat(vals[3]) || 0;
-    var pay = (vals[4]||'').trim() || '其他';
-    if (!dateStr || !desc) continue;
-    var d = new Date(dateStr + 'T00:00:00');
-    if (isNaN(d.getTime())) continue;
-    var yr = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,'0'), dy = String(d.getDate()).padStart(2,'0');
-    dateStr = yr + '-' + mo + '-' + dy;
-    var dayStr = days[d.getDay()];
-    var diffDays = Math.floor((d - startDate) / 86400000);
-    var week = Math.max(1, Math.floor(diffDays / 7) + 1);
-    var amtVal = (cat === '其他收入') ? Math.abs(amt) : -Math.abs(amt);
-    db.finance.ledger.unshift({
-      date: dateStr, day: dayStr, cat: cat, desc: desc,
-      amount: amtVal, pay: pay, note: '', week: week
-    });
-    count++;
-  }
-  saveDB(db); renderFinLedger();
-  toast('已导入 ' + count + ' 条');
-}
-
-function clearLedgerFilters(){
-
-  document.getElementById('ledgerFilterDate').value='';
-  document.getElementById('ledgerFilterWeek').value='';
-  document.getElementById('ledgerFilterCat').value='';
-  document.getElementById('ledgerSearch').value='';
-  renderFinLedger();
-}
-
-function deleteLedgerRow(idx) {
-  if (!confirm('确定删除这条流水？')) return;
-  const db = getDB();
-  db.finance.ledger.splice(idx, 1);
-  saveDB(db);
-  renderFinLedger();
-  toast('已删除');
-}
-
-function renderFinWeekSummary() {
-  const db = getDB(); const ledger = db.finance.ledger||[];
-  var cats = ['原鞋','推广','设计','材料','邮费','平台','工作室','其他支出','个人消费','还款债务'];
-  var weeks = {}; var allWeeks = new Set();
-  ledger.forEach(function(i){
-    var w = i.week || 1; allWeeks.add(w);
-    if (!weeks[w]) weeks[w] = {};
-    if (!weeks[w][i.cat]) weeks[w][i.cat] = 0;
-    weeks[w][i.cat] += Math.abs(Math.min(0, i.amount||0));
-    if (i.cat === '其他收入') weeks[w]['_income'] = (weeks[w]['_income']||0) + (i.amount > 0 ? i.amount : 0);
-  });
-  var sortedWeeks = Array.from(allWeeks).sort(function(a,b){ return a-b; });
-  if (sortedWeeks.length === 0) {
-    document.getElementById('finWeekSummaryBody').innerHTML = '<tr><td colspan="14" style="text-align:center;color:var(--text3);padding:16px;">暂无数据</td></tr>';
-    return;
-  }
-  var rows = '';
-  sortedWeeks.forEach(function(w){
-    var row = weeks[w] || {};
-    var totalExp = cats.reduce(function(s,c){ return s + (row[c]||0); }, 0);
-    var totalInc = row['_income'] || 0;
-    var netExp = totalExp - totalInc;
-    rows += '<tr><td><b>W' + w + '</b></td>';
-    cats.forEach(function(c){
-      var v = row[c] || 0;
-      rows += '<td style="' + (v > 0 ? 'color:var(--red);' : '') + '">' + (v > 0 ? '¥' + v.toLocaleString() : '-') + '</td>';
-    });
-    rows += '<td style="color:var(--red);font-weight:700;">¥' + totalExp.toLocaleString() + '</td>';
-    rows += '<td style="color:var(--green);">' + (totalInc > 0 ? '+¥' + totalInc.toLocaleString() : '-') + '</td>';
-    rows += '<td style="font-weight:700;color:' + (netExp >= 0 ? 'var(--red)' : 'var(--green)') + ';">¥' + netExp.toLocaleString() + '</td>';
-    rows += '</tr>';
-  });
-  document.getElementById('finWeekSummaryBody').innerHTML = rows;
-}
-function initFinWeekSelect() {
-  const db = getDB(); const bills = db.finance.weeklyBills||[];
-  const sel=document.getElementById('finWeekSel');
-  if (!sel || sel.options.length > 0) return; // already initialized
-  bills.forEach((b,i)=>{const o=document.createElement('option');o.value=i;o.textContent=b.label;sel.appendChild(o);});
-}
-
-function renderFinWeekly() {
-  const db = getDB(); const bills = db.finance.weeklyBills||[];
-  if(!db.costRefs)db.costRefs={};if(Object.keys(db.costRefs).length===0){db.costRefs={"莓莓粉荔":{"shoeCost":205,"customFee":45},"银闪花嫁":{"shoeCost":270,"customFee":0},"棉花喵喵":{"shoeCost":261,"customFee":30},"云上舞白":{"shoeCost":284,"customFee":50},"绿野迷踪":{"shoeCost":348,"customFee":45},"废土银鸦":{"shoeCost":292,"customFee":0},"蓝调旧事":{"shoeCost":323,"customFee":50},"幻想家":{"shoeCost":284,"customFee":55},"水瓶赫尔墨斯":{"shoeCost":410,"customFee":65},"雾蓝废土":{"shoeCost":281,"customFee":50},"马踏飞燕":{"shoeCost":284,"customFee":50},"青谧浮影":{"shoeCost":470,"customFee":65},"街区涂鸦":{"shoeCost":323,"customFee":75},"登山者":{"shoeCost":323,"customFee":70},"油墨陷阱":{"shoeCost":281,"customFee":50},"荒野之谜":{"shoeCost":284,"customFee":50},"银雾轨迹":{"shoeCost":281,"customFee":50},"旧域漫游者":{"shoeCost":281,"customFee":55},"山海烛龙":{"shoeCost":470,"customFee":70},"爱情时钟":{"shoeCost":470,"customFee":75},"香柠馒馒":{"shoeCost":218,"customFee":25},"粉恋":{"shoeCost":284,"customFee":45},"玉润蛇年":{"shoeCost":470,"customFee":0},"天青色":{"shoeCost":142,"customFee":40},"福马顺遂":{"shoeCost":284,"customFee":45},"处女阿斯特瑞亚":{"shoeCost":470,"customFee":65},"天秤忒弥斯":{"shoeCost":0,"customFee":65},"幻影灰":{"shoeCost":498,"customFee":65},"信仰之翼":{"shoeCost":142,"customFee":40},"钢铁青铜":{"shoeCost":284,"customFee":40},"春意":{"shoeCost":470,"customFee":70},"浮生白马":{"shoeCost":348,"customFee":40},"寒冬":{"shoeCost":165,"customFee":40},"蓝粉猫爪":{"shoeCost":292,"customFee":0},"黑白泼墨":{"shoeCost":322,"customFee":0},"甜酷粉钻":{"shoeCost":292,"customFee":0},"赤红":{"shoeCost":284,"customFee":0},"墨荷":{"shoeCost":498,"customFee":65},"墨流疾行":{"shoeCost":322,"customFee":0},"玫玫黑粉":{"shoeCost":485,"customFee":40},"紫雾夜巡":{"shoeCost":281,"customFee":55},"奶蓝修狗":{"shoeCost":254,"customFee":0},"冰川闪银":{"shoeCost":254,"customFee":0},"粉色泡泡":{"shoeCost":218,"customFee":0},"蓝莓糊糊":{"shoeCost":218,"customFee":0},"灰絮":{"shoeCost":350,"customFee":0},"梅梅粉":{"shoeCost":218,"customFee":0},"赤白":{"shoeCost":350,"customFee":0},"林间落雾":{"shoeCost":292,"customFee":0}};}
-  const sel=document.getElementById('finWeekSel');
-  // Initialize dropdown if empty
-  if (sel && sel.options.length===0) {
-    bills.forEach((b,i)=>{const o=document.createElement('option');o.value=i;o.textContent=b.label;sel.appendChild(o);});
-  }
-  const idx=parseInt(sel.value)||0;
-  const bill=bills[idx];
-  if(!bill) return;
-  // Auto-fill missing costs from costRefs
-  let costsUpdated=false;
-  (bill.sales||[]).forEach(sale=>{
-    if((!sale.cost||sale.cost===0)&&db.costRefs[sale.name]){
-      sale.cost=db.costRefs[sale.name].shoeCost||0;
-      sale.custom=db.costRefs[sale.name].customFee||0;
-      if(!sale.income||sale.income===0)sale.income=sale.price*0.8;
-      sale.profit=sale.income-sale.cost-sale.custom-47;
-      sale.rate=sale.price>0?sale.profit/sale.price*100:0;
-      costsUpdated=true;
-    }
-  });
-  if(costsUpdated){saveDB(db);}
-  const s=bill.summary;
-  document.getElementById('finWeekKPIs').innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">销售额 / 订单</div><div class="kpi-value">¥${s.revenue.toLocaleString()}<span style="font-size:16px;">/${s.orders}</span></div></div>
-    <div class="kpi-card"><div class="kpi-label">利润</div><div class="kpi-value" style="color:${s.profit>=0?'var(--green)':'var(--red)'}">¥${s.profit.toLocaleString()}</div><div class="kpi-sub">${s.profitRate.toFixed(1)}%</div></div>
-    <div class="kpi-card"><div class="kpi-label">退货率</div><div class="kpi-value">${s.returnRate.toFixed(1)}%</div></div>
-    <div class="kpi-card"><div class="kpi-label">到手 / 平台费</div><div class="kpi-value" style="font-size:18px;">¥${s.netIncome.toLocaleString()}<span style="font-size:13px;">/¥${s.platformFee.toLocaleString()}</span></div></div>
-  `;
-  // Aggregate sales by product
-  var agg={};
-  (bill.sales||[]).forEach(function(s){
-    var k=s.name;
-    if(!agg[k])agg[k]={name:k,cost:s.cost,custom:s.custom,count:0,totalSales:0,totalIncome:0,totalProfit:0,orders:[]};
-    agg[k].count++;agg[k].totalSales+=s.price;agg[k].totalIncome+=s.income;agg[k].totalProfit+=s.profit;agg[k].orders.push(s);
-  });
-  var summary=Object.values(agg).sort(function(a,b){return b.totalProfit-a.totalProfit;});
-
-  // Product summary table
-  document.getElementById('finSalesBody').innerHTML = '';
-  summary.forEach(function(p){
-    var fixedCost=p.count*47;
-    var margin=p.totalSales>0?(p.totalProfit/p.totalSales*100):0;
-    var status=margin>=10?'盈利':margin>=0?'微利':'亏损';
-    var cls=margin>=10?'tag-green':margin>=0?'tag-yellow':'tag-red';
-    var tr=document.createElement('tr');
-    tr.innerHTML='<td><b>'+p.name+'</b></td><td>'+p.count+'单</td><td>¥'+p.totalSales.toLocaleString()+'</td><td>¥'+p.totalIncome.toLocaleString()+'</td><td></td><td></td><td>¥'+fixedCost.toLocaleString()+'</td><td style="color:'+(p.totalProfit>=0?'var(--green)':'var(--red)')+';font-weight:700;">'+(p.totalProfit>=0?'+':'')+'¥'+p.totalProfit.toLocaleString()+'</td><td>'+(margin>=0?'+':'')+margin.toFixed(1)+'%</td><td><span class="tag '+cls+'">'+status+'</span></td><td></td>';
-    // Editable shoe cost
-    var costInput=document.createElement('input');costInput.type='number';costInput.value=p.cost||0;
-    costInput.style.cssText='width:70px;padding:3px 5px;font-size:12px;text-align:center;';
-    costInput.onchange=(function(n,trRef,customVal){return function(){
-      var v=parseFloat(this.value)||0;updateCostFromBill(n,v,customVal);renderFinWeekly();
-    };})(p.name,p.custom);
-    tr.children[4].appendChild(costInput);
-    // Editable custom fee
-    var customInput=document.createElement('input');customInput.type='number';customInput.value=p.custom||0;
-    customInput.style.cssText='width:70px;padding:3px 5px;font-size:12px;text-align:center;';
-    customInput.onchange=(function(n,costVal){return function(){
-      var v=parseFloat(this.value)||0;updateCostFromBill(n,costVal,v);renderFinWeekly();
-    };})(p.name,p.cost);
-    tr.children[5].appendChild(customInput);
-    // Detail button
-    var btn=document.createElement('button');btn.className='btn btn-outline btn-sm';
-    btn.textContent='明细';btn.style.cssText='padding:2px 8px;font-size:11px;';
-    btn.onclick=(function(n){return function(){showFinDetail(n);};})(p.name);
-    tr.children[10].appendChild(btn);
-    document.getElementById('finSalesBody').appendChild(tr);
-  })
-
-  // Returns KPI + summary + detail
-  var totalRetCount=(bill.returns||[]).length;
-  // Returns: get cost from matching sale, use return's own amount as price
-  var salesByName={};
-  // Search all periods first for products not in current bill
-  (db.finance.weeklyBills||[]).forEach(function(b){ (b.sales||[]).forEach(function(s){if(!salesByName[s.name])salesByName[s.name]=s;}); });
-  // Current bill takes priority
-  (bill.sales||[]).forEach(function(s){salesByName[s.name]=s;});
-  (bill.returns||[]).forEach(function(r){
-    var sale=salesByName[r.name]||{};
-    r._shoeCost=sale.cost||0; r._customFee=sale.custom||0;
-    r._costLoss=r._shoeCost+r._customFee+47;
-    // 损失利润 = 如果没退能赚的钱 = 售价×0.8 - 成本 - 定制 - 47
-    // r.amount 是退货退款金额 = 原售价，直接用
-    var price=r.amount||sale.price||0;
-    r._profitLoss=(sale.income||price*0.8)-r._shoeCost-r._customFee-47;
-  });
-  var totalRetLoss=(bill.returns||[]).reduce(function(s,r){return s+(r._costLoss||0);},0);
-  var totalProfitLoss=(bill.returns||[]).reduce(function(s,r){return s+(r._profitLoss||0);},0);
-  var retRate=s.orders>0?(totalRetCount/s.orders*100):0;
-  document.getElementById('finReturnsKPIs').innerHTML=
-    '<div class="kpi-card"><div class="kpi-label">退货率</div><div class="kpi-value" style="color:'+(retRate>20?'var(--red)':'var(--orange)')+';">'+retRate.toFixed(1)+'%</div><div class="kpi-sub">警戒线 15%</div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">退货数量</div><div class="kpi-value">'+totalRetCount+'<span style="font-size:16px;color:var(--text3);">/'+s.orders+'单</span></div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">预估亏损(成本)</div><div class="kpi-value" style="color:var(--red);">¥'+totalRetLoss.toLocaleString()+'</div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">损失利润</div><div class="kpi-value" style="color:var(--orange);">¥'+totalProfitLoss.toLocaleString()+'</div></div>';
-  var retAgg={};
-  (bill.returns||[]).forEach(function(r){
-    if(!retAgg[r.name])retAgg[r.name]={count:0,costLoss:0,profitLoss:0};
-    retAgg[r.name].count++;retAgg[r.name].costLoss+=r._costLoss;retAgg[r.name].profitLoss+=r._profitLoss;
-  });
-  var retEntries=Object.entries(retAgg).sort(function(a,b){return b[1].count-a[1].count;});
-  document.getElementById('finReturnsBody').innerHTML = retEntries.length>0
-    ?retEntries.map(function(e){return '<tr><td><b>'+e[0]+'</b></td><td style=\"color:var(--red);\">'+e[1].count+'单</td><td style=\"color:var(--red);\">¥'+e[1].costLoss.toLocaleString()+'</td><td style=\"color:var(--orange);\">¥'+e[1].profitLoss.toLocaleString()+'</td></tr>';}).join('')
-    :'<tr><td colspan=4 style=\"color:var(--text3);\">无退货</td></tr>';
-  // Returns detail table
-  var retDetail=(bill.returns||[]).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
-  document.getElementById('finReturnsDetailBody').innerHTML = retDetail.length>0
-    ?retDetail.map(function(r){return '<tr><td>'+(r.date||'--')+'</td><td><b>'+r.name+'</b></td><td>'+r.size+'</td><td>¥'+(r.amount||0)+'</td><td style=\"color:var(--red);\">¥'+r._costLoss.toLocaleString()+'</td><td style=\"color:var(--orange);\">¥'+r._profitLoss.toLocaleString()+'</td></tr>';}).join('')
-    :'<tr><td colspan=6 style=\"color:var(--text3);\">无退货</td></tr>';
-
-  // Auto-generated analysis report
-  var profitProducts=summary.filter(function(p){return p.totalProfit>=0;});
-  var lossProducts=summary.filter(function(p){return p.totalProfit<0;});
-  var topProfit=summary[0];var worstLoss=summary[summary.length-1];
-  var totalRetCount=(bill.returns||[]).length;
-  var retRate2=s.orders>0?(totalRetCount/s.orders*100):0;
-  var report='<b>📊 本周经营诊断</b><br>';
-  report+='销售额 ¥'+s.revenue.toLocaleString()+' | 利润 ¥'+s.profit.toLocaleString()+' | 利润率 '+s.profitRate+'%<br><br>';
-  report+='<b>✅ 盈利产品：</b>'+profitProducts.length+'款（贡献利润 ¥'+profitProducts.reduce(function(x,p){return x+p.totalProfit;},0).toLocaleString()+'）<br>';
-  if(lossProducts.length>0)report+='<b>⚠ 亏损产品：</b>'+lossProducts.length+'款（亏损 ¥'+Math.abs(lossProducts.reduce(function(x,p){return x+p.totalProfit;},0)).toLocaleString()+'）：'+lossProducts.map(function(p){return p.name;}).join('、')+'<br>';
-  report+='<b>↩ 退货率：</b>'+retRate2.toFixed(1)+'%'+(retRate2>20?' <span style="color:var(--red);">🔴 超标</span>':retRate2>10?' <span style="color:var(--orange);">🟡 关注</span>':' <span style="color:var(--green);">🟢 正常</span>')+'<br>';
-  if(retEntries.length>0)report+='<b>最多退货：</b>'+retEntries[0][0]+'（'+retEntries[0][1].count+'单）<br>';
-  report+='<br><b>💡 建议：</b>';
-  if(lossProducts.length>0)report+='亏损产品考虑调整定价或下架；';
-  if(retRate>15)report+='退货率偏高，检查产品质检和尺码描述；';
-  if(s.profitRate<10)report+='利润率偏低，建议降价采购成本或提高售价；';
-  if(lossProducts.length===0&&retRate<=15)report+='本周经营健康，继续保持。';
-  document.getElementById('finWeekReport').innerHTML = report;
-}
-
-function showFinDetail(name){
-  var db=getDB();var bills=db.finance.weeklyBills||[];
-  var sel=document.getElementById('finWeekSel');var bill=bills[parseInt(sel.value)||0];
-  if(!bill)return;
-  var orders=(bill.sales||[]).filter(function(s){return s.name===name;});
-  var detail=document.getElementById('finSalesDetail');
-  if(detail.style.display==='block'&&detail._curName===name){detail.style.display='none';return;}
-  detail.style.display='block';detail._curName=name;
-  detail.innerHTML='';
-  var card=document.createElement('div');card.className='card';card.style.marginTop='8px';
-  var titleDiv=document.createElement('div');titleDiv.className='card-title';
-  titleDiv.innerHTML='📋 '+name+' 逐单明细 ('+orders.length+'单) ';
-  var closeBtn=document.createElement('button');closeBtn.className='btn btn-outline btn-sm';
-  closeBtn.textContent='✕ 关闭';closeBtn.style.cssText='float:right;';
-  closeBtn.onclick=function(){detail.style.display='none';};
-  titleDiv.appendChild(closeBtn);card.appendChild(titleDiv);
-  var wrap=document.createElement('div');wrap.className='table-wrap';
-  var tbl=document.createElement('table');
-  tbl.innerHTML='<thead><tr><th>尺码</th><th>售价</th><th>到手</th><th>原鞋成本</th><th>定制费</th><th>固定成本</th><th>利润</th><th>利润率</th></tr></thead><tbody></tbody>';
-  var tbody=tbl.querySelector('tbody');
-  orders.forEach(function(o,idx){
-    var tr=document.createElement('tr');
-    tr.innerHTML='<td>'+o.size+'</td><td>¥'+o.price+'</td><td>¥'+o.income+'</td><td></td><td></td><td>¥47</td><td style="color:'+(o.profit>=0?'var(--green)':'var(--red)')+';font-weight:700;">'+(o.profit>=0?'+':'')+'¥'+o.profit+'</td><td>'+(o.rate>=0?'+':'')+o.rate+'%</td>';
-    // Editable cost
-    var ci=document.createElement('input');ci.type='number';ci.value=o.cost||0;
-    ci.style.cssText='width:70px;padding:2px 4px;font-size:11px;text-align:center;';
-    ci.onchange=(function(nm,cust){return function(){var v=parseFloat(this.value)||0;updateCostFromBill(nm,v,cust);showFinDetail(nm);};})(name,o.custom);
-    tr.children[3].appendChild(ci);
-    // Editable custom
-    var fi=document.createElement('input');fi.type='number';fi.value=o.custom||0;
-    fi.style.cssText='width:70px;padding:2px 4px;font-size:11px;text-align:center;';
-    fi.onchange=(function(nm,cst){return function(){var v=parseFloat(this.value)||0;updateCostFromBill(nm,cst,v);showFinDetail(nm);};})(name,o.cost);
-    tr.children[4].appendChild(fi);
-    tbody.appendChild(tr);
-  });
-  wrap.appendChild(tbl);card.appendChild(wrap);
-  detail.appendChild(card);
-  detail.scrollIntoView({behavior:'smooth'});
-}
-
-function updateCostFromBill(name, shoeCost, customFee){
-  var db=getDB();if(!db.costRefs)db.costRefs={};
-  var old=db.costRefs[name];
-  var hist=old&&old.history?old.history:[];
-  if(old&&old.shoeCost!==shoeCost)hist.push({field:'shoeCost',old:old.shoeCost,new:shoeCost,date:new Date().toISOString().slice(0,10)});
-  if(old&&old.customFee!==customFee)hist.push({field:'customFee',old:old.customFee,new:customFee,date:new Date().toISOString().slice(0,10)});
-  if(hist.length>10)hist=hist.slice(-10);
-  db.costRefs[name]={shoeCost:shoeCost,customFee:customFee,supplier:old?old.supplier||'':'',updatedAt:new Date().toISOString().slice(0,10),history:hist};
-  // Apply to all sales in all weekly bills
-  (db.finance.weeklyBills||[]).forEach(function(bill){
-    (bill.sales||[]).forEach(function(sale){
-      if(sale.name===name){sale.cost=shoeCost;sale.custom=customFee;sale.profit=sale.income-shoeCost-customFee-47;sale.rate=sale.price>0?sale.profit/sale.price*100:0;}
-    });
-  });
-  saveDB(db);toast(name+' 成本已更新并保存');
-}
-
-function renderFinSummary() {
-  const db = getDB(); const bills = db.finance.weeklyBills||[]; if (bills.length===0) return;
-  const ledger = db.finance.ledger||[];
-  const totalRev = bills.reduce((s,b)=>s+(b.summary.revenue||0),0);
-  const totalProfit = bills.reduce((s,b)=>s+(b.summary.profit||0),0);
-  const totalIn = ledger.filter(i=>i.amount>0).reduce((s,i)=>s+i.amount,0);
-  const totalOut = Math.abs(ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
-  const avgRet = bills.reduce((s,b)=>s+(b.summary.returnRate||0),0)/bills.length;
-  const netCash = totalIn - totalOut;
-  const profitMargin = totalRev>0?(totalProfit/totalRev*100):0;
-  const costRatio = totalRev>0?((totalRev*0.8-totalProfit)/totalRev*100):0;
-  // Weekly burn rate
-  const weeks = bills.length||1;
-  const weeklyBurn = totalOut/weeks;
-  const runway = netCash>0?'充裕':weeklyBurn>0?Math.abs(netCash)/weeklyBurn:'--';
-
-  // Split cash flow: bills income, other income, biz expense, personal, debt
-  var billsIncome = bills.reduce(function(s,b){ return s + (b.summary.netIncome||0); }, 0);
-  var otherIncome = ledger.filter(function(i){ return i.cat === '其他收入'; }).reduce(function(s,i){ return s + Math.abs(i.amount); }, 0);
-  var bizIn = billsIncome + otherIncome;
-  var bizCats = ['原鞋','推广','设计','材料','邮费','平台','工作室','其他支出'];
-  var bizOut = Math.abs(ledger.filter(function(i){ return i.amount < 0 && bizCats.indexOf(i.cat) >= 0; }).reduce(function(s,i){ return s + i.amount; }, 0));
-  var personalOut = Math.abs(ledger.filter(function(i){ return i.cat === '个人消费'; }).reduce(function(s,i){ return s + i.amount; }, 0));
-  var debtOut = Math.abs(ledger.filter(function(i){ return i.cat === '还款债务'; }).reduce(function(s,i){ return s + i.amount; }, 0));
-  var bizCash = bizIn - bizOut;
-  var personalCash = -personalOut;
-  var debtCash = -debtOut;
-
-  document.getElementById('finSummaryKPIs').innerHTML =
-    '<div class="kpi-card"><div class="kpi-label">累计销售额</div><div class="kpi-value">¥' + totalRev.toLocaleString() + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">累计利润</div><div class="kpi-value" style="color:' + (totalProfit >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + totalProfit.toLocaleString() + '</div><div class="kpi-sub">利润率 ' + profitMargin.toFixed(1) + '%</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">经营现金流</div><div class="kpi-value" style="color:' + (bizCash >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + bizCash.toLocaleString() + '</div><div class="kpi-sub">入¥' + bizIn.toLocaleString() + ' / 出¥' + bizOut.toLocaleString() + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">私人消费</div><div class="kpi-value" style="color:var(--red);">¥' + personalOut.toLocaleString() + '</div><div class="kpi-sub">个人消费支出</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">公司债务</div><div class="kpi-value" style="color:var(--orange);">¥' + debtOut.toLocaleString() + '</div><div class="kpi-sub">还款债务累计</div></div>';
-  // Compare table with more columns
-  document.getElementById('finCompareBody').innerHTML = `
-    <tr><td><b>销售额</b></td>${bills.map(b=>`<td>¥${b.summary.revenue.toLocaleString()}</td>`).join('')}<td>¥${totalRev.toLocaleString()}</td></tr>
-    <tr><td><b>利润</b></td>${bills.map(b=>`<td style="color:${b.summary.profit>=0?'var(--green)':'var(--red)'}">¥${b.summary.profit.toLocaleString()}</td>`).join('')}<td style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">¥${totalProfit.toLocaleString()}</td></tr>
-    <tr><td><b>利润率</b></td>${bills.map(b=>`<td>${b.summary.profitRate.toFixed(1)}%</td>`).join('')}<td>${profitMargin.toFixed(1)}%</td></tr>
-    <tr><td><b>订单/退货</b></td>${bills.map(b=>`<td>${b.summary.orders}/${b.summary.returns}</td>`).join('')}<td>--</td></tr>
-    <tr><td><b>退货率</b></td>${bills.map(b=>`<td>${b.summary.returnRate.toFixed(1)}%</td>`).join('')}<td>${avgRet.toFixed(1)}%</td></tr>
-    <tr><td><b>到手收入</b></td>${bills.map(b=>`<td>¥${b.summary.netIncome.toLocaleString()}</td>`).join('')}<td>--</td></tr>
-    <tr><td><b>平台费</b></td>${bills.map(b=>`<td>¥${b.summary.platformFee.toLocaleString()}</td>`).join('')}<td>--</td></tr>
-  `;
-  renderChart('chartFinWeeklyProfit',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:bills.map(b=>b.label)},yAxis:{type:'value'},series:[{name:'利润',type:'bar',data:bills.map(b=>b.summary.profit),itemStyle:{color:params=>params.value>=0?'#34c759':'#ff3b30'},barMaxWidth:35,label:{show:true,position:'top',formatter:'¥{c}'}}]});
-  // Cash flow waterfall
-  const cfData=[{name:'销售额',value:totalRev,color:'#3370ff'},{name:'平台费(-20%)',value:-totalRev*0.2,color:'#ff9500'},{name:'原鞋成本(估)',value:-totalRev*0.45,color:'#ff3b30'},{name:'定制/固定成本',value:-totalRev*0.2,color:'#af52de'},{name:'净利润',value:totalProfit,color:totalProfit>=0?'#34c759':'#ff3b30'}];
-  renderChart('chartFinMonthly',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},xAxis:{type:'category',data:cfData.map(d=>d.name),axisLabel:{fontSize:9}},yAxis:{type:'value'},series:[{name:'金额',type:'bar',data:cfData.map(d=>d.value),itemStyle:{color:params=>cfData[params.dataIndex].color},barMaxWidth:35,label:{show:true,position:'top',formatter:'¥{c}'}}]});
-  document.getElementById('finSummaryReport').innerHTML = `<b>📊 财务健康诊断：</b><br>
-    利润率 ${profitMargin.toFixed(1)}%（${profitMargin>=10?'🟢 健康':profitMargin>=5?'🟡 偏低':'🔴 危险'}）<br>
-    成本率 ${costRatio.toFixed(1)}%（含平台佣金+原鞋+定制+固定成本）<br>
-    退货率 ${avgRet.toFixed(1)}%（${avgRet<=15?'🟢 正常':'🔴 超标'}）<br>
-    周均支出 ¥${weeklyBurn.toFixed(0)} · 资金跑道 ${typeof runway==='string'?runway:runway.toFixed(1)+'周'}<br>
-    ${netCash<0?'<b style="color:var(--red);">⚠ 现金流为负，支出超过收入，需要控制成本或增加销售</b>':'🟢 现金流为正，运营健康'}`;
-}
-
-function renderCostRefs(){
-  const db=getDB();if(!db.costRefs)db.costRefs={};
-  const refs=Object.entries(db.costRefs);
-  var thead=document.querySelector('#costRefHead');
-  if(thead)thead.innerHTML='<tr><th>产品名</th><th>主货号</th><th>辅助货号</th><th>工艺</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>更新</th><th>操作</th></tr>';
-  var tbody=document.getElementById('costRefBody');
-  tbody.innerHTML='';
-  if(refs.length===0){
-    tbody.innerHTML='<tr><td colspan=9 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「＋ 添加成本」或「🔄 从账单提取」</td></tr>';
-    document.getElementById('costRefCount').textContent='0 个产品';
-    return;
-  }
-  refs.sort(function(a,b){ return a[0].localeCompare(b[0]); });
-  refs.forEach(function(e){
-    var name=e[0], cr=e[1];
-    if(!cr.subSkus)cr.subSkus=[];
-    if(!cr.history)cr.history=[];
-    var skuList=cr.subSkus.map(function(s){ return '<div style="font-size:9px;padding:1px 0;">'+s.code+': ¥'+s.cost+(s.supplier?' ('+s.supplier+')':'')+' <span style="cursor:pointer;color:var(--red);" onclick="deleteSubSku(\''+name+'\',\''+s.code+'\')">✕</span></div>'; }).join('');
-    var histTitle=cr.history.map(function(h){ return h.date+': '+h.field+' '+h.old+'→'+h.new; }).join('\n');
-    var tr=document.createElement('tr');
-    tr.innerHTML='<td><b>'+name+'</b>'+(histTitle?' <span style="font-size:9px;color:var(--text3);cursor:help;" title="'+histTitle.replace(/"/g,'&quot;')+'">📋'+cr.history.length+'</span>':'')+'</td><td style="font-size:10px;font-family:monospace;">'+(cr.mainSku||'--')+'</td><td>'+skuList+'<button class="btn btn-outline btn-sm" onclick="addSubSku(\''+name+'\')" style="padding:0 4px;font-size:9px;margin-top:2px;">+ 辅助货号</button></td><td>'+(cr.craftType||'--')+'</td><td></td><td></td><td></td><td></td><td></td>';
+    return '<tr><td>'+p.date+'</td><td><b>'+p.name+'</b></td><td style="font-size:10px;font-family:monospace;"><input value="'+(cr.mainSku||'')+'" onchange="updateCostRef(\''+name+'\',\'mainSku\',this.value)" style="width:85px;padding:2px 4px;font-size:9px;font-family:monospace;" placeholder="主货号"></td><td>'+skuList+'<button class="btn btn-outline btn-sm" onclick="addSubSku(\''+name+'\')" style="padding:0 4px;font-size:9px;margin-top:2px;">+ 辅助货号</button></td><td>'+(cr.craftType||'--')+'</td><td></td><td></td><td></td><td></td><td></td>';
     var shoeInput=document.createElement('input');
     shoeInput.type='number';shoeInput.value=cr.shoeCost||0;shoeInput.style.cssText='width:80px;padding:3px 5px;font-size:11px;text-align:center;';
     shoeInput.onchange=function(){updateCostRef(name,'shoeCost',parseFloat(this.value)||0);};
@@ -2286,7 +1682,7 @@ function autoFillCostRefs(){
       db.costRefs[proc.name]={shoeCost:proc.unitPrice,customFee:0,supplier:proc.supplier||'',updatedAt:proc.date,history:[]};
     }
   });
-  saveDB(db);renderCostRefs();toast('已提取 '+Object.keys(db.costRefs).length+' 条成本基准');
+    (db.products||[]).forEach(function(p){if(p.name&&p.code&&db.costRefs[p.name]&&!db.costRefs[p.name].mainSku){var sku=(p.code||'').replace(/\(Team901-[^)]+\)/,'').trim().split(',')[0].trim();if(sku)db.costRefs[p.name].mainSku=sku;}});saveDB(db);renderCostRefs();toast('已提取 '+Object.keys(db.costRefs).length+' 条成本基准');
 }
 
 function uploadFinanceWorkbench() {
@@ -2350,6 +1746,42 @@ function callClaudeAPI(systemPrompt, userMessage, callback){
     callback(e.message,null);
   });
 }
+
+function toggleAIDialog(){
+  var d=document.getElementById('aiDialog');
+  d.style.display=d.style.display==='flex'?'none':'flex';
+}
+function aiDialogQuick(type){
+  document.getElementById('aiDialogResult').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);">AI 分析中...</div>';
+  var db=getDB();var bills=db.finance.weeklyBills||[];
+  var ledger=db.finance.ledger||[];
+  var products=db.products||[];
+  var systemPrompt='你是六六八八定制球鞋店的经营顾问。简洁直接，给可执行建议。';
+  var prompt='';
+  if(type==='weekly'){
+    if(bills.length===0){ document.getElementById('aiDialogResult').innerHTML='需要先导入周账单'; return; }
+    var last=bills[bills.length-1];
+    prompt='本周数据：销售额¥'+last.summary.revenue+' 利润¥'+last.summary.profit+' 利润率'+last.summary.profitRate+'% 订单'+last.summary.orders+' 退货'+last.summary.returns+'('+last.summary.returnRate+'%)。请用2-3句话诊断并给建议。';
+  }else if(type==='cash'){
+    var totalIn=ledger.filter(function(i){return i.amount>0;}).reduce(function(s,i){return s+i.amount;},0);
+    var totalOut=Math.abs(ledger.filter(function(i){return i.amount<0;}).reduce(function(s,i){return s+i.amount;},0));
+    var debt=Math.abs(ledger.filter(function(i){return i.cat==='还款债务';}).reduce(function(s,i){return s+i.amount;},0));
+    prompt='现金流：入¥'+totalIn+' 出¥'+totalOut+' 净¥'+(totalIn-totalOut)+' 累计还债¥'+debt+'。请判断健康度并给建议。';
+  }else if(type==='product'){
+    var loss=products.filter(function(p){return(p._billProfit||0)<0;});
+    var top=products.slice().sort(function(a,b){return(b._billProfit||0)-(a._billProfit||0);}).slice(0,3);
+    prompt='产品：共'+products.length+'个，亏损'+loss.length+'个，TOP3利润：'+top.map(function(p){return p.name+'¥'+Math.round(p._billProfit||0);}).join('、')+'。请给组合建议。';
+  }else{
+    prompt=document.getElementById('aiDialogPrompt').value;
+    if(!prompt.trim())return;
+    document.getElementById('aiDialogPrompt').value='';
+  }
+  callClaudeAPI(systemPrompt,prompt,function(err,text){
+    if(err){document.getElementById('aiDialogResult').innerHTML='<span style="color:var(--red);">API错误: '+err+'</span>';return;}
+    document.getElementById('aiDialogResult').innerHTML=text.replace(/\n/g,'<br>');
+  });
+}
+
 function quickAnalysis(type){
   var db=getDB();var bills=db.finance.weeklyBills||[];
   var ledger=db.finance.ledger||[];
@@ -3026,5 +2458,34 @@ s1.onerror=function(){console.warn('ECharts CDN failed');};document.head.appendC
 var s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
 s2.onerror=function(){console.warn('SheetJS CDN failed');};document.head.appendChild(s2);
 </script>
+
+<style>
+.ai-float{position:fixed;bottom:24px;right:24px;z-index:9998;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(102,126,234,0.4);display:flex;align-items:center;justify-content:center;transition:transform 0.2s;}
+.ai-float:hover{transform:scale(1.1);}
+.ai-dialog{position:fixed;bottom:90px;right:24px;width:400px;max-height:550px;background:#fff;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.2);z-index:9999;display:none;flex-direction:column;overflow:hidden;}
+.ai-dialog-header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 16px;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center;}
+.ai-dialog-body{flex:1;overflow-y:auto;padding:12px;}
+.ai-dialog-input{padding:10px;border-top:1px solid #eee;display:flex;gap:6px;}
+.ai-dialog-input input{flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:20px;font-size:12px;outline:none;}
+@media(max-width:480px){.ai-dialog{width:calc(100vw-32px);right:16px;bottom:80px;max-height:60vh;}}
+</style>
+<button class="ai-float" onclick="toggleAIDialog()" title="AI 决策助手">🤖</button>
+<div class="ai-dialog" id="aiDialog">
+  <div class="ai-dialog-header"><span>🤖 AI 决策助手</span><span style="cursor:pointer;font-size:18px;" onclick="toggleAIDialog()">✕</span></div>
+  <div class="ai-dialog-body" id="aiDialogBody">
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">快捷分析：</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+      <button class="btn btn-primary btn-sm" onclick="aiDialogQuick('weekly')" style="font-size:10px;">📊 本周诊断</button>
+      <button class="btn btn-outline btn-sm" onclick="aiDialogQuick('cash')" style="font-size:10px;">💳 现金流</button>
+      <button class="btn btn-outline btn-sm" onclick="aiDialogQuick('product')" style="font-size:10px;">👟 产品分析</button>
+    </div>
+    <div id="aiDialogResult" style="font-size:12px;line-height:1.8;"></div>
+  </div>
+  <div class="ai-dialog-input">
+    <input type="text" id="aiDialogPrompt" placeholder="输入问题，回车发送..." onkeydown="if(event.key==='Enter')aiDialogQuick('free')">
+    <button class="btn btn-primary btn-sm" onclick="aiDialogQuick('free')" style="border-radius:20px;">发送</button>
+  </div>
+</div>
+
 </body>
 </html>
