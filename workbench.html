@@ -474,6 +474,7 @@ tr:hover td{background:#fafcfd}
         <span style="flex:1;"></span>
         <button class="btn btn-outline btn-sm" onclick="addCostRef()">＋ 添加成本</button>
         <button class="btn btn-outline btn-sm" onclick="autoFillCostRefs()">🔄 从账单提取</button>
+        <button class="btn btn-outline btn-sm" onclick="showCraftLibrary()">🔧 工艺库</button>
       </div>
       <div id="costRefsView" class="fin-view active">
         <div class="card"><div class="table-wrap"><table><thead id="costRefHead"><tr><th>产品名</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>最后更新</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div></div>
@@ -1442,6 +1443,15 @@ function regenerateProducts(db){
 // ============================================================
 let currentFinTab='ledger';
 let currentCostTab='refs';
+var craftLibrary={
+  '手绘涂鸦（标准）':{fee:50,materials:'丙烯颜料,勾线笔',timeMin:180},
+  '手绘涂鸦（复杂）':{fee:80,materials:'丙烯颜料,勾线笔,保护漆',timeMin:240},
+  '泼墨做旧':{fee:30,materials:'丙烯颜料',timeMin:60},
+  '贴钻装饰':{fee:40,materials:'水钻,胶水',timeMin:90},
+  '渐变染色':{fee:55,materials:'染料,定色剂',timeMin:150},
+  '3D立体涂鸦':{fee:100,materials:'立体颜料,模具',timeMin:300},
+  '字母定制':{fee:20,materials:'刻字模板,颜料',timeMin:30},
+};
 function switchCostTab(t){
   currentCostTab=t;
   document.querySelectorAll('#sec-cost .fin-view').forEach(function(v){ v.classList.remove('active'); });
@@ -1466,11 +1476,19 @@ function addProcurement(){
     name:name,code:code,quantity:qty,unitPrice:price,
     totalAmount:qty*price,supplier:supplier,note:note
   });
-  // Auto-update costRefs if no existing cost
+  // Auto-update costRefs + cost increase alert
   if(!db.costRefs)db.costRefs={};
-  if(!db.costRefs[name]||db.costRefs[name].shoeCost===0){
-    if(!db.costRefs[name])db.costRefs[name]={shoeCost:price,customFee:0,supplier:supplier,updatedAt:new Date().toISOString().slice(0,10),history:[]};
+  var cr=db.costRefs[name];
+  if(!cr){cr=db.costRefs[name]={shoeCost:price,customFee:0,supplier:supplier,updatedAt:new Date().toISOString().slice(0,10),history:[],subSkus:[]};}
+  if(cr.shoeCost>0&&price>cr.shoeCost*1.05){
+    var pct=((price-cr.shoeCost)/cr.shoeCost*100).toFixed(1);
+    if(!confirm('⚠️ 成本上涨预警\n\n'+name+' 采购价从 ¥'+cr.shoeCost+' 上涨至 ¥'+price+'\n涨幅 '+pct+'%，超过5%阈值\n\n是否更新成本基准为 ¥'+price+'？\n\n（点「取消」保持原成本不变）')){
+      saveDB(db);renderProcurements();toast('采购已记录（成本未更新）');return;
+    }
   }
+  cr.shoeCost=price;cr.supplier=supplier;cr.updatedAt=new Date().toISOString().slice(0,10);
+  if(!cr.history)cr.history=[];
+  cr.history.push({field:'shoeCost',old:cr.shoeCost,new:price,date:new Date().toISOString().slice(0,10)});
   saveDB(db);renderProcurements();toast('采购已记录');
 }
 function deleteProcurement(id){
@@ -2104,37 +2122,39 @@ function renderFinSummary() {
 function renderCostRefs(){
   const db=getDB();if(!db.costRefs)db.costRefs={};
   const refs=Object.entries(db.costRefs);
-  const tbody=document.getElementById('costRefBody');
-  // Update table header
-  var thead=document.querySelector('#costRefBody').parentNode.querySelector('thead');
-  if(thead)thead.innerHTML='<tr><th>产品名</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>最后更新</th><th>操作</th></tr>';
+  var thead=document.querySelector('#costRefHead');
+  if(thead)thead.innerHTML='<tr><th>产品名</th><th>主货号</th><th>辅助货号</th><th>工艺</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>更新</th><th>操作</th></tr>';
+  var tbody=document.getElementById('costRefBody');
   tbody.innerHTML='';
   if(refs.length===0){
-    tbody.innerHTML='<tr><td colspan=6 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「🔄 从已有数据提取」或「＋ 添加」</td></tr>';
+    tbody.innerHTML='<tr><td colspan=9 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「＋ 添加成本」或「🔄 从账单提取」</td></tr>';
+    document.getElementById('costRefCount').textContent='0 个产品';
     return;
   }
   refs.sort(function(a,b){ return a[0].localeCompare(b[0]); });
   refs.forEach(function(e){
-    var name=e[0], c=e[1];
-    var hist=c.history||[];
-    var histTitle=hist.map(function(h){ return h.date+': '+h.field+' '+h.old+'→'+h.new; }).join('\n');
+    var name=e[0], cr=e[1];
+    if(!cr.subSkus)cr.subSkus=[];
+    if(!cr.history)cr.history=[];
+    var skuList=cr.subSkus.map(function(s){ return '<div style="font-size:9px;padding:1px 0;">'+s.code+': ¥'+s.cost+(s.supplier?' ('+s.supplier+')':'')+' <span style="cursor:pointer;color:var(--red);" onclick="deleteSubSku(\''+name+'\',\''+s.code+'\')">✕</span></div>'; }).join('');
+    var histTitle=cr.history.map(function(h){ return h.date+': '+h.field+' '+h.old+'→'+h.new; }).join('\n');
     var tr=document.createElement('tr');
-    tr.innerHTML='<td><b>'+name+'</b>'+(histTitle?' <span style="font-size:9px;color:var(--text3);cursor:help;" title="'+histTitle.replace(/"/g,'&quot;')+'">📋'+hist.length+'</span>':'')+'</td><td></td><td></td><td></td><td></td><td></td>';
+    tr.innerHTML='<td><b>'+name+'</b>'+(histTitle?' <span style="font-size:9px;color:var(--text3);cursor:help;" title="'+histTitle.replace(/"/g,'&quot;')+'">📋'+cr.history.length+'</span>':'')+'</td><td style="font-size:10px;font-family:monospace;">'+(cr.mainSku||'--')+'</td><td>'+skuList+'<button class="btn btn-outline btn-sm" onclick="addSubSku(\''+name+'\')" style="padding:0 4px;font-size:9px;margin-top:2px;">+ 辅助货号</button></td><td>'+(cr.craftType||'--')+'</td><td></td><td></td><td></td><td></td><td></td>';
     var shoeInput=document.createElement('input');
-    shoeInput.type='number';shoeInput.value=c.shoeCost||0;shoeInput.style.cssText='width:85px;padding:3px 5px;font-size:11px;text-align:center;';
+    shoeInput.type='number';shoeInput.value=cr.shoeCost||0;shoeInput.style.cssText='width:80px;padding:3px 5px;font-size:11px;text-align:center;';
     shoeInput.onchange=function(){updateCostRef(name,'shoeCost',parseFloat(this.value)||0);};
-    tr.children[1].appendChild(shoeInput);
+    tr.children[4].appendChild(shoeInput);
     var customInput=document.createElement('input');
-    customInput.type='number';customInput.value=c.customFee||0;customInput.style.cssText='width:85px;padding:3px 5px;font-size:11px;text-align:center;';
+    customInput.type='number';customInput.value=cr.customFee||0;customInput.style.cssText='width:80px;padding:3px 5px;font-size:11px;text-align:center;';
     customInput.onchange=function(){updateCostRef(name,'customFee',parseFloat(this.value)||0);};
-    tr.children[2].appendChild(customInput);
-    tr.children[3].textContent=c.supplier||'--';
-    tr.children[4].textContent=c.updatedAt||'--';
-    tr.children[4].style.cssText='font-size:10px;color:var(--text3);';
+    tr.children[5].appendChild(customInput);
+    tr.children[6].textContent=cr.supplier||'--';
+    tr.children[7].textContent=cr.updatedAt||'--';
+    tr.children[7].style.cssText='font-size:10px;color:var(--text3);';
     var delBtn=document.createElement('button');
     delBtn.className='btn btn-danger btn-sm';delBtn.textContent='✕';delBtn.style.cssText='padding:2px 8px;font-size:10px;';
     delBtn.onclick=function(){deleteCostRef(name);};
-    tr.children[5].appendChild(delBtn);
+    tr.children[8].appendChild(delBtn);
     tbody.appendChild(tr);
   });
   document.getElementById('costRefCount').textContent=refs.length+' 个产品';
@@ -2155,17 +2175,78 @@ function updateCostRef(name,field,val){
 
 function addCostRef(){
   const name=prompt('产品名：');if(!name)return;
+  const mainSku=prompt('主货号（可选）：','')||'';
   const shoe=parseFloat(prompt('原鞋成本（元）：','0'))||0;
   const custom=parseFloat(prompt('定制费（元）：','0'))||0;
+  const craftType=prompt('定制工艺（可选，如：手绘涂鸦）：','')||'';
   const supplier=prompt('供应商（可选）：','')||'';
   const db=getDB();if(!db.costRefs)db.costRefs={};
-  db.costRefs[name]={shoeCost:shoe,customFee:custom,supplier:supplier,updatedAt:new Date().toISOString().slice(0,10),history:[]};
+  db.costRefs[name]={shoeCost:shoe,customFee:custom,mainSku:mainSku,craftType:craftType,supplier:supplier,subSkus:[],updatedAt:new Date().toISOString().slice(0,10),history:[]};
   saveDB(db);renderCostRefs();toast('已添加 '+name);
+}
+function addSubSku(name){
+  const db=getDB();if(!db.costRefs||!db.costRefs[name]){toast('请先添加产品');return;}
+  const code=prompt('辅助货号：');if(!code)return;
+  const cost=parseFloat(prompt('采购价（元）：','0'))||0;
+  const supplier=prompt('供应商：','')||'';
+  var cr=db.costRefs[name];if(!cr.subSkus)cr.subSkus=[];
+  cr.subSkus.push({code:code,cost:cost,supplier:supplier,date:new Date().toISOString().slice(0,10)});
+  // Sort by cost (lowest first = default priority)
+  cr.subSkus.sort(function(a,b){ return a.cost-b.cost; });
+  // If this subSku is cheaper, use it as default shoeCost
+  if(cr.subSkus[0].cost<cr.shoeCost||cr.shoeCost===0){
+    cr.shoeCost=cr.subSkus[0].cost;
+    cr.supplier=cr.subSkus[0].supplier;
+  }
+  cr.updatedAt=new Date().toISOString().slice(0,10);
+  saveDB(db);renderCostRefs();toast('辅助货号已添加');
+}
+function deleteSubSku(name,code){
+  if(!confirm('删除辅助货号 '+code+' ？'))return;
+  var db=getDB();var cr=db.costRefs[name];if(!cr)return;
+  cr.subSkus=(cr.subSkus||[]).filter(function(s){ return s.code!==code; });
+  // Recalculate lowest cost
+  if(cr.subSkus.length>0){cr.subSkus.sort(function(a,b){ return a.cost-b.cost; });cr.shoeCost=cr.subSkus[0].cost;}
+  cr.updatedAt=new Date().toISOString().slice(0,10);
+  saveDB(db);renderCostRefs();toast('已删除');
 }
 
 function deleteCostRef(name){
   if(!confirm('删除 '+name+' 的成本基准？'))return;
   const db=getDB();delete db.costRefs[name];saveDB(db);renderCostRefs();
+}
+function showCraftLibrary(){
+  var db=getDB();if(!db.crafts)db.crafts=JSON.parse(JSON.stringify(craftLibrary));
+  var crafts=db.crafts;
+  var h='<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;"><div style="background:#fff;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;"><h3 style="margin:0 0 12px;">🔧 定制工艺库</h3>';
+  h+='<table style="width:100%;font-size:12px;"><thead><tr><th>工艺名称</th><th>标准费(元)</th><th>耗材</th><th>耗时(分)</th><th>操作</th></tr></thead><tbody>';
+  Object.entries(crafts).forEach(function(e){
+    var k=e[0],v=e[1];
+    h+='<tr><td><input value="'+k+'" onchange="updateCraftField(\''+k+'\',\'name\',this.value)" style="width:130px;padding:3px 5px;font-size:11px;"></td><td><input type="number" value="'+v.fee+'" onchange="updateCraftField(\''+k+'\',\'fee\',parseFloat(this.value)||0)" style="width:70px;padding:3px 5px;font-size:11px;"></td><td><input value="'+(v.materials||'')+'" onchange="updateCraftField(\''+k+'\',\'materials\',this.value)" style="width:140px;padding:3px 5px;font-size:11px;"></td><td><input type="number" value="'+v.timeMin+'" onchange="updateCraftField(\''+k+'\',\'timeMin\',parseInt(this.value)||0)" style="width:60px;padding:3px 5px;font-size:11px;"></td><td><button class="btn btn-danger btn-sm" onclick="deleteCraft(\''+k+'\');showCraftLibrary();" style="padding:1px 6px;font-size:10px;">✕</button></td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='<div style="margin-top:10px;display:flex;gap:8px;"><button class="btn btn-primary btn-sm" onclick="addCraft();showCraftLibrary();">＋ 新工艺</button><button class="btn btn-outline btn-sm" onclick="document.getElementById(\'craftDialog\').remove();">关闭</button></div></div></div>';
+  var d=document.createElement('div');d.id='craftDialog';d.innerHTML=h;
+  document.body.appendChild(d);
+}
+function updateCraftField(name,field,val){
+  var db=getDB();if(!db.crafts)db.crafts=JSON.parse(JSON.stringify(craftLibrary));
+  if(field==='name'&&val!==name){db.crafts[val]=db.crafts[name];delete db.crafts[name];}
+  else{db.crafts[name][field]=val;}
+  saveDB(db);
+}
+function addCraft(){
+  var name=prompt('工艺名称：');if(!name)return;
+  var fee=parseFloat(prompt('标准定制费（元）：','50'))||0;
+  var materials=prompt('常用耗材（逗号分隔）：','')||'';
+  var timeMin=parseInt(prompt('预估耗时（分钟）：','120'))||120;
+  var db=getDB();if(!db.crafts)db.crafts=JSON.parse(JSON.stringify(craftLibrary));
+  db.crafts[name]={fee:fee,materials:materials,timeMin:timeMin};
+  saveDB(db);
+}
+function deleteCraft(name){
+  if(!confirm('删除工艺 '+name+' ？'))return;
+  var db=getDB();delete db.crafts[name];saveDB(db);
 }
 
 function autoFillCostRefs(){
@@ -2495,11 +2576,14 @@ function renderProducts() {
     if (bp && bp.totalOrders > 0) {
       p._billProfit = bp.totalProfit; p._billOrders = bp.totalOrders; p._billPPU = Math.round(bp.totalProfit / bp.totalOrders);
     } else {
-      // Fallback: try costRefs to estimate profit from SPU data
+      // Fallback: try costRefs (with subSku lowest cost priority)
       var cr = costRefs[p.name];
       if (cr && p.orders > 0 && p.totalSales > 0) {
+        var bestCost=cr.shoeCost||0;
+        // Check subSkus for lower cost
+        if(cr.subSkus&&cr.subSkus.length>0){bestCost=cr.subSkus[0].cost;}
         var estIncome = p.totalSales * 0.8;
-        var estCost = (cr.shoeCost||0) + (cr.customFee||0) + 47;
+        var estCost = bestCost + (cr.customFee||0) + 47;
         p._billPPU = Math.round(estIncome / p.orders - estCost);
         p._billProfit = Math.round(estIncome - estCost * p.orders);
         p._billOrders = p.orders;
