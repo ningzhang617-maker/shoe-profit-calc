@@ -2741,6 +2741,7 @@ window.addEventListener('resize',()=>{['homeChart','chartDashSales','chartDashRa
 try{
 initDefaultDataWorkbench();
 migrateBills();
+autoFillCostRefs();
 renderHome();
 updateTime();
 var lm=document.getElementById('loadingMsg');if(lm)lm.style.display='none';
