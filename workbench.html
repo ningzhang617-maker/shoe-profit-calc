@@ -1162,6 +1162,18 @@ function renderDashProducts() {
     });
   }
   let products=getFilteredProducts(periods, 'prodPeriodFilter');
+  // Aggregate by shortName (merge same product across periods)
+  var merged={};
+  products.forEach(function(p){
+    var key=p.shortName||p.code||'unknown';
+    if(!merged[key]){merged[key]={code:p.code,brand:p.brand,shortName:p.shortName,payment:0,orders:0,visitors:0,favorites:0,returnQty:0,priceRange:p.priceRange};}
+    merged[key].payment+=p.payment||0;
+    merged[key].orders+=p.orders||0;
+    merged[key].visitors+=p.visitors||0;
+    merged[key].favorites+=p.favorites||0;
+    merged[key].returnQty+=p.returnQty||0;
+  });
+  products=Object.values(merged);
   // Sort (handle both numbers and strings)
   if (dashSortField==='shortName'||dashSortField==='brand'||dashSortField==='code'){
     products.sort((a,b)=>String(a[dashSortField]||'').localeCompare(String(b[dashSortField]||''),'zh'));
@@ -1175,7 +1187,8 @@ function renderDashProducts() {
   document.getElementById('dashProductDetailBody').innerHTML=products.slice(0,80).map(p=>{
     const ppu=getPPU(p);const grade=getGrade(p);
     const code=(p.code||'').replace(/\(Team901-[^)]+\)/,'').trim();
-    return '<tr><td style="font-size:11px;font-family:monospace;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+(p.code||'')+'">'+(p.code||'--')+'</td><td><b>'+(p.shortName||'--')+'</b></td><td>'+(p.brand||'--')+'</td><td><span class="tag '+(grade==='S'?'tag-green':grade==='A'?'tag-blue':'tag-yellow')+'">'+(grade!=='--'?grade+'级':'--')+'</span></td><td>¥'+(p.payment||0).toLocaleString()+'</td><td>'+(p.orders||0)+'</td><td>'+(p.visitors||0).toLocaleString()+'</td><td>'+(p.conversion||0).toFixed(2)+'%</td><td>'+(p.favorites||0)+'</td><td>'+(p.returnQty||0)+'</td><td style="color:'+(ppu>=0?'var(--green)':'var(--red)')+';">'+(ppu?'¥'+ppu:'--')+'</td><td><span class="tag '+(p.orders>0?'tag-green':'tag-red')+'">'+(p.orders>0?'有销售':'无销售')+'</span></td></tr>';}).join('');
+    const conv=p.visitors>0?(p.orders/p.visitors*100):0;
+    return '<tr><td style=\"font-size:11px;font-family:monospace;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\" title=\"'+(p.code||'')+'\">'+(p.code||'--')+'</td><td><b>'+(p.shortName||'--')+'</b></td><td>'+(p.brand||'--')+'</td><td><span class=\"tag '+(grade==='S'?'tag-green':grade==='A'?'tag-blue':'tag-yellow')+'\">'+(grade!=='--'?grade+'级':'--')+'</span></td><td>¥'+(p.payment||0).toLocaleString()+'</td><td>'+(p.orders||0)+'</td><td>'+(p.visitors||0).toLocaleString()+'</td><td>'+conv.toFixed(2)+'%</td><td>'+(p.favorites||0)+'</td><td>'+(p.returnQty||0)+'</td><td style=\"color:'+(ppu>=0?'var(--green)':'var(--red)')+';\">'+(ppu?'¥'+ppu:'--')+'</td><td><span class=\"tag '+(p.orders>0?'tag-green':'tag-red')+'\">'+(p.orders>0?'有销售':'无销售')+'</span></td></tr>';}).join('');
 }
 
 function analyzeCurrentView(){
