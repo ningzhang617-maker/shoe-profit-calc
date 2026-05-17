@@ -1162,10 +1162,6 @@ function renderDashProducts() {
     });
   }
   let products=getFilteredProducts(periods, 'prodPeriodFilter');
-  // Deduplicate by shortName
-  const seen={};const dedup=[];
-  products.forEach(x=>{if(!seen[x.shortName]){seen[x.shortName]=true;dedup.push(x);}});
-  products=dedup;
   // Sort (handle both numbers and strings)
   if (dashSortField==='shortName'||dashSortField==='brand'||dashSortField==='code'){
     products.sort((a,b)=>String(a[dashSortField]||'').localeCompare(String(b[dashSortField]||''),'zh'));
