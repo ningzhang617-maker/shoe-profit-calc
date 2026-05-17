@@ -455,7 +455,7 @@ tr:hover td{background:#fafcfd}
         <button class="btn btn-outline btn-sm" onclick="addProduct()">＋ 添加</button>
         <span style="font-size:12px;color:var(--text3);" id="prodCount"></span>
       </div>
-      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
+      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th>📸穿搭</th><th>📝详情</th><th>📢推广</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
       <div id="prodPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div>
       <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.8;">
         <b>📊 评级算法：</b>综合评分 = 订单(40%) + 转化率(30%) + 收藏率(20%) + 销售额(10%) ·
@@ -2194,6 +2194,19 @@ function sortProducts(field) {
   renderProducts();
 }
 function goProdPage(n) { prodPage = n; renderProducts(); }
+function toggleOpsStatus(pid, field) {
+  var db=getDB(); var p=db.products.find(function(x){ return x.id===pid; });
+  if(!p) return;
+  if(!p._ops) p._ops={};
+  var cycle;
+  if (field==='dress') cycle=['none','done','optimized'];
+  else if (field==='detail') cycle=['none','optimized'];
+  else cycle=['none','active','paused'];
+  var cur=p._ops[field]||'none';
+  var next=cycle[(cycle.indexOf(cur)+1)%cycle.length];
+  p._ops[field]=next;
+  saveDB(db); renderProducts();
+}
 function getProductInsights(p, db) {
   // Returns array of {level:'danger'|'warn'|'info', text:'...'}
   var insights = [];
@@ -2404,10 +2417,22 @@ function renderProducts() {
       chips += '<span style="font-size:10px;display:inline-block;padding:1px 5px;border-radius:3px;margin-right:3px;'+icls+'">'+ins.text+'</span>';
     });
 
+    var ops=p._ops||{};
+    var dressLabels={none:'未铺',done:'已铺',optimized:'已优'};
+    var detailLabels={none:'待优',optimized:'已优'};
+    var promoLabels={none:'未推',active:'推广中',paused:'已停'};
+    var dressCls={none:'tag-gray',done:'tag-blue',optimized:'tag-green'};
+    var detailCls={none:'tag-gray',optimized:'tag-green'};
+    var promoCls={none:'tag-gray',active:'tag-green',paused:'tag-yellow'};
+    var drs=ops.dress||'none', dtl=ops.detail||'none', prm=ops.promo||'none';
+
     rows += '<tr style="'+rowBg+'">'+
       '<td><b>'+p.name+'</b><div style="margin-top:2px;">'+chips+'</div></td>'+
       '<td><span class="tag '+gradeCls+'">'+(p.grade||'?')+'级</span></td>'+
       '<td>'+(p.brand||'--')+'</td>'+
+      '<td><span class="tag '+dressCls[drs]+'" style="cursor:pointer;font-size:10px;" onclick="event.stopPropagation();toggleOpsStatus(\''+p.id+'\',\'dress\')" title="点击切换穿搭状态">'+dressLabels[drs]+'</span></td>'+
+      '<td><span class="tag '+detailCls[dtl]+'" style="cursor:pointer;font-size:10px;" onclick="event.stopPropagation();toggleOpsStatus(\''+p.id+'\',\'detail\')" title="点击切换详情页状态">'+detailLabels[dtl]+'</span></td>'+
+      '<td><span class="tag '+promoCls[prm]+'" style="cursor:pointer;font-size:10px;" onclick="event.stopPropagation();toggleOpsStatus(\''+p.id+'\',\'promo\')" title="点击切换推广状态">'+promoLabels[prm]+'</span></td>'+
       '<td>¥'+(p.totalSales||0).toLocaleString()+'</td>'+
       '<td>'+(p.orders||0)+'单 <span style="font-size:10px;color:'+trendColor+';">'+trendIcon+(p._trendChange!==0?Math.abs(p._trendChange):'')+'</span></td>'+
       '<td>'+(p.conversion||0).toFixed(1)+'%</td>'+
@@ -2419,7 +2444,7 @@ function renderProducts() {
       '</tr>';
   });
 
-  document.getElementById('prodBody').innerHTML = rows || '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:24px;">暂无匹配产品</td></tr>';
+  document.getElementById('prodBody').innerHTML = rows || '<tr><td colspan="14" style="text-align:center;color:var(--text3);padding:24px;">暂无匹配产品</td></tr>';
 
   // Pagination controls
   var pager = document.getElementById('prodPager');
