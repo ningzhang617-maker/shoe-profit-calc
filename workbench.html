@@ -226,7 +226,7 @@ tr:hover td{background:#fafcfd}
       <div class="card">
         <div class="card-title">✏️ 利润计算器</div>
         <div class="form-row">
-          <div><div class="form-label">商品名称</div><input type="text" id="calcName" placeholder="如：棉花喵喵"></div>
+          <div><div class="form-label">商品名称 <button class="btn btn-outline btn-sm" onclick="autoFillCostsFromDB()" title="从成本库自动填成本" style="padding:2px 6px;font-size:10px;">📋 填成本</button></div><input type="text" id="calcName" placeholder="如：棉花喵喵" onchange="autoFillCostsFromDB()"></div>
           <div><div class="form-label">货号</div><input type="text" id="calcCode" placeholder="如：DV5456-131"></div>
         </div>
         <div class="form-row">
@@ -1489,7 +1489,13 @@ function addProcurement(){
   cr.shoeCost=price;cr.supplier=supplier;cr.updatedAt=new Date().toISOString().slice(0,10);
   if(!cr.history)cr.history=[];
   cr.history.push({field:'shoeCost',old:cr.shoeCost,new:price,date:new Date().toISOString().slice(0,10)});
-  saveDB(db);renderProcurements();toast('采购已记录');
+    // Auto-create ledger entry
+  var days=['周日','周一','周二','周三','周四','周五','周六'];
+  var today=new Date();var dayStr=days[today.getDay()];
+  var startDate=new Date(2026,4,4);var diffDays=Math.floor((today-startDate)/86400000);
+  var week=Math.max(1,Math.floor(diffDays/7)+1);
+  db.finance.ledger.unshift({date:today.toISOString().slice(0,10),day:dayStr,cat:'原鞋',desc:'采购 '+name+' x'+qty,amount:-(qty*price),pay:supplier||'采购',note:'',week:week});
+  saveDB(db);renderProcurements();toast('采购已记录（已同步到记账流水）');
 }
 function deleteProcurement(id){
   if(!confirm('删除这条采购记录？'))return;
@@ -2179,6 +2185,15 @@ function addCostRef(){
   const shoe=parseFloat(prompt('原鞋成本（元）：','0'))||0;
   const custom=parseFloat(prompt('定制费（元）：','0'))||0;
   const craftType=prompt('定制工艺（可选，如：手绘涂鸦）：','')||'';
+  var db3=getDB();
+  if(craftType&&db3.crafts&&db3.crafts[craftType]&&(!custom||custom===0)){
+    custom=db3.crafts[craftType].fee;
+    if(confirm('工艺「'+craftType+'」标准定制费 ¥'+custom+'，是否使用？')){
+      // keep custom value from craft library
+    } else {
+      custom=parseFloat(prompt('请输入定制费（元）：','0'))||0;
+    }
+  }
   const supplier=prompt('供应商（可选）：','')||'';
   const db=getDB();if(!db.costRefs)db.costRefs={};
   db.costRefs[name]={shoeCost:shoe,customFee:custom,mainSku:mainSku,craftType:craftType,supplier:supplier,subSkus:[],updatedAt:new Date().toISOString().slice(0,10),history:[]};
