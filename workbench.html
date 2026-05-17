@@ -418,7 +418,7 @@ tr:hover td{background:#fafcfd}
         <div class="kpi-grid" id="finSummaryKPIs"></div>
         <div class="card">
           <div class="card-title">📋 产品成本基准 <span style="font-size:11px;color:var(--text3);">（财务和导入时自动引用，避免乱填）</span>
-            <button class="btn btn-outline btn-sm" onclick="addCostRef()" style="margin-left:8px;">＋ 添加</button>
+            <button class="btn btn-outline btn-sm" onclick="addCostRef()" style="margin-left:8px;">＋ 添加</button> <span style="font-size:11px;color:var(--text3);" id="costRefCount"></span>
             <button class="btn btn-outline btn-sm" onclick="autoFillCostRefs()">🔄 从已有数据提取</button>
           </div>
           <div class="table-wrap"><table><thead><tr><th>产品名</th><th>原鞋成本(元)</th><th>定制费(元)</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div>
@@ -433,20 +433,25 @@ tr:hover td{background:#fafcfd}
     </div>
 
     <!-- AI ASSISTANT -->
-    <div class="section" id="sec-ai">
+    <div class="sectiid="sec-ai">
       <div class="card">
-        <div class="card-title">🤖 AI 经营分析</div>
+        <div class="card-title">🤖 AI 决策助手 <span style="font-size:11px;color:var(--text3);">基于 Claude/DeepSeek API</span></div>
         <div class="kpi-grid" id="aiScores"></div>
         <div id="aiInsights"></div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="runAIAnalysis()">🔄 刷新分析</button>
-          <button class="btn btn-outline" onclick="copyAIPrompt()">📋 复制提示词给 Claude</button>
-          <button class="btn btn-outline" onclick="analyzeLatestReport()">📊 分析最新报表</button>
+        <div class="btn-row" style="flex-wrap:wrap;gap:6px;">
+          <button class="btn btn-primary btn-sm" onclick="quickAnalysis('weekly')">📊 本周诊断</button>
+          <button class="btn btn-outline btn-sm" onclick="quickAnalysis('cash')">💳 现金流分析</button>
+          <button class="btn btn-outline btn-sm" onclick="quickAnalysis('product')">👟 产品组合分析</button>
+          <button class="btn btn-outline btn-sm" onclick="runAIAnalysis()">🔄 健康评分</button>
         </div>
+        <div style="margin-top:10px;display:flex;gap:6px;">
+          <input type="text" id="aiFreePrompt" placeholder="💬 随便问... 比如：哪个产品该下架？" style="flex:1;padding:6px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;">
+          <button class="btn btn-primary btn-sm" onclick="quickAnalysis('free')">发送</button>
+        </div>
+        <div id="aiResult" style="display:none;margin-top:12px;padding:14px;background:#f8fafc;border-radius:8px;border:1px solid var(--border);max-height:500px;overflow-y:auto;"></div>
       </div>
     </div>
-
-    <!-- PRODUCTS -->
+<!-- PRODUCTS -->
     <div class="section" id="sec-prod">
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
         <input type="text" id="prodSearch" placeholder="🔍 搜索..." oninput="renderProducts()" style="max-width:200px;">
@@ -1957,7 +1962,12 @@ function showFinDetail(name){
 
 function updateCostFromBill(name, shoeCost, customFee){
   var db=getDB();if(!db.costRefs)db.costRefs={};
-  db.costRefs[name]={shoeCost:shoeCost,customFee:customFee};
+  var old=db.costRefs[name];
+  var hist=old&&old.history?old.history:[];
+  if(old&&old.shoeCost!==shoeCost)hist.push({field:'shoeCost',old:old.shoeCost,new:shoeCost,date:new Date().toISOString().slice(0,10)});
+  if(old&&old.customFee!==customFee)hist.push({field:'customFee',old:old.customFee,new:customFee,date:new Date().toISOString().slice(0,10)});
+  if(hist.length>10)hist=hist.slice(-10);
+  db.costRefs[name]={shoeCost:shoeCost,customFee:customFee,supplier:old?old.supplier||'':'',updatedAt:new Date().toISOString().slice(0,10),history:hist};
   // Apply to all sales in all weekly bills
   (db.finance.weeklyBills||[]).forEach(function(bill){
     (bill.sales||[]).forEach(function(sale){
@@ -2027,43 +2037,62 @@ function renderCostRefs(){
   const db=getDB();if(!db.costRefs)db.costRefs={};
   const refs=Object.entries(db.costRefs);
   const tbody=document.getElementById('costRefBody');
+  // Update table header
+  var thead=document.querySelector('#costRefBody').parentNode.querySelector('thead');
+  if(thead)thead.innerHTML='<tr><th>产品名</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>最后更新</th><th>操作</th></tr>';
   tbody.innerHTML='';
   if(refs.length===0){
-    tbody.innerHTML='<tr><td colspan=4 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「🔄 从已有数据提取」或「＋ 添加」</td></tr>';
+    tbody.innerHTML='<tr><td colspan=6 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「🔄 从已有数据提取」或「＋ 添加」</td></tr>';
     return;
   }
-  refs.forEach(([name,c])=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML='<td><b>'+name+'</b></td><td></td><td></td><td></td>';
-    const shoeInput=document.createElement('input');
-    shoeInput.type='number';shoeInput.value=c.shoeCost||0;shoeInput.style.cssText='width:90px;padding:4px 6px;font-size:12px;';
+  refs.sort(function(a,b){ return a[0].localeCompare(b[0]); });
+  refs.forEach(function(e){
+    var name=e[0], c=e[1];
+    var hist=c.history||[];
+    var histTitle=hist.map(function(h){ return h.date+': '+h.field+' '+h.old+'→'+h.new; }).join('\n');
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td><b>'+name+'</b>'+(histTitle?' <span style="font-size:9px;color:var(--text3);cursor:help;" title="'+histTitle.replace(/"/g,'&quot;')+'">📋'+hist.length+'</span>':'')+'</td><td></td><td></td><td></td><td></td><td></td>';
+    var shoeInput=document.createElement('input');
+    shoeInput.type='number';shoeInput.value=c.shoeCost||0;shoeInput.style.cssText='width:85px;padding:3px 5px;font-size:11px;text-align:center;';
     shoeInput.onchange=function(){updateCostRef(name,'shoeCost',parseFloat(this.value)||0);};
     tr.children[1].appendChild(shoeInput);
-    const customInput=document.createElement('input');
-    customInput.type='number';customInput.value=c.customFee||0;customInput.style.cssText='width:90px;padding:4px 6px;font-size:12px;';
+    var customInput=document.createElement('input');
+    customInput.type='number';customInput.value=c.customFee||0;customInput.style.cssText='width:85px;padding:3px 5px;font-size:11px;text-align:center;';
     customInput.onchange=function(){updateCostRef(name,'customFee',parseFloat(this.value)||0);};
     tr.children[2].appendChild(customInput);
-    const delBtn=document.createElement('button');
-    delBtn.className='btn btn-danger btn-sm';delBtn.textContent='✕';delBtn.style.cssText='padding:2px 8px;';
+    tr.children[3].textContent=c.supplier||'--';
+    tr.children[4].textContent=c.updatedAt||'--';
+    tr.children[4].style.cssText='font-size:10px;color:var(--text3);';
+    var delBtn=document.createElement('button');
+    delBtn.className='btn btn-danger btn-sm';delBtn.textContent='✕';delBtn.style.cssText='padding:2px 8px;font-size:10px;';
     delBtn.onclick=function(){deleteCostRef(name);};
-    tr.children[3].appendChild(delBtn);
+    tr.children[5].appendChild(delBtn);
     tbody.appendChild(tr);
   });
+  document.getElementById('costRefCount').textContent=refs.length+' 个产品';
 }
 
 function updateCostRef(name,field,val){
   const db=getDB();if(!db.costRefs)db.costRefs={};
-  if(!db.costRefs[name])db.costRefs[name]={shoeCost:0,customFee:0};
-  db.costRefs[name][field]=val;saveDB(db);
+  if(!db.costRefs[name])db.costRefs[name]={shoeCost:0,customFee:0,history:[]};
+  var cr=db.costRefs[name];
+  if(cr[field]!==val){
+    if(!cr.history)cr.history=[];
+    cr.history.push({field:field,old:cr[field],new:val,date:new Date().toISOString().slice(0,10)});
+    if(cr.history.length>10)cr.history=cr.history.slice(-10);
+  }
+  cr[field]=val;cr.updatedAt=new Date().toISOString().slice(0,10);
+  saveDB(db);renderCostRefs();
 }
 
 function addCostRef(){
   const name=prompt('产品名：');if(!name)return;
   const shoe=parseFloat(prompt('原鞋成本（元）：','0'))||0;
   const custom=parseFloat(prompt('定制费（元）：','0'))||0;
+  const supplier=prompt('供应商（可选）：','')||'';
   const db=getDB();if(!db.costRefs)db.costRefs={};
-  db.costRefs[name]={shoeCost:shoe,customFee:custom};
-  saveDB(db);renderCostRefs();toast('已添加');
+  db.costRefs[name]={shoeCost:shoe,customFee:custom,supplier:supplier,updatedAt:new Date().toISOString().slice(0,10),history:[]};
+  saveDB(db);renderCostRefs();toast('已添加 '+name);
 }
 
 function deleteCostRef(name){
@@ -2121,6 +2150,70 @@ function uploadFinanceWorkbench() {
 // ============================================================
 // MODULE 5: AI ASSISTANT
 // ============================================================
+var aiAnalyzing=false;
+function callClaudeAPI(systemPrompt, userMessage, callback){
+  if(aiAnalyzing){ toast('正在分析中，请稍候'); return; }
+  aiAnalyzing=true;
+  document.getElementById('aiResult').innerHTML='<div style="text-align:center;padding:30px;"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2);">AI 分析中...</div></div>';
+  var apiKey='sk-f96af70429794b20867f3a62ba3552fd';
+  var body=JSON.stringify({
+    model:'deepseek-v4-pro[1m]',
+    messages:[
+      {role:'system',content:systemPrompt},
+      {role:'user',content:userMessage}
+    ],
+    max_tokens:2000,
+    temperature:0.7
+  });
+  fetch('https://api.deepseek.com/anthropic/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+    body:body
+  }).then(function(r){ return r.json(); })
+  .then(function(data){
+    aiAnalyzing=false;
+    var text=data.content?data.content[0].text:(data.error?data.error.message:'无返回');
+    callback(null,text);
+  })
+  .catch(function(e){
+    aiAnalyzing=false;
+    callback(e.message,null);
+  });
+}
+function quickAnalysis(type){
+  var db=getDB();var bills=db.finance.weeklyBills||[];
+  var ledger=db.finance.ledger||[];
+  var products=db.products||[];
+  var systemPrompt='你是六六八八定制球鞋店的经营顾问。用户是单人店主，在得物平台卖定制手绘球鞋。请用中文回答，简洁直接，像合伙人一样给出可执行的建议。';
+  var prompt='';
+  if(type==='weekly'){
+    if(bills.length===0){ document.getElementById('aiResult').innerHTML='<div style="padding:20px;color:var(--text3);">需要先导入周账单数据</div>'; return; }
+    var last=bills[bills.length-1];
+    prompt='请分析本周经营数据：\n销售额: ¥'+last.summary.revenue+'\n利润: ¥'+last.summary.profit+'\n利润率: '+last.summary.profitRate+'%\n订单: '+last.summary.orders+'\n退货: '+last.summary.returns+'（'+last.summary.returnRate+'%）\n到手收入: ¥'+last.summary.netIncome+'\n平台费: ¥'+last.summary.platformFee+'\n\n请给出：1)健康度判断 2)最紧急的1个问题 3)下周1个具体行动建议';
+  } else if(type==='cash'){
+    var totalIn=ledger.filter(function(i){ return i.amount>0; }).reduce(function(s,i){ return s+i.amount; },0);
+    var totalOut=Math.abs(ledger.filter(function(i){ return i.amount<0; }).reduce(function(s,i){ return s+i.amount; },0));
+    var bizCats=['原鞋','推广','设计','材料','邮费','平台','工作室','其他支出'];
+    var bizOut=Math.abs(ledger.filter(function(i){ return i.amount<0&&bizCats.indexOf(i.cat)>=0; }).reduce(function(s,i){ return s+i.amount; },0));
+    var debtOut=Math.abs(ledger.filter(function(i){ return i.cat==='还款债务'; }).reduce(function(s,i){ return s+i.amount; },0));
+    var bizIn=0; bills.forEach(function(b){ bizIn+=(b.summary.netIncome||0); });
+    prompt='请分析现金流状况：\n经营收入: ¥'+bizIn+'\n经营支出: ¥'+bizOut+'\n累计债务还款: ¥'+debtOut+'\n总支出: ¥'+totalOut+'\n总流入: ¥'+totalIn+'\n净现金流: ¥'+(totalIn-totalOut)+'\n\n请给出：1)现金流健康度 2)债务风险判断 3)资金管理建议';
+  } else if(type==='product'){
+    var lossProds=products.filter(function(p){ return (p._billProfit||0)<0; });
+    var topProds=products.slice().sort(function(a,b){ return (b._billProfit||0)-(a._billProfit||0); }).slice(0,5);
+    var deadProds=products.filter(function(p){ return (p.visitors||0)===0&&(p.orders||0)===0; });
+    prompt='请分析产品组合：\n总产品数: '+products.length+'\n亏损产品: '+lossProds.length+'个（'+lossProds.slice(0,5).map(function(p){ return p.name+': ¥'+Math.round(p._billProfit||0); }).join('、')+'）\nTOP5利润款: '+topProds.map(function(p){ return p.name+': ¥'+Math.round(p._billProfit||0); }).join('、')+'\n零访客产品: '+deadProds.length+'个\n\n请给出：1)产品组合问题 2)该砍/该加推的建议 3)新品方向建议';
+  } else if(type==='free'){
+    prompt=document.getElementById('aiFreePrompt').value;
+    if(!prompt.trim()){ document.getElementById('aiResult').innerHTML='<div style="padding:20px;color:var(--text3);">请输入你的问题</div>'; return; }
+  }
+  callClaudeAPI(systemPrompt,prompt,function(err,text){
+    if(err){ document.getElementById('aiResult').innerHTML='<div style="color:var(--red);padding:16px;">API调用失败: '+err+'</div>'; return; }
+    document.getElementById('aiResult').innerHTML='<div style="white-space:pre-wrap;line-height:1.8;font-size:13px;">'+text+'</div>';
+    document.getElementById('aiResult').style.display='block';
+  });
+}
+
 function runAIAnalysis() {
   const db = getDB(); const reports = db.reports.sort((a,b)=>new Date(a.date)-new Date(b.date));
   const bills = db.finance.weeklyBills||[];
