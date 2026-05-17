@@ -461,19 +461,19 @@ tr:hover td{background:#fafcfd}
 
     <!-- COST MANAGEMENT -->
     <div class="section" id="sec-cost">
-      <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;">
         <button class="btn btn-sm fin-tab-btn active" id="costTabRefs" onclick="switchCostTab('refs')" style="border-radius:6px 0 0 6px;">📋 成本基准</button>
         <button class="btn btn-sm fin-tab-btn" id="costTabProc" onclick="switchCostTab('proc')" style="border-radius:0 6px 6px 0;">📦 采购明细</button>
         <span style="flex:1;"></span>
-        <button class="btn btn-outline btn-sm" onclick="addCostRef()">＋ 添加成本</button>
-        <button class="btn btn-outline btn-sm" onclick="autoFillCostRefs()">🔄 从账单提取</button>
+        <button class="btn btn-outline btn-sm" id="costAddBtn" onclick="addCostRef()">＋ 添加成本</button>
+        <button class="btn btn-outline btn-sm" id="costExtractBtn" onclick="autoFillCostRefs()">🔄 从账单提取</button>
         <button class="btn btn-outline btn-sm" onclick="showCraftLibrary()">🔧 工艺库</button>
       </div>
-      <div id="costRefsView" class="fin-view active">
-        <div class="card"><div class="table-wrap"><table><thead id="costRefHead"><tr><th>产品名</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>最后更新</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div></div>
+      <div id="costRefsView">
+        <div class="card"><div class="table-wrap"><table><thead id="costRefHead"><tr><th>产品名</th><th>主货号</th><th>辅助货号</th><th>工艺</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>更新</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div></div>
         <span style="font-size:11px;color:var(--text3);" id="costRefCount"></span>
       </div>
-      <div id="costProcView" class="fin-view">
+      <div id="costProcView" style="display:none;">
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
           <button class="btn btn-primary btn-sm" onclick="addProcurement()">＋ 新增采购</button>
           <button class="btn btn-outline btn-sm" onclick="importProcurements()">📤 导入Excel</button>
@@ -1448,12 +1448,16 @@ var craftLibrary={
 };
 function switchCostTab(t){
   currentCostTab=t;
-  document.querySelectorAll('#sec-cost .fin-view').forEach(function(v){ v.classList.remove('active'); });
-  var ve=document.getElementById(t==='refs'?'costRefsView':'costProcView');
-  if(ve)ve.classList.add('active');
+  document.getElementById('costRefsView').style.display=t==='refs'?'block':'none';
+  document.getElementById('costProcView').style.display=t==='proc'?'block':'none';
   document.querySelectorAll('#sec-cost .fin-tab-btn').forEach(function(b){ b.classList.remove('active'); });
   var be=document.getElementById(t==='refs'?'costTabRefs':'costTabProc');
   if(be)be.classList.add('active');
+  // Show/hide contextual buttons
+  var addBtn=document.getElementById('costAddBtn');
+  var extractBtn=document.getElementById('costExtractBtn');
+  if(addBtn)addBtn.style.display=t==='refs'?'inline-block':'none';
+  if(extractBtn)extractBtn.style.display=t==='refs'?'inline-block':'none';
   if(t==='refs')renderCostRefs();
   if(t==='proc')renderProcurements();
 }
