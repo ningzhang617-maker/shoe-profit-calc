@@ -170,6 +170,7 @@ tr:hover td{background:#fafcfd}
     <div class="nav-item" onclick="switchModule('calc')"><span class="ni-icon">💰</span>利润计算器</div>
     <div class="nav-item" onclick="switchModule('dash')"><span class="ni-icon">📊</span>数据中心</div>
     <div class="nav-item" onclick="switchModule('fin')"><span class="ni-icon">💳</span>财务账单</div>
+	    <div class="nav-item" onclick="switchModule('cost')"><span class="ni-icon">💲</span>成本管理</div>
     <div class="nav-item" onclick="switchModule('ai')"><span class="ni-icon">🤖</span>AI 助手</div>
     <div class="nav-item" onclick="switchModule('prod')"><span class="ni-icon">👟</span>产品管理</div>
     <div class="nav-item" onclick="switchModule('ops')"><span class="ni-icon">📋</span>运营管理</div>
@@ -416,14 +417,10 @@ tr:hover td{background:#fafcfd}
       </div>
       <div id="finSummaryView" class="fin-view">
         <div class="kpi-grid" id="finSummaryKPIs"></div>
-        <div class="card">
-          <div class="card-title">📋 产品成本基准 <span style="font-size:11px;color:var(--text3);">（财务和导入时自动引用，避免乱填）</span>
-            <button class="btn btn-outline btn-sm" onclick="addCostRef()" style="margin-left:8px;">＋ 添加</button> <span style="font-size:11px;color:var(--text3);" id="costRefCount"></span>
-            <button class="btn btn-outline btn-sm" onclick="autoFillCostRefs()">🔄 从已有数据提取</button>
-          </div>
-          <div class="table-wrap"><table><thead><tr><th>产品名</th><th>原鞋成本(元)</th><th>定制费(元)</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div>
-        </div>
-        <div class="card"><div class="card-title">📅 周对比表</div><div class="table-wrap"><table><thead><tr><th>指标</th></tr></thead><tbody id="finCompareBody"></tbody></table></div></div>
+        <div class="card" style="text-align:center;padding:20px;">
+            <div style="font-size:13px;color:var(--text2);margin-bottom:10px;">📋 产品成本基准已独立为「💲 成本管理」模块</div>
+            <button class="btn btn-primary btn-sm" onclick="switchModule('cost')">💲 前往成本管理</button>
+          </div><div class="table-wrap"><table><thead><tr><th>指标</th></tr></thead><tbody id="finCompareBody"></tbody></table></div></div>
         <div class="chart-row">
           <div class="chart-card"><div class="cc-title">📈 周利润趋势</div><div class="chart-box" id="chartFinWeeklyProfit"></div></div>
           <div class="chart-card"><div class="cc-title">📊 月度预估</div><div class="chart-box" id="chartFinMonthly"></div></div>
@@ -467,6 +464,28 @@ tr:hover td{background:#fafcfd}
         <span class="tag tag-green">S≥65分</span> <span class="tag tag-blue">A≥40分</span> <span class="tag tag-yellow">B≥15分</span> <span class="tag tag-red">C&lt;15分</span>
         &nbsp;基于全部周期SPU数据自动计算，每次刷新页面重算
       </div></div>
+    </div>
+
+    <!-- COST MANAGEMENT -->
+    <div class="section" id="sec-cost">
+      <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
+        <button class="btn btn-sm fin-tab-btn active" id="costTabRefs" onclick="switchCostTab('refs')" style="border-radius:6px 0 0 6px;">📋 成本基准</button>
+        <button class="btn btn-sm fin-tab-btn" id="costTabProc" onclick="switchCostTab('proc')" style="border-radius:0 6px 6px 0;">📦 采购明细</button>
+        <span style="flex:1;"></span>
+        <button class="btn btn-outline btn-sm" onclick="addCostRef()">＋ 添加成本</button>
+        <button class="btn btn-outline btn-sm" onclick="autoFillCostRefs()">🔄 从账单提取</button>
+      </div>
+      <div id="costRefsView" class="fin-view active">
+        <div class="card"><div class="table-wrap"><table><thead id="costRefHead"><tr><th>产品名</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>最后更新</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div></div>
+        <span style="font-size:11px;color:var(--text3);" id="costRefCount"></span>
+      </div>
+      <div id="costProcView" class="fin-view">
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+          <button class="btn btn-primary btn-sm" onclick="addProcurement()">＋ 新增采购</button>
+          <span style="font-size:12px;color:var(--text3);" id="procCount"></span>
+        </div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>产品</th><th>货号</th><th>数量</th><th>单价</th><th>总金额</th><th>供应商</th><th>备注</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
+      </div>
     </div>
 
     <!-- OPERATIONS -->
@@ -686,7 +705,7 @@ function switchModule(name) {
   if (sec) sec.classList.add('active');
   // Find and activate the correct nav item
   const navItems = document.querySelectorAll('.nav-item');
-  const idx = {home:0,calc:1,dash:2,fin:3,ai:4,prod:5,ops:6,mkt:7,kb:8}[name];
+  const idx = {home:0,calc:1,dash:2,fin:3,cost:4,ai:5,prod:6,ops:7,mkt:8,kb:9}[name];
   if (idx !== undefined && navItems[idx]) navItems[idx].classList.add('active');
   const titles = {home:'🏠 首页仪表盘',calc:'💰 利润计算器',dash:'📊 数据中心',fin:'💳 财务账单',ai:'🤖 AI 助手',prod:'👟 产品管理',ops:'📋 运营管理',mkt:'📈 营销ROI',kb:'📚 知识库'};
   document.getElementById('pageTitle').textContent = titles[name]||name;
@@ -695,6 +714,7 @@ function switchModule(name) {
   if (name==='calc') renderCalcHistory();
   if (name==='dash') renderDashboard();
   if (name==='fin') { switchFinTab(currentFinTab); }
+  if (name==='cost') { switchCostTab(currentCostTab); }
   if (name==='ai') runAIAnalysis();
   if (name==='prod') renderProducts();
   if (name==='ops') switchOpsTab('tasks');
@@ -1421,6 +1441,54 @@ function regenerateProducts(db){
 // MODULE 4: FINANCE
 // ============================================================
 let currentFinTab='ledger';
+let currentCostTab='refs';
+function switchCostTab(t){
+  currentCostTab=t;
+  document.querySelectorAll('#sec-cost .fin-view').forEach(function(v){ v.classList.remove('active'); });
+  var ve=document.getElementById(t==='refs'?'costRefsView':'costProcView');
+  if(ve)ve.classList.add('active');
+  document.querySelectorAll('#sec-cost .fin-tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  var be=document.getElementById(t==='refs'?'costTabRefs':'costTabProc');
+  if(be)be.classList.add('active');
+  if(t==='refs')renderCostRefs();
+  if(t==='proc')renderProcurements();
+}
+function addProcurement(){
+  var name=prompt('产品名：');if(!name)return;
+  var code=prompt('货号(可选)：')||'';
+  var qty=parseInt(prompt('数量：','1'))||1;
+  var price=parseFloat(prompt('单价(元)：','0'))||0;
+  var supplier=prompt('供应商(可选)：')||'';
+  var note=prompt('备注(可选)：')||'';
+  var db=getDB();if(!db.procurements)db.procurements=[];
+  db.procurements.unshift({
+    id:'proc_'+Date.now(),date:new Date().toISOString().slice(0,10),
+    name:name,code:code,quantity:qty,unitPrice:price,
+    totalAmount:qty*price,supplier:supplier,note:note
+  });
+  // Auto-update costRefs if no existing cost
+  if(!db.costRefs)db.costRefs={};
+  if(!db.costRefs[name]||db.costRefs[name].shoeCost===0){
+    if(!db.costRefs[name])db.costRefs[name]={shoeCost:price,customFee:0,supplier:supplier,updatedAt:new Date().toISOString().slice(0,10),history:[]};
+  }
+  saveDB(db);renderProcurements();toast('采购已记录');
+}
+function deleteProcurement(id){
+  if(!confirm('删除这条采购记录？'))return;
+  var db=getDB();db.procurements=(db.procurements||[]).filter(function(p){ return p.id!==id; });
+  saveDB(db);renderProcurements();
+}
+function renderProcurements(){
+  var db=getDB();var procs=db.procurements||[];
+  procs.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  document.getElementById('procCount').textContent=procs.length+' 条记录';
+  var tbody=document.getElementById('procBody');
+  var totalAmt=procs.reduce(function(s,p){ return s+(p.totalAmount||0); },0);
+  tbody.innerHTML=procs.map(function(p){
+    return '<tr><td>'+p.date+'</td><td><b>'+p.name+'</b></td><td style="font-size:10px;font-family:monospace;">'+(p.code||'--')+'</td><td>'+p.quantity+'</td><td>¥'+p.unitPrice+'</td><td style="font-weight:700;">¥'+p.totalAmount.toLocaleString()+'</td><td>'+(p.supplier||'--')+'</td><td style="font-size:10px;color:var(--text3);">'+(p.note||'')+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteProcurement(\''+p.id+'\')" style="padding:1px 6px;font-size:10px;">✕</button></td></tr>';
+  }).join('');
+  tbody.innerHTML+='<tr style="background:#f0f4ff;font-weight:600;"><td colspan="5" style="text-align:right;">采购总计</td><td>¥'+totalAmt.toLocaleString()+'</td><td colspan="3"></td></tr>';
+}
 function switchFinTab(t) {
   currentFinTab=t;
   document.querySelectorAll('.fin-view').forEach(v=>v.classList.remove('active'));
@@ -1431,7 +1499,7 @@ function switchFinTab(t) {
   if (btnEl) btnEl.classList.add('active');
   if (t==='ledger') renderFinLedger();
   if (t==='weekly') renderFinWeekly();
-  if (t==='summary') {renderFinSummary();renderCostRefs();}
+  if (t==='summary') {renderFinSummary();}
 }
 
 function renderFinLedger() {
@@ -2116,7 +2184,13 @@ function autoFillCostRefs(){
       db.costRefs[p.name]={shoeCost:0,customFee:0};
     }
   });
-  saveDB(db);renderCostRefs();toast('已从账单和产品中提取 '+Object.keys(db.costRefs).length+' 条成本基准');
+  // Also extract from procurements
+  (db.procurements||[]).forEach(function(proc){
+    if(proc.name&&proc.unitPrice>0&&!db.costRefs[proc.name]){
+      db.costRefs[proc.name]={shoeCost:proc.unitPrice,customFee:0,supplier:proc.supplier||'',updatedAt:proc.date,history:[]};
+    }
+  });
+  saveDB(db);renderCostRefs();toast('已提取 '+Object.keys(db.costRefs).length+' 条成本基准');
 }
 
 function uploadFinanceWorkbench() {
