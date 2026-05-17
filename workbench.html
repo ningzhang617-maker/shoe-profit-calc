@@ -456,6 +456,7 @@ tr:hover td{background:#fafcfd}
         <span style="font-size:12px;color:var(--text3);" id="prodCount"></span>
       </div>
       <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
+      <div id="prodPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div>
       <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.8;">
         <b>📊 评级算法：</b>综合评分 = 订单(40%) + 转化率(30%) + 收藏率(20%) + 销售额(10%) ·
         <span class="tag tag-green">S≥65分</span> <span class="tag tag-blue">A≥40分</span> <span class="tag tag-yellow">B≥15分</span> <span class="tag tag-red">C&lt;15分</span>
@@ -965,6 +966,19 @@ function switchDashTab(t) {
   document.querySelectorAll('#sec-dash .fin-tab-btn').forEach(b=>b.classList.remove('active'));
   const btnMap={overview:'dashTabOverview',products:'dashTabProducts',weeks:'dashTabWeeks'};
   const btn=document.getElementById(btnMap[t]); if(btn) btn.classList.add('active');
+  // Sync period filters between tabs
+  if (t==='overview'||t==='products') {
+    var srcSel=document.getElementById(t==='overview'?'prodPeriodFilter':'dashPeriodFilter');
+    var dstSel=document.getElementById(t==='overview'?'dashPeriodFilter':'prodPeriodFilter');
+    if (srcSel&&dstSel) dstSel.value=srcSel.value;
+    // Also sync custom date range fields
+    var srcFrom=document.getElementById(t==='overview'?'prodDateFrom':'dashDateFrom');
+    var srcTo=document.getElementById(t==='overview'?'prodDateTo':'dashDateTo');
+    var dstFrom=document.getElementById(t==='overview'?'dashDateFrom':'prodDateFrom');
+    var dstTo=document.getElementById(t==='overview'?'dashDateTo':'prodDateTo');
+    if (srcFrom&&dstFrom) dstFrom.value=srcFrom.value;
+    if (srcTo&&dstTo) dstTo.value=srcTo.value;
+  }
   if (t==='overview') renderDashOverview();
   if (t==='products'){renderDashProducts();}
   if (t==='weeks') renderDashWeeks();
@@ -2153,11 +2167,15 @@ var EMBEDDED_LISTING_DATES={'诗序乳霜':'2026-05-15','墨染云阶':'2026-05-
 // ============================================================
 var sortProdField = 'priority';
 var sortProdDir = -1; // -1=desc (urgent first), 1=asc
+var prodPage = 1;
+var prodPageSize = 20;
 function sortProducts(field) {
   if (sortProdField === field) { sortProdDir = -sortProdDir; }
   else { sortProdField = field; sortProdDir = -1; }
+  prodPage = 1;
   renderProducts();
 }
+function goProdPage(n) { prodPage = n; renderProducts(); }
 function getProductInsights(p, db) {
   // Returns array of {level:'danger'|'warn'|'info', text:'...'}
   var insights = [];
@@ -2337,11 +2355,17 @@ function renderProducts() {
 
   var allCount = (db.products||[]).filter(function(p){ return p.visitors>0||p.orders>0||p.totalSales>0||p._monthsSinceList<=3; }).length;
 
-  document.getElementById('prodCount').textContent = products.length+'/'+allCount+' 个活跃产品';
+  var totalFiltered = products.length;
+  var totalPages = Math.ceil(totalFiltered / prodPageSize);
+  if (prodPage > totalPages) prodPage = totalPages;
+  if (prodPage < 1) prodPage = 1;
+  var pageProducts = products.slice((prodPage-1)*prodPageSize, prodPage*prodPageSize);
+
+  document.getElementById('prodCount').textContent = totalFiltered+'/'+allCount+' 个活跃产品 (第'+prodPage+'/'+totalPages+'页)';
 
   // Build table
   var rows = '';
-  products.forEach(function(p){
+  pageProducts.forEach(function(p){
     var ppu = p._billPPU || p.profitPerUnit || 0;
     var profitShare = p._profitShare || 0;
     var trendIcon = p._trend==='up'?'↑':p._trend==='down'?'↓':'→';
@@ -2378,6 +2402,20 @@ function renderProducts() {
   });
 
   document.getElementById('prodBody').innerHTML = rows || '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:24px;">暂无匹配产品</td></tr>';
+
+  // Pagination controls
+  var pager = document.getElementById('prodPager');
+  if (pager && totalPages > 1) {
+    var ph = '';
+    if (prodPage > 1) ph += '<button class=\"btn btn-outline btn-sm\" onclick=\"prodPage=1;renderProducts();\">««</button>';
+    if (prodPage > 1) ph += '<button class=\"btn btn-outline btn-sm\" onclick=\"prodPage--;renderProducts();\">«</button>';
+    ph += '<span style=\"padding:0 8px;\">第'+prodPage+'/'+totalPages+'页</span>';
+    if (prodPage < totalPages) ph += '<button class=\"btn btn-outline btn-sm\" onclick=\"prodPage++;renderProducts();\">»</button>';
+    if (prodPage < totalPages) ph += '<button class=\"btn btn-outline btn-sm\" onclick=\"prodPage='+totalPages+';renderProducts();\">»»</button>';
+    pager.innerHTML = ph;
+  } else if (pager) {
+    pager.innerHTML = '';
+  }
 }function addProduct() {
   const name=prompt('产品名称：');if(!name)return;const code=prompt('货号：')||'';const brand=prompt('品牌：')||'';const grade=prompt('等级 S/A/B/C：','B')||'B';
   const db=getDB(); db.products.push({id:'p_'+Date.now(),name,code,brand,grade:grade.toUpperCase(),totalSales:0,orders:0,conversion:0,returns:0,profitPerUnit:0}); saveDB(db); renderProducts(); toast('已添加');
