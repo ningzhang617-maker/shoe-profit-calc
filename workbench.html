@@ -1685,6 +1685,171 @@ function autoFillCostRefs(){
     (db.products||[]).forEach(function(p){if(p.name&&p.code&&db.costRefs[p.name]&&!db.costRefs[p.name].mainSku){var sku=(p.code||'').replace(/\(Team901-[^)]+\)/,'').trim().split(',')[0].trim();if(sku)db.costRefs[p.name].mainSku=sku;}});saveDB(db);renderCostRefs();toast('已提取 '+Object.keys(db.costRefs).length+' 条成本基准');
 }
 
+function renderCostRefs(){
+  const db=getDB();if(!db.costRefs)db.costRefs={};
+  const refs=Object.entries(db.costRefs);
+  var thead=document.querySelector('#costRefHead');
+  if(thead)thead.innerHTML='<tr><th>产品名</th><th>主货号</th><th>辅助货号</th><th>工艺</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>更新</th><th>操作</th></tr>';
+  var tbody=document.getElementById('costRefBody');
+  tbody.innerHTML='';
+  if(refs.length===0){
+    tbody.innerHTML='<tr><td colspan=9 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「＋ 添加成本」或「🔄 从账单提取」</td></tr>';
+    document.getElementById('costRefCount').textContent='0 个产品';
+    return;
+  }
+  refs.sort(function(a,b){ return a[0].localeCompare(b[0]); });
+  refs.forEach(function(e){
+    var name=e[0], cr=e[1];
+    if(!cr.subSkus)cr.subSkus=[];
+    if(!cr.history)cr.history=[];
+    var skuList=cr.subSkus.map(function(s){ return '<div style="font-size:9px;padding:1px 0;">'+s.code+': ¥'+s.cost+(s.supplier?' ('+s.supplier+')':'')+' <span style="cursor:pointer;color:var(--red);" onclick="deleteSubSku(\''+name+'\',\''+s.code+'\')">✕</span></div>'; }).join('');
+    var histTitle=cr.history.map(function(h){ return h.date+': '+h.field+' '+h.old+'→'+h.new; }).join('\n');
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td><b>'+name+'</b>'+(histTitle?' <span style="font-size:9px;color:var(--text3);cursor:help;" title="'+histTitle.replace(/"/g,'&quot;')+'">📋'+cr.history.length+'</span>':'')+'</td><td style="font-size:10px;font-family:monospace;">'+(cr.mainSku||'--')+'</td><td>'+skuList+'<button class="btn btn-outline btn-sm" onclick="addSubSku(\''+name+'\')" style="padding:0 4px;font-size:9px;margin-top:2px;">+ 辅助货号</button></td><td>'+(cr.craftType||'--')+'</td><td></td><td></td><td></td><td></td><td></td>';
+    var shoeInput=document.createElement('input');
+    shoeInput.type='number';shoeInput.value=cr.shoeCost||0;shoeInput.style.cssText='width:80px;padding:3px 5px;font-size:11px;text-align:center;';
+    shoeInput.onchange=function(){updateCostRef(name,'shoeCost',parseFloat(this.value)||0);};
+    tr.children[4].appendChild(shoeInput);
+    var customInput=document.createElement('input');
+    customInput.type='number';customInput.value=cr.customFee||0;customInput.style.cssText='width:80px;padding:3px 5px;font-size:11px;text-align:center;';
+    customInput.onchange=function(){updateCostRef(name,'customFee',parseFloat(this.value)||0);};
+    tr.children[5].appendChild(customInput);
+    tr.children[6].textContent=cr.supplier||'--';
+    tr.children[7].textContent=cr.updatedAt||'--';
+    tr.children[7].style.cssText='font-size:10px;color:var(--text3);';
+    var delBtn=document.createElement('button');
+    delBtn.className='btn btn-danger btn-sm';delBtn.textContent='✕';delBtn.style.cssText='padding:2px 8px;font-size:10px;';
+    delBtn.onclick=function(){deleteCostRef(name);};
+    tr.children[8].appendChild(delBtn);
+    tbody.appendChild(tr);
+  });
+  document.getElementById('costRefCount').textContent=refs.length+' 个产品';
+}
+
+function updateCostRef(name,field,val){
+  const db=getDB();if(!db.costRefs)db.costRefs={};
+  if(!db.costRefs[name])db.costRefs[name]={shoeCost:0,customFee:0,history:[]};
+  var cr=db.costRefs[name];
+  if(cr[field]!==val){
+    if(!cr.history)cr.history=[];
+    cr.history.push({field:field,old:cr[field],new:val,date:new Date().toISOString().slice(0,10)});
+    if(cr.history.length>10)cr.history=cr.history.slice(-10);
+  }
+  cr[field]=val;cr.updatedAt=new Date().toISOString().slice(0,10);
+  saveDB(db);renderCostRefs();
+}
+
+function addCostRef(){
+  const name=prompt('产品名：');if(!name)return;
+  const mainSku=prompt('主货号（可选）：','')||'';
+  const shoe=parseFloat(prompt('原鞋成本（元）：','0'))||0;
+  const custom=parseFloat(prompt('定制费（元）：','0'))||0;
+  const craftType=prompt('定制工艺（可选，如：手绘涂鸦）：','')||'';
+  var db3=getDB();
+  if(craftType&&db3.crafts&&db3.crafts[craftType]&&(!custom||custom===0)){
+    custom=db3.crafts[craftType].fee;
+    if(confirm('工艺「'+craftType+'」标准定制费 ¥'+custom+'，是否使用？')){
+      // keep custom value from craft library
+    } else {
+      custom=parseFloat(prompt('请输入定制费（元）：','0'))||0;
+    }
+  }
+  const supplier=prompt('供应商（可选）：','')||'';
+  const db=getDB();if(!db.costRefs)db.costRefs={};
+  db.costRefs[name]={shoeCost:shoe,customFee:custom,mainSku:mainSku,craftType:craftType,supplier:supplier,subSkus:[],updatedAt:new Date().toISOString().slice(0,10),history:[]};
+  saveDB(db);renderCostRefs();toast('已添加 '+name);
+}
+function addSubSku(name){
+  const db=getDB();if(!db.costRefs||!db.costRefs[name]){toast('请先添加产品');return;}
+  const code=prompt('辅助货号：');if(!code)return;
+  const cost=parseFloat(prompt('采购价（元）：','0'))||0;
+  const supplier=prompt('供应商：','')||'';
+  var cr=db.costRefs[name];if(!cr.subSkus)cr.subSkus=[];
+  cr.subSkus.push({code:code,cost:cost,supplier:supplier,date:new Date().toISOString().slice(0,10)});
+  // Sort by cost (lowest first = default priority)
+  cr.subSkus.sort(function(a,b){ return a.cost-b.cost; });
+  // If this subSku is cheaper, use it as default shoeCost
+  if(cr.subSkus[0].cost<cr.shoeCost||cr.shoeCost===0){
+    cr.shoeCost=cr.subSkus[0].cost;
+    cr.supplier=cr.subSkus[0].supplier;
+  }
+  cr.updatedAt=new Date().toISOString().slice(0,10);
+  saveDB(db);renderCostRefs();toast('辅助货号已添加');
+}
+function deleteSubSku(name,code){
+  if(!confirm('删除辅助货号 '+code+' ？'))return;
+  var db=getDB();var cr=db.costRefs[name];if(!cr)return;
+  cr.subSkus=(cr.subSkus||[]).filter(function(s){ return s.code!==code; });
+  // Recalculate lowest cost
+  if(cr.subSkus.length>0){cr.subSkus.sort(function(a,b){ return a.cost-b.cost; });cr.shoeCost=cr.subSkus[0].cost;}
+  cr.updatedAt=new Date().toISOString().slice(0,10);
+  saveDB(db);renderCostRefs();toast('已删除');
+}
+
+function deleteCostRef(name){
+  if(!confirm('删除 '+name+' 的成本基准？'))return;
+  const db=getDB();delete db.costRefs[name];saveDB(db);renderCostRefs();
+}
+function showCraftLibrary(){
+  var db=getDB();if(!db.crafts)db.crafts=JSON.parse(JSON.stringify(craftLibrary));
+  var crafts=db.crafts;
+  var h='<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;"><div style="background:#fff;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;"><h3 style="margin:0 0 12px;">🔧 定制工艺库</h3>';
+  h+='<table style="width:100%;font-size:12px;"><thead><tr><th>工艺名称</th><th>标准费(元)</th><th>耗材</th><th>耗时(分)</th><th>操作</th></tr></thead><tbody>';
+  Object.entries(crafts).forEach(function(e){
+    var k=e[0],v=e[1];
+    h+='<tr><td><input value="'+k+'" onchange="updateCraftField(\''+k+'\',\'name\',this.value)" style="width:130px;padding:3px 5px;font-size:11px;"></td><td><input type="number" value="'+v.fee+'" onchange="updateCraftField(\''+k+'\',\'fee\',parseFloat(this.value)||0)" style="width:70px;padding:3px 5px;font-size:11px;"></td><td><input value="'+(v.materials||'')+'" onchange="updateCraftField(\''+k+'\',\'materials\',this.value)" style="width:140px;padding:3px 5px;font-size:11px;"></td><td><input type="number" value="'+v.timeMin+'" onchange="updateCraftField(\''+k+'\',\'timeMin\',parseInt(this.value)||0)" style="width:60px;padding:3px 5px;font-size:11px;"></td><td><button class="btn btn-danger btn-sm" onclick="deleteCraft(\''+k+'\');showCraftLibrary();" style="padding:1px 6px;font-size:10px;">✕</button></td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='<div style="margin-top:10px;display:flex;gap:8px;"><button class="btn btn-primary btn-sm" onclick="addCraft();showCraftLibrary();">＋ 新工艺</button><button class="btn btn-outline btn-sm" onclick="document.getElementById(\'craftDialog\').remove();">关闭</button></div></div></div>';
+  var d=document.createElement('div');d.id='craftDialog';d.innerHTML=h;
+  document.body.appendChild(d);
+}
+function updateCraftField(name,field,val){
+  var db=getDB();if(!db.crafts)db.crafts=JSON.parse(JSON.stringify(craftLibrary));
+  if(field==='name'&&val!==name){db.crafts[val]=db.crafts[name];delete db.crafts[name];}
+  else{db.crafts[name][field]=val;}
+  saveDB(db);
+}
+function addCraft(){
+  var name=prompt('工艺名称：');if(!name)return;
+  var fee=parseFloat(prompt('标准定制费（元）：','50'))||0;
+  var materials=prompt('常用耗材（逗号分隔）：','')||'';
+  var timeMin=parseInt(prompt('预估耗时（分钟）：','120'))||120;
+  var db=getDB();if(!db.crafts)db.crafts=JSON.parse(JSON.stringify(craftLibrary));
+  db.crafts[name]={fee:fee,materials:materials,timeMin:timeMin};
+  saveDB(db);
+}
+function deleteCraft(name){
+  if(!confirm('删除工艺 '+name+' ？'))return;
+  var db=getDB();delete db.crafts[name];saveDB(db);
+}
+
+function autoFillCostRefs(){
+  const db=getDB();if(!db.costRefs)db.costRefs={};
+  // Extract from existing weekly bills
+  (db.finance.weeklyBills||[]).forEach(bill=>{
+    (bill.sales||[]).forEach(sale=>{
+      if(sale.name&&sale.cost>0&&!db.costRefs[sale.name]){
+        db.costRefs[sale.name]={shoeCost:sale.cost,customFee:sale.custom||0};
+      }
+    });
+  });
+  // Also extract from products
+  (db.products||[]).forEach(p=>{
+    if(p.name&&p.profitPerUnit&&!db.costRefs[p.name]){
+      db.costRefs[p.name]={shoeCost:0,customFee:0};
+    }
+  });
+  // Also extract from procurements
+  (db.procurements||[]).forEach(function(proc){
+    if(proc.name&&proc.unitPrice>0&&!db.costRefs[proc.name]){
+      db.costRefs[proc.name]={shoeCost:proc.unitPrice,customFee:0,supplier:proc.supplier||'',updatedAt:proc.date,history:[]};
+    }
+  });
+  saveDB(db);renderCostRefs();toast('已提取 '+Object.keys(db.costRefs).length+' 条成本基准');
+}
+
+
 function uploadFinanceWorkbench() {
   const input = document.createElement('input'); input.type='file'; input.accept='.xlsx,.xls';
   input.onchange = function(e) {
