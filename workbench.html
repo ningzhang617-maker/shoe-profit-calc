@@ -455,7 +455,7 @@ tr:hover td{background:#fafcfd}
         <button class="btn btn-outline btn-sm" onclick="addProduct()">＋ 添加</button>
         <span style="font-size:12px;color:var(--text3);" id="prodCount"></span>
       </div>
-      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th>等级</th><th>品牌</th><th>销售额</th><th>订单(趋势)</th><th>转化</th><th>退货</th><th>单均利</th><th>总利润</th><th>利润占比</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
+      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
       <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.8;">
         <b>📊 评级算法：</b>综合评分 = 订单(40%) + 转化率(30%) + 收藏率(20%) + 销售额(10%) ·
         <span class="tag tag-green">S≥65分</span> <span class="tag tag-blue">A≥40分</span> <span class="tag tag-yellow">B≥15分</span> <span class="tag tag-red">C&lt;15分</span>
@@ -2151,6 +2151,13 @@ var EMBEDDED_LISTING_DATES={'诗序乳霜':'2026-05-15','墨染云阶':'2026-05-
 
 // MODULE 6: PRODUCTS
 // ============================================================
+var sortProdField = 'priority';
+var sortProdDir = -1; // -1=desc (urgent first), 1=asc
+function sortProducts(field) {
+  if (sortProdField === field) { sortProdDir = -sortProdDir; }
+  else { sortProdField = field; sortProdDir = -1; }
+  renderProducts();
+}
 function getProductInsights(p, db) {
   // Returns array of {level:'danger'|'warn'|'info', text:'...'}
   var insights = [];
@@ -2313,8 +2320,20 @@ function renderProducts() {
   // Only show products with data or recent
   products = products.filter(function(p){ return p._show !== false; });
 
-  // Sort: by priority (urgent first), then by profit contribution
-  products.sort(function(a,b){ return (b._priority||0) - (a._priority||0); });
+  // Sort: apply user-chosen sort, default priority (urgent first)
+  var sf = sortProdField, sd = sortProdDir;
+  var sortFn;
+  if (sf === 'grade') sortFn = function(a,b){ return sd * (a.grade||'').localeCompare(b.grade||''); };
+  else if (sf === 'brand') sortFn = function(a,b){ return sd * (a.brand||'').localeCompare(b.brand||''); };
+  else if (sf === 'sales') sortFn = function(a,b){ return sd * ((a.totalSales||0) - (b.totalSales||0)); };
+  else if (sf === 'orders') sortFn = function(a,b){ return sd * ((a.orders||0) - (b.orders||0)); };
+  else if (sf === 'conv') sortFn = function(a,b){ return sd * ((a.conversion||0) - (b.conversion||0)); };
+  else if (sf === 'ret') sortFn = function(a,b){ return sd * ((a.returns||0) - (b.returns||0)); };
+  else if (sf === 'ppu') sortFn = function(a,b){ return sd * ((a._billPPU||a.profitPerUnit||0) - (b._billPPU||b.profitPerUnit||0)); };
+  else if (sf === 'profit') sortFn = function(a,b){ return sd * ((a._billProfit||0) - (b._billProfit||0)); };
+  else if (sf === 'share') sortFn = function(a,b){ return sd * ((a._profitShare||0) - (b._profitShare||0)); };
+  else sortFn = function(a,b){ return sd * ((a._priority||0) - (b._priority||0)); };
+  products.sort(sortFn);
 
   var allCount = (db.products||[]).filter(function(p){ return p.visitors>0||p.orders>0||p.totalSales>0||p._monthsSinceList<=3; }).length;
 
