@@ -1154,6 +1154,13 @@ function sortSPU(field){spuSortField=field;const labels={payment:'销售额',vis
 
 function renderDashProducts() {
   const db=getDB();const periods=db.spuPeriods||[];
+  // Init period dropdown with individual periods (same as overview)
+  const psel=document.getElementById('prodPeriodFilter');
+  if (psel && !psel.querySelector('option[value=\"p0\"]')){
+    periods.forEach(function(p,i){
+      var o=document.createElement('option');o.value='p'+i;o.textContent='📅 '+p.label+' ('+p.days+'天)';psel.appendChild(o);
+    });
+  }
   let products=getFilteredProducts(periods, 'prodPeriodFilter');
   // Deduplicate by shortName
   const seen={};const dedup=[];
