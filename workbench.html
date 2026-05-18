@@ -2137,7 +2137,14 @@ function addProcurement(){
 }
 function trackSingle(no){
   if(!no||no==='--')return;
-  window.open('https://www.baidu.com/s?wd='+encodeURIComponent(no+' 快递单号'), '_blank');
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:12px;padding:24px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;';
+  box.innerHTML='<div style=\"font-size:16px;font-weight:700;margin-bottom:16px;\">📦 物流查询</div><div style=\"font-size:14px;margin-bottom:20px;color:var(--text2);\">单号: <b>'+no+'</b></div><div style=\"display:flex;flex-direction:column;gap:8px;\"><a href=\"https://www.baidu.com/s?wd='+encodeURIComponent(no+' 快递')+'\" target=\"_blank\" style=\"display:block;padding:10px;background:#3370ff;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;\">🔍 百度搜索</a><a href=\"https://www.17track.net/zh-cn#nums='+encodeURIComponent(no)+'\" target=\"_blank\" style=\"display:block;padding:10px;background:#f0f4ff;color:#3370ff;border-radius:8px;text-decoration:none;font-size:13px;\">📮 17TRACK 国际</a><a href=\"https://m.kuaidi100.com/index_new.html?nu='+encodeURIComponent(no)+'\" target=\"_blank\" style=\"display:block;padding:10px;background:#f0f4ff;color:#3370ff;border-radius:8px;text-decoration:none;font-size:13px;\">📦 快递100</a></div><button style=\"margin-top:16px;padding:8px 24px;background:#eee;border:none;border-radius:6px;cursor:pointer;font-size:12px;\">关闭</button>';
+  box.lastChild.onclick=function(){d.remove();};
+  d.appendChild(box);document.body.appendChild(d);
+  d.onclick=function(e){if(e.target===d)d.remove();};
 }
 function trackPackage(){
   var no=document.getElementById('procTrackNo').value.trim();
