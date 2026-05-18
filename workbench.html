@@ -463,6 +463,7 @@ tr:hover td{background:#fafcfd}
         <span style="flex:1;"></span>
         <button class="btn btn-outline btn-sm" id="costAddBtn" onclick="addCostRef()">＋ 添加</button>
         <button class="btn btn-outline btn-sm" id="costExtractBtn" onclick="autoFillCostRefs()">🔄 从SPU提取</button>
+        <button class="btn btn-outline btn-sm" onclick="importBidList()">📤 导入出价表</button>
         <button class="btn btn-outline btn-sm" onclick="showCraftLibrary()">🔧 工艺库</button>
       </div>
       <div id="costRefsView">
@@ -2145,6 +2146,72 @@ function trackSingle(no){
   box.lastChild.onclick=function(){d.remove();};
   d.appendChild(box);document.body.appendChild(d);
   d.onclick=function(e){if(e.target===d)d.remove();};
+}
+function importBidList(){
+  var input=document.createElement('input');input.type='file';input.accept='.xlsx,.xls';
+  input.onchange=function(e){
+    var file=e.target.files[0];if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var wb=XLSX.read(ev.target.result,{type:'array'});
+        var json=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+        var db=getDB();if(!db.costRefs)db.costRefs={};
+        var count=0;
+        json.slice(1).forEach(function(row){
+          var codeStr=row[5]; // F: 商品货号
+          if(!codeStr)return;
+          var sn=extractShortFromCode(String(codeStr));
+          if(!sn)return;
+          var spuId=row[2]; // C: 商品id
+          var skuId=row[3]; // D: 商品skuId
+          // Extract size: check 规格 columns, find numeric values
+          var size='';
+          for(var si=8;si<=12;si++){ // H-L: 规格1-5
+            var v=String(row[si]||'').trim();
+            if(v&&/^[\d.]+$/.test(v)){size=v;break;} // numeric = size
+          }
+          // Parse codes: first = mainSku, rest = subSkus
+          var codes=String(codeStr).split(',');
+          var mainSku='',subSkus=[];
+          codes.forEach(function(c){
+            c=c.trim();if(!c)return;
+            var idx=c.indexOf('(');
+            var sku=idx>0?c.substring(0,idx).trim():c.trim();
+            if(!mainSku)mainSku=sku;
+            else subSkus.push(sku);
+          });
+          // Update costRefs
+          if(!db.costRefs[sn])db.costRefs[sn]={shoeCost:0,customFee:0,mainSku:mainSku,craftType:'',supplier:'',updatedAt:'',history:[],subSkus:[],spuId:spuId,skuIds:[],sizes:[]};
+          var cr=db.costRefs[sn];
+          if(!cr.mainSku||cr.mainSku.length<3)cr.mainSku=mainSku;
+          if(spuId)cr.spuId=spuId;
+          if(!cr.skuIds)cr.skuIds=[];
+          if(skuId&&cr.skuIds.indexOf(skuId)<0)cr.skuIds.push(skuId);
+          if(!cr.sizes)cr.sizes=[];
+          if(size&&cr.sizes.indexOf(size)<0)cr.sizes.push(size);
+          // Merge subSkus
+          if(!cr.subSkus)cr.subSkus=[];
+          subSkus.forEach(function(s){
+            if(!cr.subSkus.some(function(x){ return x.code===s; })){
+              cr.subSkus.push({code:s,cost:0,supplier:'',date:''});
+            }
+          });
+          cr.subSkus.sort(function(a,b){ return a.cost-b.cost; });
+          cr.updatedAt=new Date().toISOString().slice(0,10);
+          count++;
+        });
+        // Sort sizes naturally
+        Object.keys(db.costRefs).forEach(function(k){
+          var cr=db.costRefs[k];
+          if(cr.sizes)cr.sizes.sort(function(a,b){ return parseFloat(a)-parseFloat(b); });
+        });
+        saveDB(db);renderCostRefs();toast('已导入 '+count+' 条出价信息 · 辅助货号+码数已补全');
+      }catch(err){alert('导入失败：'+err.message);}
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  input.click();
 }
 function trackPackage(){
   var no=document.getElementById('procTrackNo').value.trim();
