@@ -2497,14 +2497,31 @@ function uploadFinanceWorkbench() {
           }
           if (!salesSheet) { alert('未找到销售数据sheet。可用sheets: '+sheetNames.join(', ')); return; }
           var salesJson = XLSX.utils.sheet_to_json(salesSheet, {header:1, defval:''});
-          var label = prompt('账单标签（如：第4周 05/11-05/17）：','');
-          var bill = {id:'w_'+Date.now(),label:label||'',start:'',end:'',summary:{orders:0,returns:0,revenue:0,netIncome:0,profit:0,profitRate:0,platformFee:0,returnRate:0,customFee:0,fixedCost:0},sales:[],returns:[],report:'数据已导入'};
-          // Parse sales (rows start at index 4, row 5 in Excel)
+          // Auto-detect date range from summary sheet
+          var startDate = '', endDate = '', dateRange = '';
+          var summarySheet = wb.Sheets[sheetNames[0]];
+          if (summarySheet) {
+            var sumJson = XLSX.utils.sheet_to_json(summarySheet, {header:1, defval:''});
+            var sumRow = sumJson[3] || [];
+            var dateStr = String(sumRow[3] || '');
+            if (dateStr.indexOf('至') >= 0) {
+              var parts = dateStr.split('至');
+              startDate = parts[0].trim();
+              endDate = parts[1].trim();
+              dateRange = startDate.substring(5).replace(/-/g,'/') + '-' + endDate.substring(5).replace(/-/g,'/');
+            }
+          }
+          var existingBills = db.finance.weeklyBills||[];
+          var weekNum = existingBills.length + 1;
+          var autoLabel = '第' + weekNum + '周' + (dateRange ? ' (' + dateRange + ')' : '');
+          var label = prompt('账单标签：', autoLabel) || autoLabel;
+          var bill = {id:'w_'+Date.now(),label:label,start:startDate,end:endDate,summary:{orders:0,returns:0,revenue:0,netIncome:0,profit:0,profitRate:0,platformFee:0,returnRate:0,customFee:0,fixedCost:0},sales:[],returns:[],report:'数据已导入'};
+          // Parse sales
           for (var r = 4; r < salesJson.length; r++) {
             var row = salesJson[r];
             var codeStr = row[3]; // D: 商品货号
             if (!codeStr) continue;
-            var shortName = extractShortFromCode(codeStr);
+            var shortName = extractShortFromCode(String(codeStr));
             if (!shortName) continue;
             var size = row[5] || ''; // F: 规格
             var price = parseFloat(row[7]) || 0; // H: 商品金额
@@ -2518,7 +2535,7 @@ function uploadFinanceWorkbench() {
             var prof = inc - c - cf - 47;
             bill.sales.push({name:shortName, size:String(size).trim(), price:price, cost:c, custom:cf, income:Math.round(inc*100)/100, profit:Math.round(prof*100)/100, rate:price>0?Math.round(prof/price*1000)/10:0});
           }
-          // Parse returns (retSheet already found above or try again)
+          // Parse returns
           if (!retSheet) {
             for (var si = 0; si < sheetNames.length; si++) {
               var sn = sheetNames[si];
@@ -2528,20 +2545,20 @@ function uploadFinanceWorkbench() {
           if (retSheet) {
             var retJson = XLSX.utils.sheet_to_json(retSheet, {header:1, defval:''});
             for (var r = 4; r < retJson.length; r++) {
-              var row = retJson[r];
-              var codeStr = row[3]; // D: 商品货号
-              if (!codeStr) continue;
-              var shortName = extractShortFromCode(codeStr);
-              if (!shortName) continue;
-              var size = row[5] || ''; // F: 规格
-              var amt = parseFloat(row[7]) || 0; // H: 商品金额
-              var retDate = String(row[2]||'').slice(0,10); // C: 退货时间
-              if (!amt) continue;
-              bill.returns.push({name:shortName, size:String(size).trim(), amount:amt, date:retDate||''});
+              var rrow = retJson[r];
+              var rcodeStr = rrow[3]; // D: 商品货号
+              if (!rcodeStr) continue;
+              var rshortName = extractShortFromCode(String(rcodeStr));
+              if (!rshortName) continue;
+              var rsize = rrow[5] || ''; // F: 规格
+              var ramt = parseFloat(rrow[7]) || 0; // H: 商品金额
+              var rretDate = String(rrow[2]||'').slice(0,10); // C: 退货时间
+              if (!ramt) continue;
+              bill.returns.push({name:rshortName, size:String(rsize).trim(), amount:ramt, date:rretDate||''});
             }
           }
-          if (bill.sales.length===0) { alert('未读取到销售数据，请确认是得物账单文件且包含销售订单sheet'); return; }
-          if (!bill.label) { bill.label = '第' + ((db.finance.weeklyBills||[]).length+1) + '周'; }
+          if (bill.sales.length===0) { alert('未读取到销售数据，请确认是得物账单文件。\\n产品代码列(D)需要包含 Team901-xxx'); return; }
+          if (!bill.start) { bill.start = ''; bill.end = ''; }
           bill.summary.orders=bill.sales.length;
           bill.summary.returns=bill.returns.length;
           bill.summary.revenue=Math.round(bill.sales.reduce(function(s,x){return s+x.price;},0)*100)/100;
@@ -2553,7 +2570,7 @@ function uploadFinanceWorkbench() {
           bill.summary.customFee=bill.sales.reduce(function(s,x){return s+(x.custom||0);},0);
           bill.summary.fixedCost=bill.summary.orders*47;
           db.finance.weeklyBills.push(bill);
-          saveDB(db); switchFinTab('weekly'); toast('✅ 已导入 '+bill.sales.length+' 条销售 + '+bill.returns.length+' 条退货');
+          saveDB(db); switchFinTab('weekly'); toast('✅ 已导入 '+bill.sales.length+' 条销售');
           return;
         } else {
           var label = prompt('账单标签（如：第4周 05/11-05/17）：','');
