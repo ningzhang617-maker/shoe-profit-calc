@@ -734,6 +734,14 @@ function renderHome() {
   const totalOut = Math.abs(ledger.filter(i=>i.amount<0).reduce((s,i)=>s+i.amount,0));
   const netCash = totalIn - totalOut;
 
+  // Cumulative cost totals from all weekly bills
+  var allSales=[];
+  bills.forEach(function(b){ (b.sales||[]).forEach(function(s){ allSales.push(s); }); });
+  var cumShoeCost=allSales.reduce(function(s,x){ return s+(x.cost||0); },0);
+  var cumCustomFee=allSales.reduce(function(s,x){ return s+(x.custom||0); },0);
+  var cumFixedCost=allSales.length*47;
+  var cumCost=cumShoeCost+cumCustomFee+cumFixedCost;
+
   // KPIs
   const curRev = lastBill?lastBill.summary.revenue:0;
   const curProfit = lastBill?lastBill.summary.profit:0;
@@ -763,6 +771,11 @@ function renderHome() {
         ${products.filter(p=>p.profitPerUnit>=50).length>0?'🟢'+products.filter(p=>p.profitPerUnit>=50).length+'盈利':''}
       </div>
       <div class="kpi-sub">共${products.length}个产品 · ${bills.length}周数据 · ${ledger.length}条流水</div>
+    </div>
+    <div class="kpi-card" onclick="switchModule('fin')" style="cursor:pointer;">
+      <div class="kpi-label">📊 累计成本（${bills.length}周）</div>
+      <div class="kpi-value" style="font-size:18px;">¥${cumCost.toLocaleString()}</div>
+      <div class="kpi-sub">原鞋 ¥${cumShoeCost.toLocaleString()} · 定制 ¥${cumCustomFee.toLocaleString()} · 固定 ¥${cumFixedCost.toLocaleString()}</div>
     </div>
   `;
 
@@ -1885,6 +1898,15 @@ function renderFinWeekly() {
     tr.children[10].appendChild(btn);
     document.getElementById('finSalesBody').appendChild(tr);
   })
+
+  // Totals row
+  var totalShoeCost=summary.reduce(function(s,p){return s+(p.cost||0)*p.count;},0);
+  var totalCustomFee=summary.reduce(function(s,p){return s+(p.custom||0)*p.count;},0);
+  var totalFixedCost=summary.reduce(function(s,p){return s+p.count*47;},0);
+  var trTotal=document.createElement('tr');
+  trTotal.style.cssText='background:#f0f4ff;font-weight:700;font-size:12px;';
+  trTotal.innerHTML='<td>📊 合计</td><td>'+bill.summary.orders+'单</td><td>¥'+bill.summary.revenue.toLocaleString()+'</td><td>¥'+bill.summary.netIncome.toLocaleString()+'</td><td>¥'+totalShoeCost.toLocaleString()+'</td><td>¥'+totalCustomFee.toLocaleString()+'</td><td>¥'+totalFixedCost.toLocaleString()+'</td><td style="color:'+(bill.summary.profit>=0?'var(--green)':'var(--red)')+';">'+(bill.summary.profit>=0?'+':'')+'¥'+bill.summary.profit.toLocaleString()+'</td><td>'+(bill.summary.profitRate>=0?'+':'')+bill.summary.profitRate.toFixed(1)+'%</td><td></td><td></td>';
+  document.getElementById('finSalesBody').appendChild(trTotal);
 
   // Returns KPI + summary + detail
   var totalRetCount=(bill.returns||[]).length;
