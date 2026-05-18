@@ -2461,24 +2461,21 @@ function uploadFinanceWorkbench() {
         } else {
           var label = prompt('账单标签（如：第4周 05/11-05/17）：','');
           var bill = {id:'w_'+Date.now(),label:label||'',start:'',end:'',summary:{orders:0,returns:0,revenue:0,netIncome:0,profit:0,profitRate:0,platformFee:0,returnRate:0,customFee:0,fixedCost:0},sales:[],returns:[],report:'数据已导入'};
-          // Auto-detect if first row is header
-          var startRow = 1;
-          var firstRow = json[1]||[];
-          if (firstRow[0] && (String(firstRow[0]).includes('名称')||String(firstRow[0]).includes('产品')||String(firstRow[0]).includes('商品'))) startRow = 2;
-          json.slice(startRow).forEach(function(row){
+          json.slice(1).forEach(function(row){
             if(!row[0])return;
             var p=parseFloat(row[2])||0;
+            if(p===0)return; // skip header/empty rows (price column is text or empty)
             var c=parseFloat(row[3])||0;
             var cf=parseFloat(row[4])||0;
             var inc=parseFloat(row[5])||(p*0.8);
             var prof=inc-c-cf-47;
             bill.sales.push({name:String(row[0]||'').trim(),size:String(row[1]||'').trim(),price:p,cost:c,custom:cf,income:Math.round(inc*100)/100,profit:Math.round(prof*100)/100,rate:p>0?Math.round(prof/p*1000)/10:0});
           });
-          if (bill.sales.length===0) { alert('未读取到任何销售数据。\\n\\n请确认Excel格式：\\nA列=产品名 B列=尺码 C列=售价 D列=原鞋成本 E列=定制费 F列=到手金额(可选)'); return; }
-          // Auto-generate label if empty: count existing bills + find date range from sales
+          if (bill.sales.length===0) { alert('未读取到任何销售数据。请确认Excel格式：A列=产品名 B列=尺码 C列=售价 D列=原鞋成本 E列=定制费 F列=到手金额(可选)'); return; }
+          // Auto-generate label if empty
           if (!bill.label) {
-            var weekNum = (db.finance.weeklyBills||[]).length + 1;
-            var dates = bill.sales.map(function(s){ return ''; }); // sales don't have dates in current format
+            var allBills = db.finance.weeklyBills||[];
+            var weekNum = allBills.length + 1;
             bill.label = '第' + weekNum + '周';
           }
           bill.summary.orders=bill.sales.length;
