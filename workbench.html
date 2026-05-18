@@ -474,7 +474,8 @@ tr:hover td{background:#fafcfd}
           <input type="date" id="procDateFilter" onchange="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:140px;border:1px solid #ddd;border-radius:6px;" title="按日期筛选">
           <button class="btn btn-outline btn-sm" onclick="document.getElementById('procDateFilter').value='';procPage=1;renderProcurements();">🔄 清空</button>
           <span style="flex:1;"></span>
-          <button class="btn btn-primary btn-sm" onclick="addProcurement()">＋ 新增采购</button>
+          <button class="btn btn-primary btn-sm" onclick="addProcurementRow()">＋ 新增一行</button>
+          <button class="btn btn-primary btn-sm" onclick="addProcurement()">＋ 新增采购(弹窗)</button>
           <button class="btn btn-outline btn-sm" onclick="importProcurements()">📤 导入Excel</button>
           <span style="font-size:12px;color:var(--text3);" id="procCount"></span>
         </div>
@@ -2130,6 +2131,19 @@ function addProcurement(){
   var week=Math.max(1,Math.floor(diffDays/7)+1);
   db.finance.ledger.unshift({date:today,day:dayStr,cat:'原鞋',desc:'采购 '+code+' x'+qty,amount:-(qty*price),pay:'采购',note:note,week:week});
   saveDB(db);renderProcurements();toast('采购已记录');
+}
+function addProcurementRow(){
+  var db=getDB();if(!db.procurements)db.procurements=[];
+  db.procurements.unshift({id:'proc_'+Date.now(),date:new Date().toISOString().slice(0,10),code:'',size:'',quantity:1,unitPrice:0,totalAmount:0,note:'',orderNo:'',receipt:'',payment:''});
+  saveDB(db);renderProcurements();toast('新行已添加');
+}
+function updateProcCell(idx, field, value){
+  var db=getDB();var procs=db.procurements||[];
+  if(idx>=0&&idx<procs.length){procs[idx][field]=value;saveDB(db);}
+}
+function updateProcTotal(idx){
+  var db=getDB();var procs=db.procurements||[];
+  if(idx>=0&&idx<procs.length){var p=procs[idx];p.totalAmount=(p.quantity||0)*(p.unitPrice||0);saveDB(db);renderProcurements();}
 }
 function deleteProcurement(id){
   if(!confirm('删除这条采购记录？'))return;
