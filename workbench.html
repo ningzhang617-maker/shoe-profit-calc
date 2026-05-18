@@ -1430,6 +1430,18 @@ function regenerateProducts(db){
 // MODULE 4: FINANCE
 // ============================================================
 let currentFinTab='ledger';
+function switchFinTab(t) {
+  currentFinTab=t;
+  document.querySelectorAll('.fin-view').forEach(v=>v.classList.remove('active'));
+  const viewEl = document.getElementById({'ledger':'finLedgerView','weekly':'finWeeklyView','summary':'finSummaryView'}[t]);
+  if (viewEl) viewEl.classList.add('active');
+  document.querySelectorAll('.fin-tab-btn').forEach(b=>b.classList.remove('active'));
+  const btnEl = document.getElementById({'ledger':'fTabLedger','weekly':'fTabWeekly','summary':'fTabSummary'}[t]);
+  if (btnEl) btnEl.classList.add('active');
+  if (t==='ledger') renderFinLedger();
+  if (t==='weekly') renderFinWeekly();
+  if (t==='summary') {renderFinSummary();}
+}
 var craftLibrary={
   '手绘涂鸦（标准）':{fee:50,materials:'丙烯颜料,勾线笔',timeMin:180},
   '手绘涂鸦（复杂）':{fee:80,materials:'丙烯颜料,勾线笔,保护漆',timeMin:240},
