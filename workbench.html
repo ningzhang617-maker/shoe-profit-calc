@@ -2556,18 +2556,32 @@ function uploadFinanceWorkbench() {
             var retJson = XLSX.utils.sheet_to_json(retSheet, {header:1, defval:''});
             for (var r = 4; r < retJson.length; r++) {
               var rrow = retJson[r];
-              var rcodeStr = rrow[3]; // D: 商品货号
+              var rcodeStr = rrow[6]; // G: 商品货号 (returns sheet has different layout!)
               if (!rcodeStr) continue;
               var rshortName = extractShortFromCode(String(rcodeStr));
               if (!rshortName) continue;
-              var rsize = rrow[5] || ''; // F: 规格
-              var ramt = parseFloat(rrow[7]) || 0; // H: 商品金额
-              var rretDate = String(rrow[2]||'').slice(0,10); // C: 退货时间
+              var rsize = rrow[8] || ''; // I: 规格
+              var ramt = parseFloat(rrow[10]) || 0; // K: 商品金额
+              var rretDate = String(rrow[2]||'').slice(0,10); // C: 退货完成时间
               if (!ramt) continue;
               bill.returns.push({name:rshortName, size:String(rsize).trim(), amount:ramt, date:rretDate||''});
             }
           }
           if (bill.sales.length===0) { alert('未读取到销售数据，请确认是得物账单文件。\\n产品代码列(D)需要包含 Team901-xxx'); return; }
+          // Refresh costRefs from existing bills + current import to ensure costs are populated
+          if (!db.costRefs) db.costRefs = {};
+          (db.finance.weeklyBills||[]).forEach(function(b){ (b.sales||[]).forEach(function(s){ if(s.name&&s.cost>0&&(!db.costRefs[s.name]||db.costRefs[s.name].shoeCost===0)){ db.costRefs[s.name]={shoeCost:s.cost,customFee:s.custom||0,updatedAt:b.end||'',history:[]}; } }); });
+          // Re-assign costs to imported sales using refreshed costRefs
+          bill.sales.forEach(function(s){
+            var cr = db.costRefs[s.name];
+            if (cr) {
+              s.cost = cr.shoeCost || 0;
+              s.custom = cr.customFee || 0;
+              var inc = s.income || (s.price * 0.8);
+              s.profit = inc - s.cost - s.custom - 47;
+              s.rate = s.price > 0 ? Math.round(s.profit / s.price * 1000) / 10 : 0;
+            }
+          });
           if (!bill.start) { bill.start = ''; bill.end = ''; }
           bill.summary.orders=bill.sales.length;
           bill.summary.returns=bill.returns.length;
