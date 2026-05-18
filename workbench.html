@@ -2194,7 +2194,7 @@ function importBidList(){
           if(!cr.subSkus)cr.subSkus=[];
           subSkus.forEach(function(s){
             if(!cr.subSkus.some(function(x){ return x.code===s; })){
-              cr.subSkus.push({code:s,cost:0,supplier:'',date:''});
+              cr.subSkus.push({code:s,cost:getProcPrice(s)||0,supplier:'',date:''});
             }
           });
           cr.subSkus.sort(function(a,b){ return a.cost-b.cost; });
@@ -2530,11 +2530,25 @@ function toggleSizeDetail(rowId, name){
   tr.parentNode.insertBefore(detailRow, tr.nextSibling);
 }
 
+function getProcPrice(code){
+  var db=getDB();var procs=db.procurements||[];
+  var min=0;
+  procs.forEach(function(p){ if(p.code===code&&p.unitPrice>0&&(min===0||p.unitPrice<min))min=p.unitPrice; });
+  return min;
+}
+
+var costSortField='name',costSortDir=1;
+function sortCostRefs(field){
+  if(costSortField===field)costSortDir=-costSortDir;
+  else{costSortField=field;costSortDir=1;}
+  renderCostRefs();
+}
+
 function renderCostRefs(){
   const db=getDB();if(!db.costRefs)db.costRefs={};
   const refs=Object.entries(db.costRefs);
   var thead=document.querySelector('#costRefHead');
-  if(thead)thead.innerHTML='<tr><th></th><th>产品名</th><th>主货号</th><th>辅助货号</th><th>工艺</th><th>平均进价</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>更新</th><th>操作</th></tr>';
+  if(thead)thead.innerHTML='<tr><th></th><th style="cursor:pointer;" onclick="sortCostRefs(\'name\')">产品名 ↕</th><th style="cursor:pointer;" onclick="sortCostRefs(\'sku\')">主货号 ↕</th><th>辅助货号</th><th>工艺</th><th>平均进价</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>更新</th><th>操作</th></tr>';
   var tbody=document.getElementById('costRefBody');
   tbody.innerHTML='';
   if(refs.length===0){
@@ -2542,7 +2556,11 @@ function renderCostRefs(){
     document.getElementById('costRefCount').textContent='0 个产品';
     return;
   }
-  refs.sort(function(a,b){ return a[0].localeCompare(b[0]); });
+    if(costSortField==='sku'){
+    refs.sort(function(a,b){ var sa=a[1].mainSku||'',sb=b[1].mainSku||''; return costSortDir*sa.localeCompare(sb); });
+  } else {
+    refs.sort(function(a,b){ return costSortDir*a[0].localeCompare(b[0]); });
+  }
   refs.forEach(function(e){
     var name=e[0], cr=e[1];
     if(!cr.subSkus)cr.subSkus=[];
@@ -2552,7 +2570,22 @@ function renderCostRefs(){
     var totalQty=0,totalCost=0;
     sizeKeys.forEach(function(k){ totalQty+=sizes[k].count; totalCost+=sizes[k].avg*sizes[k].count; });
     var avgPrice=totalQty>0?Math.round(totalCost/totalQty):0;
-    var skuList=cr.subSkus.map(function(s){ return '<div style="font-size:9px;padding:1px 0;">'+s.code+': ¥'+s.cost+(s.supplier?' ('+s.supplier+')':'')+' <span style="cursor:pointer;color:var(--red);" onclick="deleteSubSku(\''+name+'\',\''+s.code+'\')">✕</span></div>'; }).join('');
+    // Show subSkus with real procurement prices, truncated
+    var subSkuMax=3, subSkuCount=cr.subSkus.length;
+    var subSkuShow=cr.subSkus.slice(0,subSkuMax);
+    var subSkuHidden=cr.subSkus.slice(subSkuMax);
+    var skuList=subSkuShow.map(function(s){
+      var realCost=s.cost||getProcPrice(s.code)||0;
+      return '<div style="font-size:9px;padding:1px 0;">'+s.code+': ¥'+realCost+(s.supplier?' ('+s.supplier+')':'')+'</div>';
+    }).join('');
+    if(subSkuCount>subSkuMax){
+      skuList+='<div style="font-size:9px;color:var(--blue);cursor:pointer;" onclick="this.nextSibling.style.display=this.nextSibling.style.display===\'none\'?\'block\':\'none\';this.textContent=this.textContent.indexOf(\'展开\')>=0?\'收起 ▲\':\'展开全部('+subSkuCount+'个) ▼\';">展开全部('+subSkuCount+'个) ▼</div>';
+      skuList+='<div style="display:none;">'+subSkuHidden.map(function(s){
+        var realCost=s.cost||getProcPrice(s.code)||0;
+        return '<div style="font-size:9px;padding:1px 0;">'+s.code+': ¥'+realCost+(s.supplier?' ('+s.supplier+')':'')+' <span style="cursor:pointer;color:var(--red);" onclick="deleteSubSku(\''+name+'\',\''+s.code+'\')">✕</span></div>';
+      }).join('')+'</div>';
+    }
+    skuList+='<button class="btn btn-outline btn-sm" onclick="addSubSku(\''+name+'\')" style="padding:0 4px;font-size:9px;margin-top:2px;">+</button>';
     var histTitle=cr.history.map(function(h){ return h.date+': '+h.field+' '+h.old+'→'+h.new; }).join('\n');
     var rowId='costRow_'+name.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g,'_');
     var tr=document.createElement('tr');tr.id=rowId;
