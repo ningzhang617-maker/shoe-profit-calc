@@ -2131,6 +2131,14 @@ function addProcurement(){
   db.finance.ledger.unshift({date:today,day:dayStr,cat:'原鞋',desc:'采购 '+code+' x'+qty,amount:-(qty*price),pay:'采购',note:note,week:week});
   saveDB(db);renderProcurements();toast('采购已记录');
 }
+function updateProcCell(idx, field, value){
+  var db=getDB();var procs=db.procurements||[];
+  if(idx>=0&&idx<procs.length){procs[idx][field]=value;saveDB(db);}
+}
+function updateProcTotal(idx){
+  var db=getDB();var procs=db.procurements||[];
+  if(idx>=0&&idx<procs.length){var p=procs[idx];p.totalAmount=(p.quantity||0)*(p.unitPrice||0);saveDB(db);renderProcurements();}
+}
 function deleteProcurement(id){
   if(!confirm('删除这条采购记录？'))return;
   var db=getDB();db.procurements=(db.procurements||[]).filter(function(p){ return p.id!==id; });
