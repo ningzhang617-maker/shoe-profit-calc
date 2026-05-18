@@ -2196,9 +2196,32 @@ function importProcurements(){
           var payment=String(row[9]||'').trim();
           if(!price)return;
           db.procurements.unshift({id:'proc_'+Date.now()+Math.random(),date:date,code:code,size:size,quantity:qty,unitPrice:price,totalAmount:qty*price,note:note,orderNo:orderNo,receipt:receipt,payment:payment});
+          // Link to costRefs: find product shortName by code from SPU
+          if(!db.costRefs)db.costRefs={};
+          var matchedName=null;
+          (db.spuPeriods||[]).forEach(function(period){
+            (period.products||[]).forEach(function(sp){
+              if(!matchedName&&sp.code&&String(sp.code).indexOf(code)>=0){
+                matchedName=sp.shortName;
+              }
+            });
+          });
+          var targetName=matchedName||code; // fallback to code if no SPU match
+          var cr=db.costRefs[targetName];
+          if(!cr){cr=db.costRefs[targetName]={shoeCost:0,customFee:0,mainSku:'',craftType:'',supplier:'',updatedAt:'',history:[],subSkus:[]};}
+          if(!cr.mainSku)cr.mainSku=code;
+          if(!cr.subSkus)cr.subSkus=[];
+          var hasSku=cr.subSkus.some(function(s){ return s.code===code; });
+          if(!hasSku){cr.subSkus.push({code:code,cost:price,supplier:'',date:date});cr.subSkus.sort(function(a,b){ return a.cost-b.cost; });}
+          if(cr.shoeCost===0||price<cr.shoeCost){
+            if(cr.shoeCost>0&&!cr.history)cr.history=[];
+            if(cr.shoeCost>0)cr.history.push({field:'shoeCost',old:cr.shoeCost,new:price,date:date});
+            cr.shoeCost=price;
+          }
+          cr.updatedAt=date;
           count++;
         });
-        saveDB(db);renderProcurements();toast('已导入 '+count+' 条采购记录');
+        saveDB(db);renderProcurements();toast('已导入 '+count+' 条采购 · 成本基准已联动');
       }catch(err){alert('导入失败：'+err.message);}
     };
     reader.readAsArrayBuffer(file);
