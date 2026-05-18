@@ -2138,7 +2138,7 @@ function addProcurement(){
 function trackPackage(){
   var no=document.getElementById('procTrackNo').value.trim();
   if(!no){toast('请输入快递单号');return;}
-  window.open('https://m.kuaidi100.com/index_new.html?nu='+encodeURIComponent(no)+'&from=web', '_blank');
+  window.open('https://www.17track.net/zh-cn#nums='+encodeURIComponent(no), '_blank');
 }
 function addProcurementRow(){
   var db=getDB();if(!db.procurements)db.procurements=[];
