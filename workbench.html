@@ -472,7 +472,8 @@ tr:hover td{background:#fafcfd}
       <div id="costProcView" style="display:none;">
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
           <input type="date" id="procDateFilter" onchange="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:140px;border:1px solid #ddd;border-radius:6px;" title="按日期筛选">
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('procDateFilter').value='';procPage=1;renderProcurements();">🔄 清空</button>
+          <input type="text" id="procSearch" placeholder="🔍 搜单号/货号..." oninput="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:160px;border:1px solid #ddd;border-radius:6px;">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('procDateFilter').value='';document.getElementById('procSearch').value='';procPage=1;renderProcurements();">🔄 清空</button>
           <span style="flex:1;"></span>
           <button class="btn btn-primary btn-sm" onclick="addProcurementRow()">＋ 新增一行</button>
           <button class="btn btn-primary btn-sm" onclick="addProcurement()">＋ 新增采购(弹窗)</button>
@@ -2191,6 +2192,8 @@ function renderProcurements(){
   var db=getDB();var procs=db.procurements||[];
   var dateFilter=document.getElementById('procDateFilter');
   if(dateFilter&&dateFilter.value){ procs=procs.filter(function(p){ return p.date===dateFilter.value; }); }
+  var procSearch=document.getElementById('procSearch');
+  if(procSearch&&procSearch.value){ var q=procSearch.value.toLowerCase(); procs=procs.filter(function(p){ return (p.orderNo||'').toLowerCase().indexOf(q)>=0||(p.code||'').toLowerCase().indexOf(q)>=0; }); }
   procs.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
   var totalFiltered=procs.length;
   var totalPages=Math.ceil(totalFiltered/procPageSize);
