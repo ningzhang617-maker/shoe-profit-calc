@@ -2307,7 +2307,20 @@ function autoFillCostRefs(){
       }
     });
   });
-  // Also keep any manually-edited costs that have actual cost data
+  // Remove stale entries: shoeCost=0 AND name not found in SPU (old wrong names)
+  var validNames={};
+  (db.spuPeriods||[]).forEach(function(period){
+    (period.products||[]).forEach(function(sp){
+      var sn=extractShortFromCode(sp.code||'')||sp.shortName;
+      if(sn) validNames[sn]=true;
+    });
+  });
+  Object.keys(db.costRefs).forEach(function(k){
+    if(!validNames[k] && db.costRefs[k].shoeCost===0){
+      delete db.costRefs[k];
+    }
+  });
+  // Make sure all remaining entries have required fields
   Object.keys(db.costRefs).forEach(function(k){
     var cr=db.costRefs[k];
     if(!cr.mainSku) cr.mainSku='';
@@ -2473,6 +2486,19 @@ function autoFillCostRefs(){
         db.costRefs[sn].mainSku=String(code).split('(')[0].trim();
       }
     });
+  });
+  // Remove stale entries with wrong names
+  var validNames={};
+  (db.spuPeriods||[]).forEach(function(period){
+    (period.products||[]).forEach(function(sp){
+      var sn=extractShortFromCode(sp.code||'')||sp.shortName;
+      if(sn) validNames[sn]=true;
+    });
+  });
+  Object.keys(db.costRefs).forEach(function(k){
+    if(!validNames[k] && db.costRefs[k].shoeCost===0){
+      delete db.costRefs[k];
+    }
   });
   Object.keys(db.costRefs).forEach(function(k){
     var cr=db.costRefs[k];
