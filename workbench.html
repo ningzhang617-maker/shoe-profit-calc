@@ -2522,6 +2522,12 @@ function toggleSizeDetail(rowId, name){
   detailRow.innerHTML='<td></td><td colspan="8" style="padding:6px 12px;"><div style="font-size:11px;font-weight:600;margin-bottom:4px;">📊 各码数进价明细</div><table style="width:100%;font-size:11px;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #ddd;"><th>码数</th><th>上次采购价</th><th>上次采购货号</th><th>采购日期</th><th>累计采购</th></tr></thead><tbody>'+rows+'</tbody></table></td>';
   tr.parentNode.insertBefore(detailRow, tr.nextSibling);
 }
+var costSortField='name',costSortDir=1;
+function sortCostRefs(field){
+  if(costSortField===field)costSortDir=-costSortDir;
+  else{costSortField=field;costSortDir=1;}
+  renderCostRefs();
+}
 function renderCostRefs(){
   const db=getDB();if(!db.costRefs)db.costRefs={};
   const refs=Object.entries(db.costRefs);
