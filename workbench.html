@@ -3313,7 +3313,7 @@ window.addEventListener('resize',()=>{['homeChart','chartDashSales','chartDashRa
 try{
 initDefaultDataWorkbench();
 // Auto-clean bad bills before migration
-(function(){var db=getDB();var bills=db.finance.weeklyBills||[];var cleaned=bills.filter(function(b){return b.label&&b.summary.orders>0;});if(cleaned.length!==bills.length){db.finance.weeklyBills=cleaned;db._dataVersion=0;saveDB(db);}})();
+(function(){var db=getDB();var bills=db.finance.weeklyBills||[];var cleaned=bills.filter(function(b){return b.label&&b.summary.orders>0&&b.summary.revenue>0&&b.label.indexOf('账单')!==0;});if(cleaned.length!==bills.length){db.finance.weeklyBills=cleaned;db._dataVersion=0;saveDB(db);}})();
 migrateBills();
 autoFillCostRefs();
 renderHome();
