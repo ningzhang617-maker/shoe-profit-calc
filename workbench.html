@@ -2502,13 +2502,13 @@ function uploadFinanceWorkbench() {
           // Parse sales (rows start at index 4, row 5 in Excel)
           for (var r = 4; r < salesJson.length; r++) {
             var row = salesJson[r];
-            var codeStr = row[6]; // G: 产品货号
+            var codeStr = row[3]; // D: 商品货号
             if (!codeStr) continue;
             var shortName = extractShortFromCode(codeStr);
             if (!shortName) continue;
-            var size = row[8] || ''; // I: 规格
-            var price = parseFloat(row[7]) || 0; // H: 产品金额
-            var settle = parseFloat(row[83]) || 0; // CF(84): 应结算
+            var size = row[5] || ''; // F: 规格
+            var price = parseFloat(row[7]) || 0; // H: 商品金额
+            var settle = parseFloat(row[83]) || 0; // CF: 应结金额
             if (!price) continue;
             if (!db.costRefs) db.costRefs = {};
             var cr = db.costRefs[shortName] || {};
@@ -2529,13 +2529,13 @@ function uploadFinanceWorkbench() {
             var retJson = XLSX.utils.sheet_to_json(retSheet, {header:1, defval:''});
             for (var r = 4; r < retJson.length; r++) {
               var row = retJson[r];
-              var codeStr = row[6];
+              var codeStr = row[3]; // D: 商品货号
               if (!codeStr) continue;
               var shortName = extractShortFromCode(codeStr);
               if (!shortName) continue;
-              var size = row[8] || '';
-              var amt = parseFloat(row[10]) || 0; // K: 产品金额
-              var retDate = String(row[2]||'').slice(0,10); // C: 退货发起时间
+              var size = row[5] || ''; // F: 规格
+              var amt = parseFloat(row[7]) || 0; // H: 商品金额
+              var retDate = String(row[2]||'').slice(0,10); // C: 退货时间
               if (!amt) continue;
               bill.returns.push({name:shortName, size:String(size).trim(), amount:amt, date:retDate||''});
             }
