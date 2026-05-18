@@ -2297,11 +2297,23 @@ function autoFillCostRefs(){
       }
     });
   });
-  // Also extract from products
-  (db.products||[]).forEach(p=>{
-    if(p.name&&p.profitPerUnit&&!db.costRefs[p.name]){
-      db.costRefs[p.name]={shoeCost:0,customFee:0};
+  // Also extract ALL SPU products (use full name + shortName)
+  var seen={};
+  (db.products||[]).forEach(function(p){
+    if(p.name&&!db.costRefs[p.name]&&!seen[p.name]){
+      db.costRefs[p.name]={shoeCost:0,customFee:0,mainSku:'',craftType:'',supplier:'',updatedAt:'',history:[],subSkus:[]};
+      seen[p.name]=true;
     }
+  });
+  // Also extract from SPU periods directly (catches products not in db.products)
+  (db.spuPeriods||[]).forEach(function(period){
+    (period.products||[]).forEach(function(sp){
+      var sn=sp.shortName;
+      if(sn&&!db.costRefs[sn]&&!seen[sn]){
+        db.costRefs[sn]={shoeCost:0,customFee:0,mainSku:'',craftType:'',supplier:'',updatedAt:'',history:[],subSkus:[]};
+        seen[sn]=true;
+      }
+    });
   });
   // Also extract from procurements
   (db.procurements||[]).forEach(function(proc){
@@ -2461,11 +2473,23 @@ function autoFillCostRefs(){
       }
     });
   });
-  // Also extract from products
-  (db.products||[]).forEach(p=>{
-    if(p.name&&p.profitPerUnit&&!db.costRefs[p.name]){
-      db.costRefs[p.name]={shoeCost:0,customFee:0};
+  // Also extract ALL SPU products (use full name + shortName)
+  var seen={};
+  (db.products||[]).forEach(function(p){
+    if(p.name&&!db.costRefs[p.name]&&!seen[p.name]){
+      db.costRefs[p.name]={shoeCost:0,customFee:0,mainSku:'',craftType:'',supplier:'',updatedAt:'',history:[],subSkus:[]};
+      seen[p.name]=true;
     }
+  });
+  // Also extract from SPU periods directly (catches products not in db.products)
+  (db.spuPeriods||[]).forEach(function(period){
+    (period.products||[]).forEach(function(sp){
+      var sn=sp.shortName;
+      if(sn&&!db.costRefs[sn]&&!seen[sn]){
+        db.costRefs[sn]={shoeCost:0,customFee:0,mainSku:'',craftType:'',supplier:'',updatedAt:'',history:[],subSkus:[]};
+        seen[sn]=true;
+      }
+    });
   });
   // Also extract from procurements
   (db.procurements||[]).forEach(function(proc){
