@@ -2445,6 +2445,25 @@ function autoFillCostRefs(){
 }
 
 
+function extractShortFromCode(codeStr) {
+  if (!codeStr) return null;
+  var codes = String(codeStr).split(',');
+  for (var i = 0; i < codes.length; i++) {
+    var c = codes[i].trim();
+    if (c.indexOf('Team901-') >= 0) {
+      var name = c.split('Team901-')[1].replace(/\)/g, '').trim();
+      var prefixes = ['女款','男款','男女款','款'];
+      for (var j = 0; j < prefixes.length; j++) {
+        if (name.indexOf(prefixes[j]) === 0 && name.length > prefixes[j].length) {
+          name = name.substring(prefixes[j].length);
+          break;
+        }
+      }
+      return name.trim();
+    }
+  }
+  return null;
+}
 function uploadFinanceWorkbench() {
   const input = document.createElement('input'); input.type='file'; input.accept='.xlsx,.xls';
   input.onchange = function(e) {
@@ -2454,10 +2473,68 @@ function uploadFinanceWorkbench() {
       try {
         const wb = XLSX.read(ev.target.result,{type:'array'});
         const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
-        const type = prompt('类型：1=记账流水 2=周账单','2');
+        const type = prompt('类型：1=记账流水 2=周账单(模板) 3=得物原始账单','2');
         const db = getDB();
         if (type==='1') {
           json.slice(1).forEach(row=>{if(!row[0])return;db.finance.ledger.push({date:row[0]||'',day:row[1]||'',cat:row[2]||'其他支出',desc:row[3]||'',amount:parseFloat(row[4])||0,pay:row[5]||'',week:parseInt(row[6])||1});});
+        } else if (type==='3') {
+          // 得物原始账单导入
+          var salesSheet = wb.Sheets['销售订单'];
+          if (!salesSheet) { alert('未找到「销售订单」sheet，请确认是得物账单文件'); return; }
+          var salesJson = XLSX.utils.sheet_to_json(salesSheet, {header:1, defval:''});
+          var label = prompt('账单标签（如：第4周 05/11-05/17）：','');
+          var bill = {id:'w_'+Date.now(),label:label||'',start:'',end:'',summary:{orders:0,returns:0,revenue:0,netIncome:0,profit:0,profitRate:0,platformFee:0,returnRate:0,customFee:0,fixedCost:0},sales:[],returns:[],report:'数据已导入'};
+          // Parse sales (rows start at index 4, row 5 in Excel)
+          for (var r = 4; r < salesJson.length; r++) {
+            var row = salesJson[r];
+            var codeStr = row[6]; // G: 产品货号
+            if (!codeStr) continue;
+            var shortName = extractShortFromCode(codeStr);
+            if (!shortName) continue;
+            var size = row[8] || ''; // I: 规格
+            var price = parseFloat(row[7]) || 0; // H: 产品金额
+            var settle = parseFloat(row[83]) || 0; // CF(84): 应结算
+            if (!price) continue;
+            if (!db.costRefs) db.costRefs = {};
+            var cr = db.costRefs[shortName] || {};
+            var c = cr.shoeCost || 0;
+            var cf = cr.customFee || 0;
+            var inc = settle || (price * 0.8);
+            var prof = inc - c - cf - 47;
+            bill.sales.push({name:shortName, size:String(size).trim(), price:price, cost:c, custom:cf, income:Math.round(inc*100)/100, profit:Math.round(prof*100)/100, rate:price>0?Math.round(prof/price*1000)/10:0});
+          }
+          // Parse returns
+          var retSheet = wb.Sheets['退货退款订单'];
+          if (retSheet) {
+            var retJson = XLSX.utils.sheet_to_json(retSheet, {header:1, defval:''});
+            for (var r = 4; r < retJson.length; r++) {
+              var row = retJson[r];
+              var codeStr = row[6];
+              if (!codeStr) continue;
+              var shortName = extractShortFromCode(codeStr);
+              if (!shortName) continue;
+              var size = row[8] || '';
+              var amt = parseFloat(row[10]) || 0; // K: 产品金额
+              var retDate = String(row[2]||'').slice(0,10); // C: 退货发起时间
+              if (!amt) continue;
+              bill.returns.push({name:shortName, size:String(size).trim(), amount:amt, date:retDate||''});
+            }
+          }
+          if (bill.sales.length===0) { alert('未读取到销售数据，请确认是得物账单文件且包含销售订单sheet'); return; }
+          if (!bill.label) { bill.label = '第' + ((db.finance.weeklyBills||[]).length+1) + '周'; }
+          bill.summary.orders=bill.sales.length;
+          bill.summary.returns=bill.returns.length;
+          bill.summary.revenue=Math.round(bill.sales.reduce(function(s,x){return s+x.price;},0)*100)/100;
+          bill.summary.netIncome=Math.round(bill.sales.reduce(function(s,x){return s+x.income;},0)*100)/100;
+          bill.summary.platformFee=Math.round((bill.summary.revenue-bill.summary.netIncome)*100)/100;
+          bill.summary.profit=Math.round(bill.sales.reduce(function(s,x){return s+x.profit;},0)*100)/100;
+          bill.summary.profitRate=bill.summary.revenue>0?Math.round(bill.summary.profit/bill.summary.revenue*1000)/10:0;
+          bill.summary.returnRate=bill.summary.orders>0?Math.round(bill.summary.returns/bill.summary.orders*1000)/10:0;
+          bill.summary.customFee=bill.sales.reduce(function(s,x){return s+(x.custom||0);},0);
+          bill.summary.fixedCost=bill.summary.orders*47;
+          db.finance.weeklyBills.push(bill);
+          saveDB(db); switchFinTab('weekly'); toast('✅ 已导入 '+bill.sales.length+' 条销售 + '+bill.returns.length+' 条退货');
+          return;
         } else {
           var label = prompt('账单标签（如：第4周 05/11-05/17）：','');
           var bill = {id:'w_'+Date.now(),label:label||'',start:'',end:'',summary:{orders:0,returns:0,revenue:0,netIncome:0,profit:0,profitRate:0,platformFee:0,returnRate:0,customFee:0,fixedCost:0},sales:[],returns:[],report:'数据已导入'};
