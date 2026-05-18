@@ -460,7 +460,7 @@ tr:hover td{background:#fafcfd}
       <div class="card">
         <div class="card-title">📋 成本基准
           <button class="btn btn-outline btn-sm" onclick="addCostRef()" style="margin-left:8px;">＋ 添加</button>
-          <button class="btn btn-outline btn-sm" onclick="autoFillCostRefs()">🔄 从账单提取</button>
+          <button class="btn btn-outline btn-sm" onclick="autoFillCostRefs()">🔄 从SPU提取</button>
           <button class="btn btn-outline btn-sm" onclick="showCraftLibrary()">🔧 工艺库</button>
           <span style="font-size:11px;color:var(--text3);margin-left:8px;" id="costRefCount"></span>
         </div>
@@ -2289,44 +2289,32 @@ function deleteCraft(name){
 
 function autoFillCostRefs(){
   const db=getDB();if(!db.costRefs)db.costRefs={};
-  // Extract from existing weekly bills
-  (db.finance.weeklyBills||[]).forEach(bill=>{
-    (bill.sales||[]).forEach(sale=>{
-      if(sale.name&&sale.cost>0&&!db.costRefs[sale.name]){
-        db.costRefs[sale.name]={shoeCost:sale.cost,customFee:sale.custom||0};
-      }
-    });
-  });
-  // Helper: extract main SKU from code like 'FB1362-101(Team901-男款蓝调旧事)'
-  function getMainSku(code){ if(!code)return'';var s=String(code).split('(')[0].trim(); return s; }
-  // Also extract ALL SPU products with proper names and mainSku from SPU code
+  // Extract ALL products from SPU data using corrected name extraction
   var seen={};
   (db.spuPeriods||[]).forEach(function(period){
     (period.products||[]).forEach(function(sp){
-      var sn=sp.shortName;
-      if(sn&&!db.costRefs[sn]&&!seen[sn]){
-        var sku=getMainSku(sp.code||'');
+      var code=sp.code||'';
+      // Use extractShortFromCode for consistent name extraction
+      var sn=extractShortFromCode(code);
+      if(!sn) sn=sp.shortName; // fallback to embedded shortName
+      if(!sn) return;
+      if(!db.costRefs[sn]&&!seen[sn]){
+        var sku=String(code).split('(')[0].trim();
         db.costRefs[sn]={shoeCost:0,customFee:0,mainSku:sku,craftType:'',supplier:'',updatedAt:'',history:[],subSkus:[]};
         seen[sn]=true;
+      } else if(db.costRefs[sn]&&!db.costRefs[sn].mainSku){
+        db.costRefs[sn].mainSku=String(code).split('(')[0].trim();
       }
     });
   });
-  // Also fill mainSku for existing costRefs entries that are missing it
-  (db.spuPeriods||[]).forEach(function(period){
-    (period.products||[]).forEach(function(sp){
-      var sn=sp.shortName;
-      if(sn&&db.costRefs[sn]&&!db.costRefs[sn].mainSku){
-        db.costRefs[sn].mainSku=getMainSku(sp.code||'');
-      }
-    });
+  // Also keep any manually-edited costs that have actual cost data
+  Object.keys(db.costRefs).forEach(function(k){
+    var cr=db.costRefs[k];
+    if(!cr.mainSku) cr.mainSku='';
+    if(!cr.history) cr.history=[];
+    if(!cr.subSkus) cr.subSkus=[];
   });
-  // Also extract from procurements
-  (db.procurements||[]).forEach(function(proc){
-    if(proc.name&&proc.unitPrice>0&&!db.costRefs[proc.name]){
-      db.costRefs[proc.name]={shoeCost:proc.unitPrice,customFee:0,supplier:proc.supplier||'',updatedAt:proc.date,history:[]};
-    }
-  });
-  saveDB(db);renderCostRefs();toast('已提取 '+Object.keys(db.costRefs).length+' 条成本基准');
+  saveDB(db);renderCostRefs();toast('已从SPU提取 '+Object.keys(db.costRefs).length+' 条成本基准');
 }
 
 function renderCostRefs(){
@@ -2337,7 +2325,7 @@ function renderCostRefs(){
   var tbody=document.getElementById('costRefBody');
   tbody.innerHTML='';
   if(refs.length===0){
-    tbody.innerHTML='<tr><td colspan=9 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「＋ 添加成本」或「🔄 从账单提取」</td></tr>';
+    tbody.innerHTML='<tr><td colspan=9 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「＋ 添加成本」或「🔄 从SPU提取」</td></tr>';
     document.getElementById('costRefCount').textContent='0 个产品';
     return;
   }
@@ -2470,40 +2458,29 @@ function deleteCraft(name){
 
 function autoFillCostRefs(){
   const db=getDB();if(!db.costRefs)db.costRefs={};
-  // Extract from existing weekly bills
-  (db.finance.weeklyBills||[]).forEach(bill=>{
-    (bill.sales||[]).forEach(sale=>{
-      if(sale.name&&sale.cost>0&&!db.costRefs[sale.name]){
-        db.costRefs[sale.name]={shoeCost:sale.cost,customFee:sale.custom||0};
-      }
-    });
-  });
-  // Helper: extract main SKU from code like 'FB1362-101(Team901-男款蓝调旧事)'
-  var getMainSku=function(code){ if(!code)return'';return String(code).split('(')[0].trim(); };
   var seen={};
   (db.spuPeriods||[]).forEach(function(period){
     (period.products||[]).forEach(function(sp){
-      var sn=sp.shortName;
-      if(sn&&!db.costRefs[sn]&&!seen[sn]){
-        db.costRefs[sn]={shoeCost:0,customFee:0,mainSku:getMainSku(sp.code||''),craftType:'',supplier:'',updatedAt:'',history:[],subSkus:[]};
+      var code=sp.code||'';
+      var sn=extractShortFromCode(code);
+      if(!sn) sn=sp.shortName;
+      if(!sn) return;
+      if(!db.costRefs[sn]&&!seen[sn]){
+        var sku=String(code).split('(')[0].trim();
+        db.costRefs[sn]={shoeCost:0,customFee:0,mainSku:sku,craftType:'',supplier:'',updatedAt:'',history:[],subSkus:[]};
         seen[sn]=true;
+      } else if(db.costRefs[sn]&&!db.costRefs[sn].mainSku){
+        db.costRefs[sn].mainSku=String(code).split('(')[0].trim();
       }
     });
   });
-  (db.spuPeriods||[]).forEach(function(period){
-    (period.products||[]).forEach(function(sp){
-      var sn=sp.shortName;
-      if(sn&&db.costRefs[sn]&&!db.costRefs[sn].mainSku){
-        db.costRefs[sn].mainSku=getMainSku(sp.code||'');
-      }
-    });
+  Object.keys(db.costRefs).forEach(function(k){
+    var cr=db.costRefs[k];
+    if(!cr.mainSku) cr.mainSku='';
+    if(!cr.history) cr.history=[];
+    if(!cr.subSkus) cr.subSkus=[];
   });
-  (db.procurements||[]).forEach(function(proc){
-    if(proc.name&&proc.unitPrice>0&&!db.costRefs[proc.name]){
-      db.costRefs[proc.name]={shoeCost:proc.unitPrice,customFee:0,supplier:proc.supplier||'',updatedAt:proc.date,history:[]};
-    }
-  });
-  saveDB(db);renderCostRefs();toast('已提取 '+Object.keys(db.costRefs).length+' 条成本基准');
+  saveDB(db);renderCostRefs();toast('已从SPU提取 '+Object.keys(db.costRefs).length+' 条成本基准');
 }
 
 
