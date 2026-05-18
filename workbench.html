@@ -475,7 +475,7 @@ tr:hover td{background:#fafcfd}
           <button class="btn btn-outline btn-sm" onclick="importProcurements()">📤 导入Excel</button>
           <span style="font-size:12px;color:var(--text3);" id="procCount"></span>
         </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>产品</th><th>货号</th><th>数量</th><th>单价</th><th>总金额</th><th>供应商</th><th>备注</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div>
+        <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>日期</th><th>货号</th><th>码数</th><th>数量</th><th>备注</th><th>单号</th><th>单价</th><th>总价</th><th>签收</th><th>结账</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
       </div>
     </div>
 
@@ -2108,38 +2108,24 @@ function switchCostTab(t){
   if(t==='proc')renderProcurements();
 }
 function addProcurement(){
-  var name=prompt('产品名：');if(!name)return;
-  var code=prompt('货号(可选)：')||'';
+  var code=prompt('货号：');if(!code)return;
+  var size=prompt('码数(可选)：','')||'';
   var qty=parseInt(prompt('数量：','1'))||1;
   var price=parseFloat(prompt('单价(元)：','0'))||0;
-  var supplier=prompt('供应商(可选)：')||'';
-  var note=prompt('备注(可选)：')||'';
+  var note=prompt('备注(可选)：','')||'';
+  var orderNo=prompt('单号(可选)：','')||'';
+  var receipt=prompt('签收情况(可选)：','')||'';
+  var payment=prompt('结账情况(可选)：','')||'';
+  var today=new Date().toISOString().slice(0,10);
   var db=getDB();if(!db.procurements)db.procurements=[];
-  db.procurements.unshift({
-    id:'proc_'+Date.now(),date:new Date().toISOString().slice(0,10),
-    name:name,code:code,quantity:qty,unitPrice:price,
-    totalAmount:qty*price,supplier:supplier,note:note
-  });
-  // Auto-update costRefs + cost increase alert
-  if(!db.costRefs)db.costRefs={};
-  var cr=db.costRefs[name];
-  if(!cr){cr=db.costRefs[name]={shoeCost:price,customFee:0,supplier:supplier,updatedAt:new Date().toISOString().slice(0,10),history:[],subSkus:[]};}
-  if(cr.shoeCost>0&&price>cr.shoeCost*1.05){
-    var pct=((price-cr.shoeCost)/cr.shoeCost*100).toFixed(1);
-    if(!confirm('⚠️ 成本上涨预警\n\n'+name+' 采购价从 ¥'+cr.shoeCost+' 上涨至 ¥'+price+'\n涨幅 '+pct+'%，超过5%阈值\n\n是否更新成本基准为 ¥'+price+'？\n\n（点「取消」保持原成本不变）')){
-      saveDB(db);renderProcurements();toast('采购已记录（成本未更新）');return;
-    }
-  }
-  cr.shoeCost=price;cr.supplier=supplier;cr.updatedAt=new Date().toISOString().slice(0,10);
-  if(!cr.history)cr.history=[];
-  cr.history.push({field:'shoeCost',old:cr.shoeCost,new:price,date:new Date().toISOString().slice(0,10)});
-    // Auto-create ledger entry
+  db.procurements.unshift({id:'proc_'+Date.now(),date:today,code:code,size:size,quantity:qty,unitPrice:price,totalAmount:qty*price,note:note,orderNo:orderNo,receipt:receipt,payment:payment});
+  // Auto-create ledger entry
   var days=['周日','周一','周二','周三','周四','周五','周六'];
-  var today=new Date();var dayStr=days[today.getDay()];
-  var startDate=new Date(2026,4,4);var diffDays=Math.floor((today-startDate)/86400000);
+  var d=new Date();var dayStr=days[d.getDay()];
+  var startDate=new Date(2026,4,4);var diffDays=Math.floor((d-startDate)/86400000);
   var week=Math.max(1,Math.floor(diffDays/7)+1);
-  db.finance.ledger.unshift({date:today.toISOString().slice(0,10),day:dayStr,cat:'原鞋',desc:'采购 '+name+' x'+qty,amount:-(qty*price),pay:supplier||'采购',note:'',week:week});
-  saveDB(db);renderProcurements();toast('采购已记录（已同步到记账流水）');
+  db.finance.ledger.unshift({date:today,day:dayStr,cat:'原鞋',desc:'采购 '+code+' x'+qty,amount:-(qty*price),pay:'采购',note:note,week:week});
+  saveDB(db);renderProcurements();toast('采购已记录');
 }
 function deleteProcurement(id){
   if(!confirm('删除这条采购记录？'))return;
@@ -2158,16 +2144,21 @@ function importProcurements(){
         var db=getDB();if(!db.procurements)db.procurements=[];
         var count=0;
         json.slice(1).forEach(function(row){
-          if(!row[0]&&!row[1])return;
-          var name=row[1]||row[0]||'';if(!name)return;
-          var date=row[0]||new Date().toISOString().slice(0,10);
-          if(date.length>10)date=date.slice(0,10);
-          var code=row[2]||'';var qty=parseInt(row[3])||1;
-          var price=parseFloat(row[4])||0;
-          var supplier=row[5]||'';var note=row[6]||'';
-          db.procurements.unshift({id:'proc_'+Date.now()+Math.random(),date:date,name:name,code:code,quantity:qty,unitPrice:price,totalAmount:qty*price,supplier:supplier,note:note});
-          if(!db.costRefs)db.costRefs={};
-          if(!db.costRefs[name])db.costRefs[name]={shoeCost:price,customFee:0,supplier:supplier,updatedAt:date,history:[],subSkus:[]};
+          if(!row[1])return; // must have code (col B)
+          var date=row[0]; if(!date)return;
+          if(typeof date==='number')date=XLSX.SSF.format('yyyy-mm-dd',date);
+          else if(date.getFullYear)date=date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+          else date=String(date).slice(0,10);
+          var code=String(row[1]||'').trim();
+          var size=String(row[2]||'').trim();
+          var qty=parseInt(row[3])||1;
+          var note=String(row[4]||'').trim();
+          var orderNo=String(row[5]||'').trim();
+          var price=parseFloat(row[6])||0;
+          var receipt=String(row[8]||'').trim();
+          var payment=String(row[9]||'').trim();
+          if(!price)return;
+          db.procurements.unshift({id:'proc_'+Date.now()+Math.random(),date:date,code:code,size:size,quantity:qty,unitPrice:price,totalAmount:qty*price,note:note,orderNo:orderNo,receipt:receipt,payment:payment});
           count++;
         });
         saveDB(db);renderProcurements();toast('已导入 '+count+' 条采购记录');
@@ -2184,25 +2175,14 @@ function renderProcurements(){
   var tbody=document.getElementById('procBody');
   var totalAmt=procs.reduce(function(s,p){ return s+(p.totalAmount||0); },0);
   tbody.innerHTML=procs.map(function(p){
-    return '<tr><td>'+p.date+'</td><td><b>'+p.name+'</b></td><td style="font-size:10px;font-family:monospace;"><input value="'+(cr.mainSku||'')+'" onchange="updateCostRef(\''+name+'\',\'mainSku\',this.value)" style="width:85px;padding:2px 4px;font-size:9px;font-family:monospace;" placeholder="主货号"></td><td>'+skuList+'<button class="btn btn-outline btn-sm" onclick="addSubSku(\''+name+'\')" style="padding:0 4px;font-size:9px;margin-top:2px;">+ 辅助货号</button></td><td>'+(cr.craftType||'--')+'</td><td></td><td></td><td></td><td></td><td></td>';
-    var shoeInput=document.createElement('input');
-    shoeInput.type='number';shoeInput.value=cr.shoeCost||0;shoeInput.style.cssText='width:80px;padding:3px 5px;font-size:11px;text-align:center;';
-    shoeInput.onchange=function(){updateCostRef(name,'shoeCost',parseFloat(this.value)||0);};
-    tr.children[4].appendChild(shoeInput);
-    var customInput=document.createElement('input');
-    customInput.type='number';customInput.value=cr.customFee||0;customInput.style.cssText='width:80px;padding:3px 5px;font-size:11px;text-align:center;';
-    customInput.onchange=function(){updateCostRef(name,'customFee',parseFloat(this.value)||0);};
-    tr.children[5].appendChild(customInput);
-    tr.children[6].textContent=cr.supplier||'--';
-    tr.children[7].textContent=cr.updatedAt||'--';
-    tr.children[7].style.cssText='font-size:10px;color:var(--text3);';
-    var delBtn=document.createElement('button');
-    delBtn.className='btn btn-danger btn-sm';delBtn.textContent='✕';delBtn.style.cssText='padding:2px 8px;font-size:10px;';
-    delBtn.onclick=function(){deleteCostRef(name);};
-    tr.children[8].appendChild(delBtn);
-    tbody.appendChild(tr);
-  });
-  document.getElementById('costRefCount').textContent=refs.length+' 个产品';
+    return '<tr><td>'+p.date+'</td><td style=\"font-family:monospace;font-size:10px;\">'+(p.code||'--')+'</td><td>'+(p.size||'--')+'</td><td>'+(p.quantity||0)+'</td><td style=\"font-size:10px;color:var(--text3);\">'+(p.note||'')+'</td><td style=\"font-size:10px;\">'+(p.orderNo||'--')+'</td><td>¥'+(p.unitPrice||0)+'</td><td style=\"font-weight:700;\">¥'+(p.totalAmount||0).toLocaleString()+'</td><td>'+(p.receipt||'--')+'</td><td>'+(p.payment||'--')+'</td><td><button class=\"btn btn-danger btn-sm\" data-proc-id=\"'+p.id+'\" style=\"padding:1px 6px;font-size:10px;\">✕</button></td></tr>';
+  }).join('');
+  tbody.innerHTML+='<tr style=\"background:#f0f4ff;font-weight:600;\"><td colspan=\"6\" style=\"text-align:right;\">采购总计</td><td></td><td>¥'+totalAmt.toLocaleString()+'</td><td colspan=\"3\"></td></tr>';
+  // Bind click handlers
+  var buttons=tbody.querySelectorAll('[data-proc-id]');
+  for(var i=0;i<buttons.length;i++){
+    buttons[i].onclick=(function(id){return function(){deleteProcurement(id);};})(buttons[i].getAttribute('data-proc-id'));
+  }
 }
 
 function updateCostRef(name,field,val){
