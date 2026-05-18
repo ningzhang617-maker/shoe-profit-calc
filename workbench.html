@@ -405,7 +405,7 @@ tr:hover td{background:#fafcfd}
         </div>
       </div>
       <div id="finWeeklyView" class="fin-view">
-        <div style="margin-bottom:10px;"><select id="finWeekSel" onchange="renderFinWeekly(parseInt(this.value))"></select></div>
+        <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;"><select id="finWeekSel" onchange="renderFinWeekly(parseInt(this.value))"></select><button class="btn btn-danger btn-sm" onclick="deleteCurrentBill()" style="padding:2px 8px;font-size:10px;" title="删除当前周账单">✕ 删除</button></div>
         <div class="kpi-grid" id="finWeekKPIs"></div>
         <div class="card"><div class="card-title">📦 产品汇总 <span style="font-size:11px;color:var(--text3);">（按产品聚合，点「明细」查看每单详情）</span></div><div class="table-wrap"><table><thead><tr><th>产品名</th><th>销量</th><th>销售金额</th><th>到手金额</th><th>原鞋成本</th><th>定制费</th><th>固定成本</th><th>利润</th><th>利润率</th><th>状态</th><th>操作</th></tr></thead><tbody id="finSalesBody"></tbody></table></div></div>
         <div id="finSalesDetail" style="display:none;"></div>
@@ -1788,6 +1788,16 @@ function renderFinWeekSummary() {
     rows += '</tr>';
   });
   document.getElementById('finWeekSummaryBody').innerHTML = rows;
+}
+function deleteCurrentBill() {
+  var db=getDB(); var bills=db.finance.weeklyBills||[];
+  var sel=document.getElementById('finWeekSel');
+  var idx=parseInt(sel.value)||0;
+  if (idx>=bills.length||!bills[idx]) return;
+  var b=bills[idx];
+  if (!confirm('确定删除「'+b.label+'」？\\n\\n销售'+b.summary.orders+'条 退货'+b.summary.returns+'条\\n此操作不可恢复')) return;
+  bills.splice(idx,1);
+  saveDB(db); switchFinTab('weekly'); toast('已删除');
 }
 function initFinWeekSelect() {
   const db = getDB(); const bills = db.finance.weeklyBills||[];
