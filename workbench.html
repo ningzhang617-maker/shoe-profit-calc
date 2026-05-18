@@ -2137,23 +2137,7 @@ function addProcurement(){
 }
 function trackSingle(no){
   if(!no||no==='--')return;
-  var overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  var box=document.createElement('div');
-  box.style.cssText='background:#fff;border-radius:12px;width:90%;max-width:500px;height:80vh;display:flex;flex-direction:column;overflow:hidden;';
-  var hdr=document.createElement('div');
-  hdr.style.cssText='padding:10px 16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;';
-  hdr.innerHTML='<b>📦 物流查询: '+no+'</b><span style=\"cursor:pointer;font-size:20px;\">✕</span>';
-  hdr.lastChild.onclick=function(){overlay.remove();};
-  var ifr=document.createElement('iframe');
-  ifr.src='https://www.17track.net/zh-cn#nums='+encodeURIComponent(no);
-  ifr.style.cssText='flex:1;border:none;';
-  var ft=document.createElement('div');
-  ft.style.cssText='padding:8px;font-size:11px;text-align:center;border-top:1px solid #eee;';
-  ft.innerHTML='<a href=\"https://www.baidu.com/s?wd='+encodeURIComponent(no)+' 快递单号\" target=\"_blank\">🔍 百度搜索物流</a>';
-  box.appendChild(hdr);box.appendChild(ifr);box.appendChild(ft);
-  overlay.appendChild(box);document.body.appendChild(overlay);
-  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+  window.open('https://www.baidu.com/s?wd='+encodeURIComponent(no+' 快递单号'), '_blank');
 }
 function trackPackage(){
   var no=document.getElementById('procTrackNo').value.trim();
