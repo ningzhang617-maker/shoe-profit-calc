@@ -2484,79 +2484,63 @@ function autoFillCostRefs(){
 function getSizePrices(name){
   var db=getDB();var procs=db.procurements||[];
   var sizes={};
+  var cr=db.costRefs[name];
+  if(!cr)return sizes;
+  var codes=[cr.mainSku||''];
+  if(cr.subSkus)cr.subSkus.forEach(function(s){ codes.push(s.code); });
   procs.forEach(function(p){
-    // Match by code lookup from costRefs
-    var cr=db.costRefs[name];
-    if(!cr)return;
-    var codes=[cr.mainSku||''];
-    if(cr.subSkus)cr.subSkus.forEach(function(s){ codes.push(s.code); });
     var matched=false;
     codes.forEach(function(code){ if(code&&p.code===code)matched=true; });
     if(!matched&&p.code!==name)return;
     if(!p.size)return;
     var sz=String(p.size).trim();
-    if(!sizes[sz])sizes[sz]={count:0,prices:[],min:999999,max:0,last:''};
+    if(!sizes[sz])sizes[sz]={count:0,latestPrice:0,latestCode:'',latestDate:'',allPrices:[]};
     sizes[sz].count+=p.quantity||1;
-    sizes[sz].prices.push(p.unitPrice);
-    if(p.unitPrice<sizes[sz].min)sizes[sz].min=p.unitPrice;
-    if(p.unitPrice>sizes[sz].max)sizes[sz].max=p.unitPrice;
-    if(p.date>sizes[sz].last)sizes[sz].last=p.date;
-  });
-  // Calculate averages
-  Object.keys(sizes).forEach(function(k){
-    var s=sizes[k];
-    var sum=s.prices.reduce(function(a,b){ return a+b; },0);
-    s.avg=Math.round(sum/s.prices.length);
+    sizes[sz].allPrices.push(p.unitPrice);
+    if(p.date>=sizes[sz].latestDate){
+      sizes[sz].latestPrice=p.unitPrice;
+      sizes[sz].latestCode=p.code;
+      sizes[sz].latestDate=p.date;
+    }
   });
   return sizes;
 }
-
 function toggleSizeDetail(rowId, name){
   var existing=document.getElementById(rowId+'_detail');
   if(existing){existing.remove();return;}
   var sizes=getSizePrices(name);
-  var sizeKeys=Object.keys(sizes).sort();
+  var sizeKeys=Object.keys(sizes).sort(function(a,b){ return parseFloat(a)-parseFloat(b); });
   if(sizeKeys.length===0)return;
   var tr=document.getElementById(rowId);
   var detailRow=document.createElement('tr');detailRow.id=rowId+'_detail';
   detailRow.style.cssText='background:#fafbfc;';
-  var html='<td></td><td colspan="10" style="padding:4px 12px;"><div style="font-size:11px;font-weight:600;margin-bottom:4px;">📊 各码数进货价</div><table style="width:100%;font-size:10px;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #eee;"><th>码数</th><th>采购次数</th><th>最低价</th><th>最高价</th><th>平均价</th><th>最近采购</th></tr></thead><tbody>';
+  var rows='';
   sizeKeys.forEach(function(k){
     var s=sizes[k];
-    html+='<tr style="border-bottom:1px solid #f0f0f0;"><td><b>'+k+'</b></td><td>'+s.count+'次</td><td>¥'+s.min+'</td><td>¥'+s.max+'</td><td style="color:var(--orange);font-weight:700;">¥'+s.avg+'</td><td>'+s.last+'</td></tr>';
+    rows+='<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:4px 8px;"><b>'+k+'</b></td><td>¥'+s.latestPrice+'</td><td style="font-size:10px;font-family:monospace;">'+s.latestCode+'</td><td style="font-size:10px;color:var(--text3);">'+s.latestDate+'</td><td>'+s.count+'双</td></tr>';
   });
-  html+='</tbody></table></td>';
-  detailRow.innerHTML=html;
+  detailRow.innerHTML='<td></td><td colspan="8" style="padding:6px 12px;"><div style="font-size:11px;font-weight:600;margin-bottom:4px;">📊 各码数进价明细</div><table style="width:100%;font-size:11px;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #ddd;"><th>码数</th><th>上次采购价</th><th>上次采购货号</th><th>采购日期</th><th>累计采购</th></tr></thead><tbody>'+rows+'</tbody></table></td>';
   tr.parentNode.insertBefore(detailRow, tr.nextSibling);
 }
-
-function getProcPrice(code){
-  var db=getDB();var procs=db.procurements||[];
-  var latest=0,latestDate='';
-  procs.forEach(function(p){ if(p.code===code&&p.unitPrice>0&&p.date>=latestDate){latest=p.unitPrice;latestDate=p.date;} });
-  return latest;
-}
-
-var costSortField='name',costSortDir=1;
-function sortCostRefs(field){
-  if(costSortField===field)costSortDir=-costSortDir;
-  else{costSortField=field;costSortDir=1;}
-  renderCostRefs();
-}
-
 function renderCostRefs(){
   const db=getDB();if(!db.costRefs)db.costRefs={};
   const refs=Object.entries(db.costRefs);
+  // Build header with sort arrows using DOM
   var thead=document.querySelector('#costRefHead');
-  if(thead)thead.innerHTML='<tr><th></th><th style="cursor:pointer;" onclick="sortCostRefs(\'name\')">产品名 ↕</th><th style="cursor:pointer;" onclick="sortCostRefs(\'sku\')">主货号 ↕</th><th>辅助货号</th><th>工艺</th><th>平均进价</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>更新</th><th>操作</th></tr>';
+  if(thead){thead.innerHTML='';var thr=document.createElement('tr');
+    thr.innerHTML='<th></th><th>产品名</th><th>主货号</th><th>辅助货号</th><th>工艺</th><th>平均进价</th><th>原鞋成本</th><th>定制费</th><th>操作</th>';
+    thr.children[1].style.cursor='pointer';thr.children[1].onclick=function(){sortCostRefs('name');};
+    thr.children[2].style.cursor='pointer';thr.children[2].onclick=function(){sortCostRefs('sku');};
+    thead.appendChild(thr);
+  }
   var tbody=document.getElementById('costRefBody');
   tbody.innerHTML='';
   if(refs.length===0){
-    tbody.innerHTML='<tr><td colspan=11 style="text-align:center;color:var(--text3);padding:16px;">暂无成本基准，点「＋ 添加成本」或「🔄 从SPU提取」</td></tr>';
+    tbody.innerHTML='<tr><td colspan=9 style="text-align:center;color:var(--text3);padding:24px;">暂无成本基准</td></tr>';
     document.getElementById('costRefCount').textContent='0 个产品';
     return;
   }
-    if(costSortField==='sku'){
+  if(costSortField==='sku'){
     refs.sort(function(a,b){ var sa=a[1].mainSku||'',sb=b[1].mainSku||''; return costSortDir*sa.localeCompare(sb); });
   } else {
     refs.sort(function(a,b){ return costSortDir*a[0].localeCompare(b[0]); });
@@ -2565,60 +2549,68 @@ function renderCostRefs(){
     var name=e[0], cr=e[1];
     if(!cr.subSkus)cr.subSkus=[];
     if(!cr.history)cr.history=[];
+    // Per-size price data from procurement
     var sizes=getSizePrices(name);
-    var sizeKeys=Object.keys(sizes).sort();
-    var totalQty=0,totalCost=0;
-    sizeKeys.forEach(function(k){ totalQty+=sizes[k].count; totalCost+=sizes[k].avg*sizes[k].count; });
-    var avgPrice=totalQty>0?Math.round(totalCost/totalQty):0;
-    // Show subSkus with real procurement prices, truncated
+    var sizeKeys=Object.keys(sizes).sort(function(a,b){ return parseFloat(a)-parseFloat(b); });
+    // Calculate avg shoe cost across all sizes
+    var totalSizePrices=0,sizeCount=0;
+    sizeKeys.forEach(function(k){ totalSizePrices+=sizes[k].latestPrice; sizeCount++; });
+    var avgShoeCost=sizeCount>0?Math.round(totalSizePrices/sizeCount):0;
+    if(avgShoeCost>0&&cr.shoeCost===0)cr.shoeCost=avgShoeCost;
+    var effCost=avgShoeCost||cr.shoeCost||0;
+    // Avg purchase price (simple)
+    var avgPrice=effCost;
+    // SubSku chips (compact, no pricing)
     var subSkuMax=3, subSkuCount=cr.subSkus.length;
-    var subSkuShow=cr.subSkus.slice(0,subSkuMax);
-    var subSkuHidden=cr.subSkus.slice(subSkuMax);
-    var skuList=subSkuShow.map(function(s){
-      var realCost=s.cost||getProcPrice(s.code)||0;
-      return '<div style="font-size:9px;padding:1px 0;">'+s.code+': ¥'+realCost+(s.supplier?' ('+s.supplier+')':'')+'</div>';
-    }).join('');
+    var skuChips='';
+    cr.subSkus.slice(0,subSkuMax).forEach(function(s){
+      skuChips+='<span style="font-size:9px;display:inline-block;margin:1px 2px;padding:1px 5px;background:#f0f4ff;border-radius:3px;font-family:monospace;">'+s.code+'</span>';
+    });
     if(subSkuCount>subSkuMax){
-      skuList+='<div style="font-size:9px;color:var(--blue);cursor:pointer;" onclick="this.nextSibling.style.display=this.nextSibling.style.display===\'none\'?\'block\':\'none\';this.textContent=this.textContent.indexOf(\'展开\')>=0?\'收起 ▲\':\'展开全部('+subSkuCount+'个) ▼\';">展开全部('+subSkuCount+'个) ▼</div>';
-      skuList+='<div style="display:none;">'+subSkuHidden.map(function(s){
-        var realCost=s.cost||getProcPrice(s.code)||0;
-        return '<div style="font-size:9px;padding:1px 0;">'+s.code+': ¥'+realCost+(s.supplier?' ('+s.supplier+')':'')+' <span style="cursor:pointer;color:var(--red);" onclick="deleteSubSku(\''+name+'\',\''+s.code+'\')">✕</span></div>';
-      }).join('')+'</div>';
+      skuChips+='<span style="font-size:9px;color:var(--blue);cursor:pointer;" onclick="var n=this.nextSibling;n.style.display=n.style.display===\'none\'?\'block\':\'none\';this.textContent=n.style.display===\'block\'?\'收起 ▲\':\'+'+subSkuCount+'个\';"> +'+subSkuCount+'个</span>';
+      skuChips+='<span style="display:none;">';
+      cr.subSkus.slice(subSkuMax).forEach(function(s){
+        skuChips+='<span style="font-size:9px;display:inline-block;margin:1px 2px;padding:1px 5px;background:#f0f4ff;border-radius:3px;font-family:monospace;">'+s.code+'</span>';
+      });
+      skuChips+='</span>';
     }
-    skuList+='<button class="btn btn-outline btn-sm" onclick="addSubSku(\''+name+'\')" style="padding:0 4px;font-size:9px;margin-top:2px;">+</button>';
+    skuChips+='<button class="btn btn-outline btn-sm" onclick="addSubSku(\''+name+'\')" style="padding:0 3px;font-size:9px;margin-left:2px;">+</button>';
+    // Size tags
+    var sizeTags='';
+    if(sizeKeys.length>0){
+      sizeTags='<div style="margin-top:2px;">';
+      sizeKeys.slice(0,6).forEach(function(k){ sizeTags+='<span style="font-size:9px;padding:1px 4px;background:#f5f5f5;border-radius:3px;margin:1px;">'+k+'</span>'; });
+      if(sizeKeys.length>6)sizeTags+='<span style="font-size:9px;color:var(--text3);"> +'+sizeKeys.length+'码</span>';
+      sizeTags+='</div>';
+    }
+    // History badge
     var histTitle=cr.history.map(function(h){ return h.date+': '+h.field+' '+h.old+'→'+h.new; }).join('\n');
+    var histBadge=histTitle?' <span style="font-size:9px;color:var(--text3);cursor:help;" title="'+histTitle.replace(/"/g,'&quot;')+'">📋'+cr.history.length+'</span>':'';
+    // Expand button (always show for consistent row height)
     var rowId='costRow_'+name.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g,'_');
+    var expandBtn=sizeKeys.length>0?'<span style="cursor:pointer;display:inline-block;width:16px;text-align:center;font-size:12px;" onclick="toggleSizeDetail(\''+rowId+'\',\''+name+'\')" title="码数明细">▶</span>':'<span style="display:inline-block;width:16px;"></span>';
+    // Row
     var tr=document.createElement('tr');tr.id=rowId;
-    var expandBtn=sizeKeys.length>0?'<span style="cursor:pointer;font-size:14px;" onclick="toggleSizeDetail(\''+rowId+'\',\''+name+'\')">➕</span>':'';
-    tr.innerHTML='<td>'+expandBtn+'</td><td><b>'+name+'</b>'+(histTitle?' <span style="font-size:9px;color:var(--text3);cursor:help;" title="'+histTitle.replace(/"/g,'&quot;')+'">📋'+cr.history.length+'</span>':'')+'</td><td style="font-size:10px;font-family:monospace;"><input value="'+(cr.mainSku||'')+'" onchange="updateCostRef(\''+name+'\',\'mainSku\',this.value)" style="width:85px;padding:2px 4px;font-size:9px;font-family:monospace;" placeholder="主货号"></td><td>'+skuList+'<button class="btn btn-outline btn-sm" onclick="addSubSku(\''+name+'\')" style="padding:0 4px;font-size:9px;margin-top:2px;">+ 辅助货号</button></td><td>'+(cr.craftType||'--')+'</td><td style="font-weight:700;color:var(--orange);">'+(avgPrice?'¥'+avgPrice:'--')+'</td><td></td><td></td><td></td><td></td><td></td>';
-    // Shoe cost input (col 6)
+    tr.innerHTML='<td>'+expandBtn+'</td><td><b>'+name+'</b>'+histBadge+sizeTags+'</td><td style="font-size:10px;font-family:monospace;"><input value="'+(cr.mainSku||'')+'" onchange="updateCostRef(\''+name+'\',\'mainSku\',this.value)" style="width:85px;padding:2px 4px;font-size:9px;font-family:monospace;" placeholder="主货号"></td><td style="max-width:220px;">'+skuChips+'</td><td>'+(cr.craftType||'--')+'</td><td style="font-weight:700;color:var(--orange);">'+(effCost?'¥'+effCost:'--')+'</td><td></td><td></td><td></td>';
+    // Shoe cost input
     var shoeInput=document.createElement('input');
-    // Auto-calc shoeCost from latest procurement (across all codes)
-    var allCodes=[cr.mainSku||''];cr.subSkus.forEach(function(s){allCodes.push(s.code);});
-    var latestCost=0,latestDate='';
-    allCodes.forEach(function(code){var p=getProcPrice(code);if(p>0){var pd='';(db.procurements||[]).forEach(function(x){if(x.code===code&&x.unitPrice===p&&x.date>=pd)pd=x.date;});if(pd>=latestDate){latestCost=p;latestDate=pd;}}});
-    if(latestCost>0&&cr.shoeCost===0)cr.shoeCost=latestCost;
-    var effCost=latestCost||cr.shoeCost||0;
-    shoeInput.type='number';shoeInput.value=effCost;shoeInput.style.cssText='width:80px;padding:3px 5px;font-size:11px;text-align:center;font-weight:700;';
+    shoeInput.type='number';shoeInput.value=effCost;shoeInput.style.cssText='width:75px;padding:3px 5px;font-size:11px;text-align:center;font-weight:700;';
     shoeInput.onchange=function(){updateCostRef(name,'shoeCost',parseFloat(this.value)||0);};
     tr.children[6].appendChild(shoeInput);
-    // Custom fee input (col 7)
+    // Custom fee
     var customInput=document.createElement('input');
-    customInput.type='number';customInput.value=cr.customFee||0;customInput.style.cssText='width:80px;padding:3px 5px;font-size:11px;text-align:center;';
+    customInput.type='number';customInput.value=cr.customFee||0;customInput.style.cssText='width:70px;padding:3px 5px;font-size:11px;text-align:center;';
     customInput.onchange=function(){updateCostRef(name,'customFee',parseFloat(this.value)||0);};
     tr.children[7].appendChild(customInput);
-    tr.children[8].textContent=cr.supplier||'--';
-    tr.children[9].textContent=cr.updatedAt||'--';
-    tr.children[9].style.cssText='font-size:10px;color:var(--text3);';
+    // Delete
     var delBtn=document.createElement('button');
     delBtn.className='btn btn-danger btn-sm';delBtn.textContent='✕';delBtn.style.cssText='padding:2px 8px;font-size:10px;';
     delBtn.onclick=function(){deleteCostRef(name);};
-    tr.children[10].appendChild(delBtn);
+    tr.children[8].appendChild(delBtn);
     tbody.appendChild(tr);
   });
   document.getElementById('costRefCount').textContent=refs.length+' 个产品';
 }
-
 function updateCostRef(name,field,val){
   const db=getDB();if(!db.costRefs)db.costRefs={};
   if(!db.costRefs[name])db.costRefs[name]={shoeCost:0,customFee:0,history:[]};
