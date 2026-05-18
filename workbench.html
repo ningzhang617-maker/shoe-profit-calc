@@ -2532,9 +2532,9 @@ function toggleSizeDetail(rowId, name){
 
 function getProcPrice(code){
   var db=getDB();var procs=db.procurements||[];
-  var min=0;
-  procs.forEach(function(p){ if(p.code===code&&p.unitPrice>0&&(min===0||p.unitPrice<min))min=p.unitPrice; });
-  return min;
+  var latest=0,latestDate='';
+  procs.forEach(function(p){ if(p.code===code&&p.unitPrice>0&&p.date>=latestDate){latest=p.unitPrice;latestDate=p.date;} });
+  return latest;
 }
 
 var costSortField='name',costSortDir=1;
