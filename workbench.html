@@ -470,12 +470,16 @@ tr:hover td{background:#fafcfd}
         <span style="font-size:11px;color:var(--text3);" id="costRefCount"></span>
       </div>
       <div id="costProcView" style="display:none;">
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+          <input type="date" id="procDateFilter" onchange="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:140px;border:1px solid #ddd;border-radius:6px;" title="按日期筛选">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('procDateFilter').value='';procPage=1;renderProcurements();">🔄 清空</button>
+          <span style="flex:1;"></span>
           <button class="btn btn-primary btn-sm" onclick="addProcurement()">＋ 新增采购</button>
           <button class="btn btn-outline btn-sm" onclick="importProcurements()">📤 导入Excel</button>
           <span style="font-size:12px;color:var(--text3);" id="procCount"></span>
         </div>
         <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>日期</th><th>货号</th><th>码数</th><th>数量</th><th>备注</th><th>单号</th><th>单价</th><th>总价</th><th>签收</th><th>结账</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
+        <div id="procPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
       </div>
     </div>
 
@@ -2168,13 +2172,22 @@ function importProcurements(){
   };
   input.click();
 }
+var procPage=1, procPageSize=30;
 function renderProcurements(){
   var db=getDB();var procs=db.procurements||[];
+  // Date filter
+  var dateFilter=document.getElementById('procDateFilter');
+  if(dateFilter&&dateFilter.value){ procs=procs.filter(function(p){ return p.date===dateFilter.value; }); }
   procs.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
-  document.getElementById('procCount').textContent=procs.length+' 条记录';
+  var totalFiltered=procs.length;
+  var totalPages=Math.ceil(totalFiltered/procPageSize);
+  if(procPage>totalPages)procPage=totalPages;
+  if(procPage<1)procPage=1;
+  var pageProcs=procs.slice((procPage-1)*procPageSize,procPage*procPageSize);
+  document.getElementById('procCount').textContent=totalFiltered+' 条'+(dateFilter&&dateFilter.value?' (筛选)':'')+' · 第'+procPage+'/'+totalPages+'页';
   var tbody=document.getElementById('procBody');
-  var totalAmt=procs.reduce(function(s,p){ return s+(p.totalAmount||0); },0);
-  tbody.innerHTML=procs.map(function(p){
+  var totalAmt=totalFiltered>0?procs.reduce(function(s,p){ return s+(p.totalAmount||0); },0):0;
+  tbody.innerHTML=pageProcs.map(function(p){
     return '<tr><td>'+p.date+'</td><td style=\"font-family:monospace;font-size:10px;\">'+(p.code||'--')+'</td><td>'+(p.size||'--')+'</td><td>'+(p.quantity||0)+'</td><td style=\"font-size:10px;color:var(--text3);\">'+(p.note||'')+'</td><td style=\"font-size:10px;\">'+(p.orderNo||'--')+'</td><td>¥'+(p.unitPrice||0)+'</td><td style=\"font-weight:700;\">¥'+(p.totalAmount||0).toLocaleString()+'</td><td>'+(p.receipt||'--')+'</td><td>'+(p.payment||'--')+'</td><td><button class=\"btn btn-danger btn-sm\" data-proc-id=\"'+p.id+'\" style=\"padding:1px 6px;font-size:10px;\">✕</button></td></tr>';
   }).join('');
   tbody.innerHTML+='<tr style=\"background:#f0f4ff;font-weight:600;\"><td colspan=\"6\" style=\"text-align:right;\">采购总计</td><td></td><td>¥'+totalAmt.toLocaleString()+'</td><td colspan=\"3\"></td></tr>';
@@ -2183,6 +2196,17 @@ function renderProcurements(){
   for(var i=0;i<buttons.length;i++){
     buttons[i].onclick=(function(id){return function(){deleteProcurement(id);};})(buttons[i].getAttribute('data-proc-id'));
   }
+  // Pagination
+  var pager=document.getElementById('procPager');
+  if(pager&&totalPages>1){
+    var ph='';
+    if(procPage>1)ph+='<button class=\"btn btn-outline btn-sm\" onclick=\"procPage=1;renderProcurements();\">««</button>';
+    if(procPage>1)ph+='<button class=\"btn btn-outline btn-sm\" onclick=\"procPage--;renderProcurements();\">«</button>';
+    ph+='<span style=\"padding:0 8px;\">第'+procPage+'/'+totalPages+'页</span>';
+    if(procPage<totalPages)ph+='<button class=\"btn btn-outline btn-sm\" onclick=\"procPage++;renderProcurements();\">»</button>';
+    if(procPage<totalPages)ph+='<button class=\"btn btn-outline btn-sm\" onclick=\"procPage='+totalPages+';renderProcurements();\">»»</button>';
+    pager.innerHTML=ph;
+  }else if(pager){pager.innerHTML='';}
 }
 
 function updateCostRef(name,field,val){
