@@ -2464,20 +2464,14 @@ function uploadFinanceWorkbench() {
           json.slice(1).forEach(function(row){
             if(!row[0])return;
             var p=parseFloat(row[2])||0;
-            if(p===0)return; // skip header/empty rows (price column is text or empty)
             var c=parseFloat(row[3])||0;
             var cf=parseFloat(row[4])||0;
             var inc=parseFloat(row[5])||(p*0.8);
             var prof=inc-c-cf-47;
             bill.sales.push({name:String(row[0]||'').trim(),size:String(row[1]||'').trim(),price:p,cost:c,custom:cf,income:Math.round(inc*100)/100,profit:Math.round(prof*100)/100,rate:p>0?Math.round(prof/p*1000)/10:0});
           });
-          if (bill.sales.length===0) { alert('未读取到任何销售数据。请确认Excel格式：A列=产品名 B列=尺码 C列=售价 D列=原鞋成本 E列=定制费 F列=到手金额(可选)'); return; }
-          // Auto-generate label if empty
-          if (!bill.label) {
-            var allBills = db.finance.weeklyBills||[];
-            var weekNum = allBills.length + 1;
-            bill.label = '第' + weekNum + '周';
-          }
+          if (bill.sales.length===0) { alert('未读取到任何数据，请确认Excel列顺序：A=产品名 B=尺码 C=售价 D=成本 E=定制费'); return; }
+          if (!bill.label) { bill.label = '第' + ((db.finance.weeklyBills||[]).length+1) + '周'; }
           bill.summary.orders=bill.sales.length;
           bill.summary.revenue=Math.round(bill.sales.reduce(function(s,x){return s+x.price;},0)*100)/100;
           bill.summary.netIncome=Math.round(bill.sales.reduce(function(s,x){return s+x.income;},0)*100)/100;
