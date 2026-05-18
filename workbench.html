@@ -2150,7 +2150,7 @@ function trackSingle(no){
   ifr.style.cssText='flex:1;border:none;';
   var ft=document.createElement('div');
   ft.style.cssText='padding:8px;font-size:11px;text-align:center;border-top:1px solid #eee;';
-  ft.innerHTML='<a href=\"https://m.kuaidi100.com/index_new.html?nu='+encodeURIComponent(no)+'\" target=\"_blank\">快递100</a> | <a href=\"https://www.baidu.com/s?wd='+encodeURIComponent(no)+' 快递\" target=\"_blank\">百度搜索</a>';
+  ft.innerHTML='<a href=\"https://www.baidu.com/s?wd='+encodeURIComponent(no)+' 快递单号\" target=\"_blank\">🔍 百度搜索物流</a>';
   box.appendChild(hdr);box.appendChild(ifr);box.appendChild(ft);
   overlay.appendChild(box);document.body.appendChild(overlay);
   overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
