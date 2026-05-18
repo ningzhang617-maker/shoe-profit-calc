@@ -2135,10 +2135,30 @@ function addProcurement(){
   db.finance.ledger.unshift({date:today,day:dayStr,cat:'原鞋',desc:'采购 '+code+' x'+qty,amount:-(qty*price),pay:'采购',note:note,week:week});
   saveDB(db);renderProcurements();toast('采购已记录');
 }
+function trackSingle(no){
+  if(!no||no==='--')return;
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:12px;width:90%;max-width:500px;height:80vh;display:flex;flex-direction:column;overflow:hidden;';
+  var hdr=document.createElement('div');
+  hdr.style.cssText='padding:10px 16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;';
+  hdr.innerHTML='<b>📦 物流查询: '+no+'</b><span style=\"cursor:pointer;font-size:20px;\">✕</span>';
+  hdr.lastChild.onclick=function(){overlay.remove();};
+  var ifr=document.createElement('iframe');
+  ifr.src='https://m.kuaidi100.com/index_new.html?nu='+encodeURIComponent(no);
+  ifr.style.cssText='flex:1;border:none;';
+  var ft=document.createElement('div');
+  ft.style.cssText='padding:8px;font-size:11px;text-align:center;border-top:1px solid #eee;';
+  ft.innerHTML='<a href=\"https://www.17track.net/zh-cn#nums='+encodeURIComponent(no)+'\" target=\"_blank\">在 17TRACK 打开</a> | <a href=\"https://www.baidu.com/s?wd='+encodeURIComponent(no)+' 快递\" target=\"_blank\">百度搜索</a>';
+  box.appendChild(hdr);box.appendChild(ifr);box.appendChild(ft);
+  overlay.appendChild(box);document.body.appendChild(overlay);
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+}
 function trackPackage(){
   var no=document.getElementById('procTrackNo').value.trim();
   if(!no){toast('请输入快递单号');return;}
-  window.open('https://www.17track.net/zh-cn#nums='+encodeURIComponent(no), '_blank');
+  trackSingle(no);
 }
 function addProcurementRow(){
   var db=getDB();if(!db.procurements)db.procurements=[];
@@ -2218,7 +2238,7 @@ function renderProcurements(){
       '<td><input value="'+(p.size||'')+'" onchange="updateProcCell('+ridx+',\'size\',this.value)" style="width:50px;padding:2px 4px;font-size:10px;"></td>'+
       '<td><input type="number" value="'+(p.quantity||0)+'" onchange="updateProcCell('+ridx+',\'quantity\',parseInt(this.value)||1);updateProcTotal('+ridx+');" style="width:45px;padding:2px 4px;font-size:10px;"></td>'+
       '<td><input value="'+(p.note||'')+'" onchange="updateProcCell('+ridx+',\'note\',this.value)" style="width:80px;padding:2px 4px;font-size:10px;"></td>'+
-      '<td><input value="'+(p.orderNo||'')+'" onchange="updateProcCell('+ridx+',\'orderNo\',this.value)" style="width:100px;padding:2px 4px;font-size:10px;"></td>'+
+      '<td style="display:flex;gap:2px;align-items:center;"><input value="'+(p.orderNo||'')+'" onchange="updateProcCell('+ridx+',\'orderNo\',this.value)" style="width:95px;padding:2px 4px;font-size:10px;"><button class="btn btn-outline btn-sm" onclick="trackSingle(\''+(p.orderNo||'')+'\')" style="padding:0 4px;font-size:9px;" title="查物流">📦</button></td>'+
       '<td><input type="number" value="'+(p.unitPrice||0)+'" onchange="updateProcCell('+ridx+',\'unitPrice\',parseFloat(this.value)||0);updateProcTotal('+ridx+');" style="width:60px;padding:2px 4px;font-size:10px;"></td>'+
       '<td style="font-weight:700;">¥'+(p.totalAmount||0).toLocaleString()+'</td>'+
       '<td><input value="'+(p.receipt||'')+'" onchange="updateProcCell('+ridx+',\'receipt\',this.value)" style="width:55px;padding:2px 4px;font-size:10px;"></td>'+
