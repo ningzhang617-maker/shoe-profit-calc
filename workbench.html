@@ -2138,7 +2138,7 @@ function addProcurement(){
 function trackPackage(){
   var no=document.getElementById('procTrackNo').value.trim();
   if(!no){toast('请输入快递单号');return;}
-  window.open('https://www.kuaidi100.com/chaxun?nu='+encodeURIComponent(no),'_blank');
+  window.open('https://m.kuaidi100.com/index_new.html?nu='+encodeURIComponent(no)+'&from=web', '_blank');
 }
 function addProcurementRow(){
   var db=getDB();if(!db.procurements)db.procurements=[];
