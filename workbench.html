@@ -473,6 +473,8 @@ tr:hover td{background:#fafcfd}
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
           <input type="date" id="procDateFilter" onchange="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:140px;border:1px solid #ddd;border-radius:6px;" title="按日期筛选">
           <input type="text" id="procSearch" placeholder="🔍 搜单号/货号..." oninput="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:160px;border:1px solid #ddd;border-radius:6px;">
+          <input type="text" id="procTrackNo" placeholder="📦 快递单号查物流..." style="padding:4px 8px;font-size:12px;width:150px;border:1px solid #ddd;border-radius:6px;" onkeydown="if(event.key==='Enter')trackPackage()">
+          <button class="btn btn-outline btn-sm" onclick="trackPackage()" style="font-size:11px;">🚚 查物流</button>
           <button class="btn btn-outline btn-sm" onclick="document.getElementById('procDateFilter').value='';document.getElementById('procSearch').value='';procPage=1;renderProcurements();">🔄 清空</button>
           <span style="flex:1;"></span>
           <button class="btn btn-primary btn-sm" onclick="addProcurementRow()">＋ 新增一行</button>
@@ -2132,6 +2134,11 @@ function addProcurement(){
   var week=Math.max(1,Math.floor(diffDays/7)+1);
   db.finance.ledger.unshift({date:today,day:dayStr,cat:'原鞋',desc:'采购 '+code+' x'+qty,amount:-(qty*price),pay:'采购',note:note,week:week});
   saveDB(db);renderProcurements();toast('采购已记录');
+}
+function trackPackage(){
+  var no=document.getElementById('procTrackNo').value.trim();
+  if(!no){toast('请输入快递单号');return;}
+  window.open('https://www.kuaidi100.com/chaxun?nu='+encodeURIComponent(no),'_blank');
 }
 function addProcurementRow(){
   var db=getDB();if(!db.procurements)db.procurements=[];
