@@ -3441,7 +3441,7 @@ function renderProducts() {
     pager.innerHTML = '';
   }
   // Card view rendering
-  if(prodViewMode==='card'){renderProductCards();}
+  if(prodViewMode==='card'){renderProductCards();}else{renderProdHealthBar();}
 }function addProduct() {
   const name=prompt('产品名称：');if(!name)return;const code=prompt('货号：')||'';const brand=prompt('品牌：')||'';const grade=prompt('等级 S/A/B/C：','B')||'B';
   const db=getDB(); db.products.push({id:'p_'+Date.now(),name,code,brand,grade:grade.toUpperCase(),totalSales:0,orders:0,conversion:0,returns:0,profitPerUnit:0}); saveDB(db); renderProducts(); toast('已添加');
