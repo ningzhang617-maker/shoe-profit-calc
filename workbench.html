@@ -1161,8 +1161,14 @@ function renderDashOverview() {
   // Chart 2: Conversion vs Return rate
   renderChart('chartDashRate',{tooltip:{trigger:'axis'},legend:{data:['转化率%','退货率%','收藏率%'],bottom:0},xAxis:{type:'category',data:pd.map(p=>p.label),axisLabel:{rotate:20,fontSize:9}},yAxis:{type:'value',max:50},series:[{name:'转化率%',type:'line',data:pd.map(p=>p.vis>0?(p.ord/p.vis*100):0),itemStyle:{color:'#ff9500'},smooth:true,markLine:{silent:true,data:[{yAxis:2,label:{formatter:'基准2%'},lineStyle:{color:'#ff9500',type:'dashed'}}]}},{name:'退货率%',type:'line',data:pd.map(p=>p.ord>0?(p.ret/p.ord*100):0),itemStyle:{color:'#ff3b30'},smooth:true,markLine:{silent:true,data:[{yAxis:15,label:{formatter:'警戒15%'},lineStyle:{color:'#ff3b30',type:'dashed'}}]}},{name:'收藏率%',type:'line',data:pd.map(p=>p.vis>0?(products.filter(x=>true).reduce((s,x)=>s+(x.favorites||0),0)/p.vis*100):0),itemStyle:{color:'#06b6d4'},smooth:true}]});
 
-  // Chart 3: Top 10 products by sales (horizontal bar)
-  const top10=[...products].sort((a,b)=>(b.payment||0)-(a.payment||0)).slice(0,10);
+  // Chart 3: Top 10 products by sales (horizontal bar) - aggregate by shortName
+  var aggByName={};
+  products.forEach(function(p){
+    var k=p.shortName||'--';
+    if(!aggByName[k])aggByName[k]={shortName:k,payment:0};
+    aggByName[k].payment+=(p.payment||0);
+  });
+  const top10=Object.values(aggByName).sort(function(a,b){return(b.payment||0)-(a.payment||0);}).slice(0,10);
   renderChart('chartDashBar',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:100,right:20},xAxis:{type:'value'},yAxis:{type:'category',data:top10.map(p=>p.shortName||'--'),inverse:true,axisLabel:{fontSize:10}},series:[{name:'销售额',type:'bar',data:top10.map(p=>p.payment||0),itemStyle:{color:params=>{const colors=['#3370ff','#5b8def','#7ba8f0','#9bbdf2','#b8d0f5'];return colors[params.dataIndex]||colors[4]}},label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:18}]});
 
   // Chart 4: Brand distribution (donut)
