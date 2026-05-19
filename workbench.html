@@ -403,7 +403,8 @@ tr:hover td:first-child{background:#f0f4ff}
           <button class="btn btn-primary btn-sm" onclick="addLedgerRow()">＋ 新增一行</button>
         <button class="btn btn-outline btn-sm" id="btnBindExcel" onclick="bindLocalExcel()" title="绑定本地Excel，修改自动同步">📂 绑定本地Excel</button>
         </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>备注</th><th>周次</th><th>操作</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>备注</th><th>周次</th><th>操作</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div>
+        <div id="ledgerPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div>
         <div class="card" style="margin-top:12px;">
           <div class="card-title">📊 周汇总（按分类） <span style="font-size:11px;color:var(--text3);">自动从记账流水聚合</span></div>
           <div class="table-wrap"><table><thead><tr><th>周次</th><th>原鞋</th><th>推广</th><th>设计</th><th>材料</th><th>邮费</th><th>平台</th><th>工作室</th><th>其他支出</th><th>个人消费</th><th>还款债务</th><th>周总支出</th><th>周总收入</th><th>净支出</th></tr></thead><tbody id="finWeekSummaryBody"></tbody></table></div>
@@ -1526,6 +1527,13 @@ function renderFinLedger() {
   // Sort: newest first
   var sorted = ledger.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
 
+  // Pagination
+  if(!window._ledgerPage)window._ledgerPage=1;
+  var lps=30, totalLedger=sorted.length, totalLP=Math.ceil(totalLedger/lps);
+  if(window._ledgerPage>totalLP)window._ledgerPage=totalLP;
+  if(window._ledgerPage<1)window._ledgerPage=1;
+  var pageSorted=sorted.slice((window._ledgerPage-1)*lps,window._ledgerPage*lps);
+
   // Build table rows with daily subtotals
   var rows = ''; var lastDate = '';
   // Pre-compute daily subtotals for ALL ledger
@@ -1536,7 +1544,7 @@ function renderFinLedger() {
     else dailyTotals[i.date].inc += i.amount;
   });
 
-  sorted.forEach(function(i, idx){
+  pageSorted.forEach(function(i, idx){
     var realIdx = allLedger.indexOf(i);
     if (realIdx < 0) realIdx = idx;
 
@@ -1571,6 +1579,18 @@ function renderFinLedger() {
   }
 
   document.getElementById('finLedgerBody').innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px;">暂无流水记录，点「＋ 新增一行」开始记账</td></tr>';
+  // Page controls
+  var pager=document.getElementById('ledgerPager');
+  if(pager&&totalLP>1){
+    var lp=window._ledgerPage||1;
+    var ph='<span style=\"font-size:11px;color:var(--text3);\">共'+totalLedger+'条</span>';
+    if(lp>1)ph+='<button class=\"btn btn-outline btn-sm\" onclick=\"window._ledgerPage=1;renderFinLedger();\">««</button>';
+    if(lp>1)ph+='<button class=\"btn btn-outline btn-sm\" onclick=\"window._ledgerPage--;renderFinLedger();\">«</button>';
+    ph+='<span style=\"padding:0 8px;\">第'+lp+'/'+totalLP+'页</span>';
+    if(lp<totalLP)ph+='<button class=\"btn btn-outline btn-sm\" onclick=\"window._ledgerPage++;renderFinLedger();\">»</button>';
+    if(lp<totalLP)ph+='<button class=\"btn btn-outline btn-sm\" onclick=\"window._ledgerPage='+totalLP+';renderFinLedger();\">»»</button>';
+    pager.innerHTML=ph;
+  }else if(pager){pager.innerHTML='';}
   renderFinWeekSummary();
   // Feishu-style: right-click menu + keyboard nav on ledger
   setTimeout(function(){
