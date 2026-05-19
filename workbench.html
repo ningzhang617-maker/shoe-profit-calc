@@ -2373,6 +2373,14 @@ function renderProcurements(){
   tbody.innerHTML+='<tr style="background:#f0f4ff;font-weight:600;"><td></td><td colspan="5" style="text-align:right;">采购总计</td><td></td><td>¥'+totalAmt.toLocaleString()+'</td><td colspan="3"></td></tr>';
   var buttons=tbody.querySelectorAll('[data-proc-id]');
   for(var i=0;i<buttons.length;i++){buttons[i].onclick=(function(id){return function(){deleteProcurement(id);};})(buttons[i].getAttribute('data-proc-id'));}
+  // Drag-to-select on checkboxes
+  var selecting=false, selMode=false;
+  var cbs=document.querySelectorAll('#procBody input.proc-cb');
+  cbs.forEach(function(cb){
+    cb.onmousedown=function(e){selecting=true;selMode=!cb.checked;toggleProcSelect(cb.getAttribute('data-id'),selMode,e);e.preventDefault();};
+    cb.onmouseenter=function(){if(selecting)toggleProcSelect(cb.getAttribute('data-id'),selMode);};
+  });
+  document.onmouseup=function(){selecting=false;};
   var pager=document.getElementById('procPager');
   if(pager&&totalPages>1){
     var ph='';
