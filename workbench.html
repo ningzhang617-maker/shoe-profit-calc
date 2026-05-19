@@ -456,7 +456,41 @@ tr:hover td{background:#fafcfd}
       <div id="prodPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div></div>
     </div>
 
-    <!-- OPERATIONS --><!-- OPERATIONS -->
+    <!-- COST MANAGEMENT -->
+    <div class="section" id="sec-cost">
+      <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
+        <button class="btn btn-sm fin-tab-btn active" id="costTabRefs" onclick="switchCostTab('refs')" style="border-radius:6px 0 0 6px;">📋 成本基准</button>
+        <button class="btn btn-sm fin-tab-btn" id="costTabProc" onclick="switchCostTab('proc')" style="border-radius:0 6px 6px 0;">📦 采购明细</button>
+        <span style="flex:1;"></span>
+        <button class="btn btn-outline btn-sm" id="costAddBtn" onclick="addCostRef()">＋ 添加</button>
+        <button class="btn btn-outline btn-sm" id="costExtractBtn" onclick="autoFillCostRefs()">🔄 从SPU提取</button>
+        <button class="btn btn-outline btn-sm" onclick="importBidList()">📤 导入出价表</button>
+        <button class="btn btn-outline btn-sm" onclick="showCraftLibrary()">🔧 工艺库</button>
+      </div>
+      <div id="costRefsView">
+        <div class="card"><div class="table-wrap"><table><thead id="costRefHead"><tr><th></th><th>产品名</th><th>主货号</th><th>辅助货号</th><th>工艺</th><th>平均进价</th><th>原鞋成本</th><th>定制费</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div></div>
+        <span style="font-size:11px;color:var(--text3);" id="costRefCount"></span>
+      </div>
+      <div id="costProcView" style="display:none;">
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+          <input type="date" id="procDateFilter" onchange="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:140px;border:1px solid #ddd;border-radius:6px;" title="按日期筛选">
+          <input type="text" id="procSearch" placeholder="🔍 搜单号/货号..." oninput="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:160px;border:1px solid #ddd;border-radius:6px;">
+          <input type="text" id="procTrackNo" placeholder="📦 快递单号查物流..." style="padding:4px 8px;font-size:12px;width:150px;border:1px solid #ddd;border-radius:6px;" onkeydown="if(event.key==='Enter')trackPackage()">
+          <button class="btn btn-outline btn-sm" onclick="trackPackage()" style="font-size:11px;">🚚 查物流</button>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('procDateFilter').value='';document.getElementById('procSearch').value='';procPage=1;renderProcurements();">🔄 清空</button>
+          <span style="flex:1;"></span>
+          <button class="btn btn-primary btn-sm" onclick="addProcurementRow()">＋ 新增一行</button>
+          <button class="btn btn-primary btn-sm" onclick="addProcurement()">＋ 新增采购(弹窗)</button>
+          <button class="btn btn-outline btn-sm" onclick="importProcurements()">📤 导入Excel</button>
+          <span style="font-size:12px;color:var(--text3);" id="procCount"></span>
+        </div>
+        <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th><input type="checkbox" id="procSelAllHead" onchange="toggleSelectAllProcs(this.checked,event)" title="全选|Shift+点选范围"></th><th>日期</th><th>货号</th><th>码数</th><th>数量</th><th>备注</th><th>单号</th><th>单价</th><th>总价</th><th>签收</th><th>结账</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
+        <div id="procSelBar" style="display:none;position:sticky;bottom:0;background:#fffbe6;border:1px solid #f0c040;border-radius:8px;padding:8px 16px;margin-top:8px;font-size:13px;align-items:center;gap:8px;box-shadow:0 -2px 10px rgba(0,0,0,0.1);"></div>
+        <div id="procPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
+      </div>
+    </div>
+
+    <!-- OPERATIONS -->
     <div class="section" id="sec-ops">
       <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
         <button class="btn btn-sm fin-tab-btn active" id="opsTabTasks" onclick="switchOpsTab('tasks')" style="border-radius:6px 0 0 6px;">📝 任务看板</button>
