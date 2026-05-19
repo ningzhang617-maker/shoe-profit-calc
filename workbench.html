@@ -1658,33 +1658,37 @@ async function bindLocalExcel(){
     document.getElementById('btnBindExcel').textContent='📂 已绑定Excel';
     document.getElementById('btnBindExcel').style.background='#e8f5e9';
     // Read data from Excel and merge into ledger
+    if(typeof XLSX==='undefined'){toast('XLSX库未加载，请刷新后重试');return;}
     var file=await _excelFileHandle.getFile();
     var buf=await file.arrayBuffer();
     var wb=XLSX.read(buf,{type:'array'});
     var json=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    console.log('Excel rows:',json.length,'sheet:',wb.SheetNames[0]);
     var db=getDB();var ledger=db.finance.ledger||[];
     var existing={};ledger.forEach(function(e){existing[e.date+'|'+e.cat+'|'+e.desc+'|'+Math.abs(e.amount)]=true;});
     var days=['周日','周一','周二','周三','周四','周五','周六'];
     var startDate=new Date(2026,4,4);var count=0;
     var lastDate='';
-    json.slice(3).forEach(function(row){ // skip header rows
-      var dateStr=String(row[0]||'').trim();
-      if(dateStr&&dateStr.length>=8){lastDate=dateStr;}
-      if(!lastDate)return;
-      dateStr=lastDate;
-      var d=new Date(dateStr+'T00:00:00'); if(isNaN(d.getTime()))return;
-      dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      var cat=row[2]||'其他支出'; var desc=row[3]||'';
-      var amt=parseFloat(row[4])||0; if(amt===0)return;
+    for(var ri=3;ri<json.length;ri++){ var row=json[ri];
+      var cat=row[2]; if(!cat)continue; // must have category
+      var dateVal=row[0];
+      // Handle Excel serial date (number) or string
+      if(typeof dateVal==='number'&&dateVal>40000){var d=new Date((dateVal-25569)*86400*1000);lastDate=d.toISOString().slice(0,10);}
+      else{var ds=String(dateVal||'').trim();if(ds&&ds.length>=8){lastDate=ds;}}
+      if(!lastDate)continue;
+      var d=new Date(lastDate+'T00:00:00');if(isNaN(d.getTime()))continue;
+      var dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      var desc=row[3]||'';
+      var amt=parseFloat(row[4])||0;if(amt===0)continue;
       if(amt>0&&cat!=='其他收入')amt=-amt;
-      var pay=row[5]||''; var note=row[6]||'';
+      var pay=row[5]||'';
       var dayStr=days[d.getDay()];
       var diffDays=Math.floor((d-startDate)/86400000);var week=Math.max(1,Math.floor(diffDays/7)+1);
       var key=dateStr+'|'+cat+'|'+desc+'|'+Math.abs(amt);
-      if(existing[key])return; existing[key]=true;
-      db.finance.ledger.push({date:dateStr,day:dayStr,cat:cat,desc:desc,amount:amt,pay:pay,note:note||'',week:week});
+      if(existing[key])continue; existing[key]=true;
+      db.finance.ledger.push({date:dateStr,day:dayStr,cat:cat,desc:desc,amount:amt,pay:pay,note:'',week:week});
       count++;
-    });
+    }
     saveDB(db);renderFinLedger();
     toast('已绑定并导入 '+count+' 条新流水');
   }catch(e){toast('绑定失败或已取消: '+e.message);}
