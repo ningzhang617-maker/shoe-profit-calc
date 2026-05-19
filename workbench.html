@@ -437,20 +437,24 @@ tr:hover td:first-child{background:#f0f4ff}
         <div class="card"><div class="card-title">📝 综合分析</div><div id="finSummaryReport" style="font-size:13px;line-height:1.8;"></div></div>
       </div>
       <div id="finAdvisorView" class="fin-view">
+        <div class="kpi-grid" id="advisorKPIs"></div>
+        <div class="chart-row">
+          <div class="chart-card"><div class="cc-title">📈 现金流趋势</div><div class="chart-box" id="chartAdvisorCash"></div></div>
+          <div class="chart-card"><div class="cc-title">🍩 支出结构</div><div class="chart-box" id="chartAdvisorPie"></div></div>
+        </div>
         <div class="card">
-          <div class="card-title">💡 财务顾问 <span style="font-size:11px;color:var(--text3);">AI 分析当前财务状况</span></div>
+          <div class="card-title">💡 财务顾问 <span style="font-size:11px;color:var(--text3);">AI 分析建议</span></div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
-            <button class="btn btn-primary btn-sm" onclick="askAdvisor('health')">🩺 财务健康检查</button>
-            <button class="btn btn-outline btn-sm" onclick="askAdvisor('spend')">💳 我能花多少钱</button>
-            <button class="btn btn-outline btn-sm" onclick="askAdvisor('debt')">📋 还款计划建议</button>
+            <button class="btn btn-primary btn-sm" onclick="askAdvisor('health')">🩺 健康检查</button>
+            <button class="btn btn-outline btn-sm" onclick="askAdvisor('spend')">💳 我能花多少</button>
+            <button class="btn btn-outline btn-sm" onclick="askAdvisor('debt')">📋 还款计划</button>
             <button class="btn btn-outline btn-sm" onclick="askAdvisor('risk')">⚠️ 风险评估</button>
-            <button class="btn btn-outline btn-sm" onclick="askAdvisor('week')">📅 下周预算分配</button>
           </div>
           <div style="display:flex;gap:6px;margin-bottom:12px;">
-            <input type="text" id="advisorPrompt" placeholder="💬 自由提问：比如'进10双银闪花嫁会不会断现金流'..." style="flex:1;padding:6px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;" onkeydown="if(event.key==='Enter')askAdvisor('free')">
+            <input type="text" id="advisorPrompt" placeholder="💬 自由提问..." style="flex:1;padding:6px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;" onkeydown="if(event.key==='Enter')askAdvisor('free')">
             <button class="btn btn-primary btn-sm" onclick="askAdvisor('free')">发送</button>
           </div>
-          <div id="advisorResult" style="font-size:13px;line-height:1.8;white-space:pre-wrap;"></div>
+          <div id="advisorResult" style="font-size:13px;line-height:1.8;white-space:pre-wrap;min-height:60px;color:var(--text2);">点击上方按钮，AI 会基于你的实际数据给出分析。</div>
         </div>
       </div>
     </div>
@@ -1495,7 +1499,7 @@ function switchFinTab(t) {
   if (t==='ledger') renderFinLedger();
   if (t==='weekly') renderFinWeekly();
   if (t==='summary') {renderFinSummary();}
-  if (t==='advisor') {}
+  if (t==='advisor') {renderAdvisorData();}
 }
 function renderFinLedger() {
   const db = getDB(); var ledger = db.finance.ledger||[];
@@ -2202,6 +2206,36 @@ function updateCostFromBill(name, shoeCost, customFee){
   saveDB(db);toast(name+' 成本已更新并保存');
 }
 
+function renderAdvisorData(){
+  var db=getDB();var ledger=db.finance.ledger||[];var bills=db.finance.weeklyBills||[];
+  // Key metrics
+  var totalIn=ledger.filter(function(i){return i.amount>0;}).reduce(function(s,i){return s+i.amount;},0);
+  var totalOut=Math.abs(ledger.filter(function(i){return i.amount<0;}).reduce(function(s,i){return s+i.amount;},0));
+  var cash=totalIn-totalOut;
+  var bizCats=['原鞋','推广','设计','材料','邮费','平台','工作室','其他支出'];
+  var bizOut=Math.abs(ledger.filter(function(i){return i.amount<0&&bizCats.indexOf(i.cat)>=0;}).reduce(function(s,i){return s+i.amount;},0));
+  var debtOut=Math.abs(ledger.filter(function(i){return i.cat==='还款债务';}).reduce(function(s,i){return s+i.amount;},0));
+  var firstDate=ledger.length>0?ledger[0].date:'2026-05-04';
+  var weeks=Math.max(1,Math.ceil((new Date()-new Date(firstDate+'T00:00:00'))/604800000));
+  var wkBurn=Math.round(bizOut/weeks);
+  var runway=wkBurn>0?Math.floor(Math.abs(cash)/wkBurn):99;
+  var debtRatio=totalIn>0?Math.round(debtOut/totalIn*100):0;
+  // KPI cards
+  document.getElementById('advisorKPIs').innerHTML=
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">💰 当前现金</div><div class=\"kpi-value\" style=\"color:'+(cash>=0?'var(--green)':'var(--red)')+';\">¥'+cash.toLocaleString()+'</div><div class=\"kpi-sub\">入¥'+totalIn.toLocaleString()+' / 出¥'+totalOut.toLocaleString()+'</div></div>'+
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">⏱ 资金跑道</div><div class=\"kpi-value\" style=\"color:'+(runway>=8?'var(--green)':runway>=4?'var(--orange)':'var(--red)')+';\">'+runway+'周</div><div class=\"kpi-sub\">周均支出 ¥'+wkBurn.toLocaleString()+'</div></div>'+
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">📊 债务占比</div><div class=\"kpi-value\" style=\"color:'+(debtRatio>30?'var(--red)':'var(--orange)')+';\">'+debtRatio+'%</div><div class=\"kpi-sub\">累计还债 ¥'+debtOut.toLocaleString()+'</div></div>'+
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">📅 已追踪</div><div class=\"kpi-value\">'+weeks+'周</div><div class=\"kpi-sub\">'+(bills.length||0)+'周账单 · '+ledger.length+'条流水</div></div>';
+  // Cash flow chart (weekly)
+  var wkMap={};
+  ledger.forEach(function(i){var w='W'+(i.week||1);if(!wkMap[w])wkMap[w]={In:0,out:0};if(i.amount>0)wkMap[w].In+=i.amount;else wkMap[w].out+=Math.abs(i.amount);});
+  var wKeys=Object.keys(wkMap).sort();
+  renderChart('chartAdvisorCash',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:wKeys},yAxis:{type:'value'},series:[{name:'收入',type:'line',data:wKeys.map(function(k){return wkMap[k].In;}),itemStyle:{color:'#34c759'},smooth:true},{name:'支出',type:'line',data:wKeys.map(function(k){return wkMap[k].out;}),itemStyle:{color:'#ff3b30'},smooth:true}]});
+  // Expense pie
+  var catMap={};
+  ledger.filter(function(i){return i.amount<0;}).forEach(function(i){catMap[i.cat]=(catMap[i.cat]||0)+Math.abs(i.amount);});
+  renderChart('chartAdvisorPie',{tooltip:{trigger:'item'},series:[{type:'pie',radius:['45%','70%'],data:Object.entries(catMap).map(function(e){return{name:e[0],value:e[1]};}),label:{formatter:'{b}\\n{d}%'}}]});
+}
 function askAdvisor(type){
   var db=getDB();var ledger=db.finance.ledger||[];var bills=db.finance.weeklyBills||[];
   var totalIn=ledger.filter(function(i){return i.amount>0;}).reduce(function(s,i){return s+i.amount;},0);
