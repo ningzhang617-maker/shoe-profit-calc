@@ -440,60 +440,22 @@ tr:hover td{background:#fafcfd}
     </div>
 <!-- PRODUCTS -->
     <div class="section" id="sec-prod">
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-        <input type="text" id="prodSearch" placeholder="🔍 搜索..." oninput="renderProducts()" style="max-width:200px;">
-        <select id="prodGrade" onchange="renderProducts()"><option value="all">全部</option><option value="loss">⚠️ 亏损中</option><option value="decline">📉 下滑中</option><option value="cold">💤 沉寂</option><option value="growth">🔥 利润款</option><option value="new">🆕 新品</option><option value="S">S级</option><option value="A">A级</option><option value="B">B级</option><option value="C">C级</option></select>
-        <select id="prodBrand" onchange="renderProducts()"><option value="all">全部品牌</option></select>
-        <button class="btn btn-outline btn-sm" onclick="addProduct()">＋ 添加</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+        <select id="prodGrade" onchange="prodPage=1;renderProducts()"><option value="all">全部</option><option value="loss">⚠️ 亏损</option><option value="decline">📉 下滑</option><option value="cold">💤 沉寂</option><option value="growth">🔥 利润款</option><option value="new">🆕 新品</option><option value="S">S级</option><option value="A">A级</option><option value="B">B级</option><option value="C">C级</option></select>
+        <select id="prodBrand" onchange="prodPage=1;renderProducts()"><option value="all">全部品牌</option></select>
+        <input type="text" id="prodSearch" placeholder="🔍 搜索..." oninput="prodPage=1;renderProducts()" style="max-width:180px;">
         <span style="font-size:12px;color:var(--text3);" id="prodCount"></span>
         <span style="flex:1;"></span>
         <button class="btn btn-sm" id="prodViewToggle" onclick="toggleProdView()" style="border-radius:6px;">📋 表格</button>
       </div>
-      <div id="prodTableView"><div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
-      <div id="prodPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div></div>
-      <div id="prodCardView" style="display:none;"><div id="prodCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;"></div>
+      <div class="kpi-grid" id="prodHealthBar" style="margin-bottom:12px;"></div>
+      <div id="prodCardView"><div id="prodCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;"></div>
       <div id="prodCardPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div>
-      <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.8;">
-        <b>📊 评级算法：</b>综合评分 = 订单(40%) + 转化率(30%) + 收藏率(20%) + 销售额(10%) ·
-        <span class="tag tag-green">S≥65分</span> <span class="tag tag-blue">A≥40分</span> <span class="tag tag-yellow">B≥15分</span> <span class="tag tag-red">C&lt;15分</span>
-        &nbsp;基于全部周期SPU数据自动计算，每次刷新页面重算
-      </div></div>
-
-    <!-- COST MANAGEMENT -->
-    <div class="section" id="sec-cost">
-      <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
-        <button class="btn btn-sm fin-tab-btn active" id="costTabRefs" onclick="switchCostTab('refs')" style="border-radius:6px 0 0 6px;">📋 成本基准</button>
-        <button class="btn btn-sm fin-tab-btn" id="costTabProc" onclick="switchCostTab('proc')" style="border-radius:0 6px 6px 0;">📦 采购明细</button>
-        <span style="flex:1;"></span>
-        <button class="btn btn-outline btn-sm" id="costAddBtn" onclick="addCostRef()">＋ 添加</button>
-        <button class="btn btn-outline btn-sm" id="costExtractBtn" onclick="autoFillCostRefs()">🔄 从SPU提取</button>
-        <button class="btn btn-outline btn-sm" onclick="importBidList()">📤 导入出价表</button>
-        <button class="btn btn-outline btn-sm" onclick="showCraftLibrary()">🔧 工艺库</button>
-      </div>
-      <div id="costRefsView">
-        <div class="card"><div class="table-wrap"><table><thead id="costRefHead"><tr><th>产品名</th><th>主货号</th><th>辅助货号</th><th>工艺</th><th>原鞋成本</th><th>定制费</th><th>供应商</th><th>更新</th><th>操作</th></tr></thead><tbody id="costRefBody"></tbody></table></div></div>
-        <span style="font-size:11px;color:var(--text3);" id="costRefCount"></span>
-      </div>
-      <div id="costProcView" style="display:none;">
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
-          <input type="date" id="procDateFilter" onchange="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:140px;border:1px solid #ddd;border-radius:6px;" title="按日期筛选">
-          <input type="text" id="procSearch" placeholder="🔍 搜单号/货号..." oninput="procPage=1;renderProcurements()" style="padding:4px 8px;font-size:12px;width:160px;border:1px solid #ddd;border-radius:6px;">
-          <input type="text" id="procTrackNo" placeholder="📦 快递单号查物流..." style="padding:4px 8px;font-size:12px;width:150px;border:1px solid #ddd;border-radius:6px;" onkeydown="if(event.key==='Enter')trackPackage()">
-          <button class="btn btn-outline btn-sm" onclick="trackPackage()" style="font-size:11px;">🚚 查物流</button>
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('procDateFilter').value='';document.getElementById('procSearch').value='';procPage=1;renderProcurements();">🔄 清空</button>
-          <span style="flex:1;"></span>
-          <button class="btn btn-primary btn-sm" onclick="addProcurementRow()">＋ 新增一行</button>
-          <button class="btn btn-primary btn-sm" onclick="addProcurement()">＋ 新增采购(弹窗)</button>
-          <button class="btn btn-outline btn-sm" onclick="importProcurements()">📤 导入Excel</button>
-          <span style="font-size:12px;color:var(--text3);" id="procCount"></span>
-        </div>
-        <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th><input type="checkbox" id="procSelAllHead" onchange="toggleSelectAllProcs(this.checked,event)" title="全选|Shift+点选范围"></th><th>日期</th><th>货号</th><th>码数</th><th>数量</th><th>备注</th><th>单号</th><th>单价</th><th>总价</th><th>签收</th><th>结账</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
-        <div id="procSelBar" style="display:none;position:sticky;bottom:0;background:#fffbe6;border:1px solid #f0c040;border-radius:8px;padding:8px 16px;margin-top:8px;font-size:13px;align-items:center;gap:8px;box-shadow:0 -2px 10px rgba(0,0,0,0.1);"></div>
-        <div id="procPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
-      </div>
+      <div id="prodTableView" style="display:none;"><div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
+      <div id="prodPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div></div>
     </div>
 
-    <!-- OPERATIONS -->
+    <!-- OPERATIONS --><!-- OPERATIONS -->
     <div class="section" id="sec-ops">
       <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
         <button class="btn btn-sm fin-tab-btn active" id="opsTabTasks" onclick="switchOpsTab('tasks')" style="border-radius:6px 0 0 6px;">📝 任务看板</button>
@@ -3155,7 +3117,7 @@ var sortProdField = 'priority';
 var sortProdDir = -1; // -1=desc (urgent first), 1=asc
 var prodPage = 1;
 var prodPageSize = 20;
-var prodViewMode='table';
+var prodViewMode='card';
 function toggleProdView(){
   prodViewMode=prodViewMode==='table'?'card':'table';
   document.getElementById('prodTableView').style.display=prodViewMode==='table'?'block':'none';
