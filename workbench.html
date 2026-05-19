@@ -2293,6 +2293,10 @@ function importProcurements(){
 var procPage=1, procPageSize=30, _procLastChecked=null;
 function toggleProcSelect(id, checked, evt) {
   if(!window._procSel)window._procSel={};
+  if(checked)window._procSel[id]=true;else delete window._procSel[id];
+  // Sync checkbox visual
+  var cb=document.querySelector('#procBody input.proc-cb[data-id=\"'+id+'\"]');
+  if(cb)cb.checked=checked;
   // Shift+click range select
   if(evt&&evt.shiftKey&&_procLastChecked){
     var cbs=document.querySelectorAll('#procBody input.proc-cb');
@@ -2305,8 +2309,6 @@ function toggleProcSelect(id, checked, evt) {
       var from=Math.min(start,end),to=Math.max(start,end);
       for(var i=from;i<=to;i++){cbs[i].checked=checked;window._procSel[cbs[i].getAttribute('data-id')]=checked;}
     }
-  } else {
-    if(checked)window._procSel[id]=true;else delete window._procSel[id];
   }
   _procLastChecked=id;
   updateProcSelBar();
@@ -2373,14 +2375,14 @@ function renderProcurements(){
   tbody.innerHTML+='<tr style="background:#f0f4ff;font-weight:600;"><td></td><td colspan="5" style="text-align:right;">采购总计</td><td></td><td>¥'+totalAmt.toLocaleString()+'</td><td colspan="3"></td></tr>';
   var buttons=tbody.querySelectorAll('[data-proc-id]');
   for(var i=0;i<buttons.length;i++){buttons[i].onclick=(function(id){return function(){deleteProcurement(id);};})(buttons[i].getAttribute('data-proc-id'));}
-  // Drag-to-select on checkboxes
+  // Drag-to-select: mousedown starts, mouseenter continues, mouseup stops
   var selecting=false, selMode=false;
   var cbs=document.querySelectorAll('#procBody input.proc-cb');
   cbs.forEach(function(cb){
-    cb.onmousedown=function(e){selecting=true;selMode=!cb.checked;toggleProcSelect(cb.getAttribute('data-id'),selMode,e);e.preventDefault();};
-    cb.onmouseenter=function(){if(selecting)toggleProcSelect(cb.getAttribute('data-id'),selMode);};
+    cb.onmousedown=function(e){selecting=true;selMode=!cb.checked;};
+    cb.onmouseenter=function(){if(selecting){cb.checked=selMode;toggleProcSelect(cb.getAttribute('data-id'),selMode);}};
   });
-  document.onmouseup=function(){selecting=false;};
+  document.addEventListener('mouseup',function(){selecting=false;});
   var pager=document.getElementById('procPager');
   if(pager&&totalPages>1){
     var ph='';
