@@ -446,9 +446,13 @@ tr:hover td{background:#fafcfd}
         <select id="prodBrand" onchange="renderProducts()"><option value="all">全部品牌</option></select>
         <button class="btn btn-outline btn-sm" onclick="addProduct()">＋ 添加</button>
         <span style="font-size:12px;color:var(--text3);" id="prodCount"></span>
+        <span style="flex:1;"></span>
+        <button class="btn btn-sm" id="prodViewToggle" onclick="toggleProdView()" style="border-radius:6px;">📋 表格</button>
       </div>
-      <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
-      <div id="prodPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div>
+      <div id="prodTableView"><div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
+      <div id="prodPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div></div>
+      <div id="prodCardView" style="display:none;"><div id="prodCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;"></div>
+      <div id="prodCardPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div>
       <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.8;">
         <b>📊 评级算法：</b>综合评分 = 订单(40%) + 转化率(30%) + 收藏率(20%) + 销售额(10%) ·
         <span class="tag tag-green">S≥65分</span> <span class="tag tag-blue">A≥40分</span> <span class="tag tag-yellow">B≥15分</span> <span class="tag tag-red">C&lt;15分</span>
@@ -3151,6 +3155,15 @@ var sortProdField = 'priority';
 var sortProdDir = -1; // -1=desc (urgent first), 1=asc
 var prodPage = 1;
 var prodPageSize = 20;
+var prodViewMode='table';
+function toggleProdView(){
+  prodViewMode=prodViewMode==='table'?'card':'table';
+  document.getElementById('prodTableView').style.display=prodViewMode==='table'?'block':'none';
+  document.getElementById('prodCardView').style.display=prodViewMode==='card'?'block':'none';
+  document.getElementById('prodViewToggle').textContent=prodViewMode==='table'?'📋 表格':'🩺 诊断';
+  prodPage=1;
+  renderProducts();
+}
 function sortProducts(field) {
   if (sortProdField === field) { sortProdDir = -sortProdDir; }
   else { sortProdField = field; sortProdDir = -1; }
@@ -3427,9 +3440,84 @@ function renderProducts() {
   } else if (pager) {
     pager.innerHTML = '';
   }
+  // Card view rendering
+  if(prodViewMode==='card'){renderProductCards();}
 }function addProduct() {
   const name=prompt('产品名称：');if(!name)return;const code=prompt('货号：')||'';const brand=prompt('品牌：')||'';const grade=prompt('等级 S/A/B/C：','B')||'B';
   const db=getDB(); db.products.push({id:'p_'+Date.now(),name,code,brand,grade:grade.toUpperCase(),totalSales:0,orders:0,conversion:0,returns:0,profitPerUnit:0}); saveDB(db); renderProducts(); toast('已添加');
+}
+function renderProductCards(){
+  var db=getDB();var products=db.products||[];
+  // Same filtering as table
+  var search=(document.getElementById('prodSearch').value||'').toLowerCase();
+  var grade=document.getElementById('prodGrade').value;
+  var brand=(document.getElementById('prodBrand').value||'all');
+  if(search)products=products.filter(function(p){return p.name.toLowerCase().indexOf(search)>=0;});
+  if(grade!=='all')products=products.filter(function(p){return p.grade===grade;});
+  if(brand!=='all')products=products.filter(function(p){return p.brand===brand;});
+  // Enrichment (same as table)
+  var billProfit={};
+  (db.finance.weeklyBills||[]).forEach(function(bill){(bill.sales||[]).forEach(function(sale){
+    if(!billProfit[sale.name])billProfit[sale.name]={totalProfit:0,totalOrders:0};
+    billProfit[sale.name].totalProfit+=(sale.profit||0);billProfit[sale.name].totalOrders++;
+  });});
+  products.forEach(function(p){
+    var bp=billProfit[p.name];
+    if(bp&&bp.totalOrders>0){p._billProfit=bp.totalProfit;p._billOrders=bp.totalOrders;p._billPPU=Math.round(bp.totalProfit/bp.totalOrders);}
+    else{p._billProfit=0;p._billOrders=0;p._billPPU=p.profitPerUnit||0;}
+    var costRefs=db.costRefs||{};
+    var cr=costRefs[p.name];
+    if(cr&&p._billPPU===0&&p.orders>0&&p.totalSales>0){
+      var estInc=p.totalSales*0.8;var estCost=(cr.shoeCost||0)+(cr.customFee||0)+47;
+      p._billPPU=Math.round(estInc/p.orders-estCost);p._billProfit=Math.round(estInc-estCost*p.orders);
+    }
+  });
+  // Lifecycle + health score
+  products.forEach(function(p){
+    var bp=p._billProfit||0,bo=p._billOrders||0,ppu=p._billPPU||0;
+    var ret=p.returns||0,retRate=bo>0?ret/bo*100:0,conv=p.conversion||0,visitors=p.visitors||0;
+    var profitShare=0;products.forEach(function(x){profitShare+=(x._billProfit||0);});
+    profitShare=profitShare>0?bp/profitShare*100:0;
+    // Health: profit(40)+conversion(20)+retRate(20)+trend(20)
+    var h=50;
+    if(ppu>=50)h+=20;else if(ppu>=0)h+=10;else h-=20;
+    if(conv>=1.0)h+=10;else if(conv>=0.5)h+=5;else h-=5;
+    if(retRate<10)h+=10;else if(retRate>25)h-=15;
+    if(bo>=5)h+=10;else if(bo===0)h-=10;
+    p._health=Math.max(0,Math.min(100,Math.round(h+10)));
+    // Diagnosis
+    var diag=[];
+    if(ppu<0)diag.push({s:'danger',t:'单均亏损¥'+Math.abs(Math.round(ppu))});
+    if(retRate>25&&bo>=3)diag.push({s:'danger',t:'退货率'+retRate.toFixed(0)+'%'});
+    if(conv>=1.0&&bo>=3)diag.push({s:'good',t:'转化率'+conv.toFixed(1)+'%领先'});
+    if(bp>500&&ppu>50)diag.push({s:'good',t:'贡献'+profitShare.toFixed(0)+'%利润'});
+    if(bo===0&&visitors===0)diag.push({s:'warn',t:'无访客'});
+    if(!diag.length)diag.push({s:'ok',t:'运营正常'});
+    p._diag=diag;
+    // Recommendation
+    var rec='';
+    if(ppu<0&&retRate>25)rec='⚡ 紧急：暂停推广，检查质量';
+    else if(ppu<0)rec='📉 考虑提价或降成本';
+    else if(retRate>25)rec='🔍 检查尺码/质量问题';
+    else if(bp>500&&ppu>50)rec='🔥 核心利润款，加推';
+    else if(conv>0.5&&visitors<200&&bo>0)rec='💡 转化好但曝光低，值得推广';
+    else if(bo===0&&visitors>0)rec='📝 优化详情页';
+    else rec='✅ 保持现状';
+    p._rec=rec;
+  });
+  // Sort by health (worst first)
+  products.sort(function(a,b){return(a._health||0)-(b._health||0);});
+  // Render cards
+  var cards='';
+  products.forEach(function(p){
+    var h=p._health||50;
+    var hc=h>=70?'var(--green)':h>=40?'var(--orange)':'var(--red)';
+    var bp=p._billProfit||0,ppu=p._billPPU||0;
+    cards+='<div class=\"card\" style=\"padding:14px 16px;border-left:4px solid '+hc+';\"><div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;\"><b style=\"font-size:14px;\">'+p.name+'</b><span style=\"font-size:11px;padding:2px 8px;border-radius:10px;background:'+hc+';color:#fff;\">健康 '+h+'</span></div><div style=\"display:flex;gap:16px;margin-bottom:6px;font-size:11px;color:var(--text2);\"><span>📦 '+(p.orders||0)+'单</span><span>💰 ¥'+(bp>=0?'+':'')+Math.round(bp).toLocaleString()+'</span><span>📊 '+(ppu>=0?'+':'')+'¥'+Math.round(Math.abs(ppu))+'/单</span><span>🔄 '+(p.conversion||0).toFixed(1)+'%</span></div><div style=\"margin-bottom:6px;\">';
+    (p._diag||[]).forEach(function(d){cards+='<span style=\"font-size:10px;display:inline-block;margin:2px 4px 2px 0;padding:2px 6px;border-radius:4px;'+(d.s==='danger'?'background:var(--red-light);color:var(--red)':d.s==='good'?'background:var(--green-light);color:var(--green)':'background:#f5f5f5;color:var(--text2)')+'\">'+d.t+'</span>';});
+    cards+='</div><div style=\"font-size:11px;color:var(--text2);\">💡 '+p._rec+'</div></div>';
+  });
+  document.getElementById('prodCards').innerHTML=cards||'<div style=\"text-align:center;color:var(--text3);padding:24px;\">暂无匹配产品</div>';
 }
 function editProduct(id) {
   const db=getDB();const p=db.products.find(x=>x.id===id);if(!p)return;
