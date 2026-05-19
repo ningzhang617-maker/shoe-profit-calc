@@ -1169,7 +1169,7 @@ function renderDashOverview() {
     aggByName[k].payment+=(p.payment||0);
   });
   const top10=Object.values(aggByName).sort(function(a,b){return(b.payment||0)-(a.payment||0);}).slice(0,10);
-  renderChart('chartDashBar',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:100,right:20},xAxis:{type:'value'},yAxis:{type:'category',data:top10.map(p=>p.shortName||'--'),inverse:true,axisLabel:{fontSize:10}},series:[{name:'销售额',type:'bar',data:top10.map(p=>p.payment||0),itemStyle:{color:params=>{const colors=['#3370ff','#5b8def','#7ba8f0','#9bbdf2','#b8d0f5'];return colors[params.dataIndex]||colors[4]}},label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:18}]});
+  renderChart('chartDashBar',{tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},grid:{left:120,right:60,top:10,bottom:10,containLabel:true},xAxis:{type:'value'},yAxis:{type:'category',data:top10.map(function(p){var n=p.shortName||'--';return n.length>8?n.slice(0,8)+'..':n;}),inverse:true,axisLabel:{fontSize:10}},series:[{name:'销售额',type:'bar',data:top10.map(function(p){return p.payment||0;}),itemStyle:{color:function(params){var colors=['#3370ff','#5b8def','#7ba8f0','#9bbdf2','#b8d0f5'];return colors[params.dataIndex]||colors[4];}},label:{show:true,position:'right',formatter:'¥{c}'},barMaxWidth:18}]});
 
   // Chart 4: Brand distribution (donut)
   const brandMap={};products.forEach(p=>{const b=p.brand||'其他';brandMap[b]=(brandMap[b]||0)+(p.payment||0);});
