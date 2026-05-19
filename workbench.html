@@ -483,7 +483,8 @@ tr:hover td{background:#fafcfd}
           <button class="btn btn-outline btn-sm" onclick="importProcurements()">📤 导入Excel</button>
           <span style="font-size:12px;color:var(--text3);" id="procCount"></span>
         </div>
-        <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>日期</th><th>货号</th><th>码数</th><th>数量</th><th>备注</th><th>单号</th><th>单价</th><th>总价</th><th>签收</th><th>结账</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th><input type="checkbox" id="procSelAllHead" onchange="toggleSelectAllProcs(this.checked)" title="全选"></th><th>日期</th><th>货号</th><th>码数</th><th>数量</th><th>备注</th><th>单号</th><th>单价</th><th>总价</th><th>签收</th><th>结账</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
+        <div id="procSelBar" style="display:none;position:sticky;bottom:0;background:#fffbe6;border:1px solid #f0c040;border-radius:8px;padding:8px 16px;margin-top:8px;font-size:13px;align-items:center;gap:8px;box-shadow:0 -2px 10px rgba(0,0,0,0.1);"></div>
         <div id="procPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
       </div>
     </div>
@@ -2290,6 +2291,33 @@ function importProcurements(){
   input.click();
 }
 var procPage=1, procPageSize=30;
+function toggleProcSelect(id, checked) {
+  if(!window._procSel)window._procSel={};
+  if(checked)window._procSel[id]=true;else delete window._procSel[id];
+  updateProcSelBar();
+}
+function toggleSelectAllProcs(checked) {
+  if(!window._procSel)window._procSel={};
+  window._procSelAll=checked;
+  var cbs=document.querySelectorAll('#procBody input[type=checkbox]');
+  for(var i=0;i<cbs.length;i++){cbs[i].checked=checked;}
+  var db=getDB();var procs=db.procurements||[];
+  var pageProcs=procs.slice((procPage-1)*procPageSize,procPage*procPageSize);
+  pageProcs.forEach(function(p){if(checked)window._procSel[p.id]=true;else delete window._procSel[p.id];});
+  if(!checked)window._procSelAll=false;
+  updateProcSelBar();
+}
+function updateProcSelBar() {
+  var db=getDB();var procs=db.procurements||[];
+  var selIds=window._procSel||{};
+  var selAmt=0,selCount=0;
+  procs.forEach(function(p){if(selIds[p.id]){selAmt+=p.totalAmount||0;selCount++;}});
+  var bar=document.getElementById('procSelBar');
+  if(!bar)return;
+  if(selCount>0){bar.style.display='flex';bar.innerHTML='<b>已选 '+selCount+' 条</b> 合计: ¥'+selAmt.toLocaleString()+' <button class=\"btn btn-outline btn-sm\" onclick=\"clearProcSel()\" style=\"margin-left:8px;font-size:10px;\">清除选择</button>';}
+  else{bar.style.display='none';}
+}
+function clearProcSel(){window._procSel={};window._procSelAll=false;renderProcurements();}
 function renderProcurements(){
   var db=getDB();var procs=db.procurements||[];
   var dateFilter=document.getElementById('procDateFilter');
@@ -2305,23 +2333,29 @@ function renderProcurements(){
   document.getElementById('procCount').textContent=totalFiltered+' 条'+(dateFilter&&dateFilter.value?' (筛选)':'')+' · 第'+procPage+'/'+totalPages+'页';
   var tbody=document.getElementById('procBody');
   var totalAmt=totalFiltered>0?procs.reduce(function(s,p){ return s+(p.totalAmount||0); },0):0;
-  tbody.innerHTML=pageProcs.map(function(p,idx){
+  // Selection state
+  if(!window._procSel)window._procSel={};
+  if(!window._procSelAll)window._procSelAll=false;
+  tbody.innerHTML='<tr style="background:#f8f9fa;font-size:10px;"><td><input type="checkbox" id="procSelAll" onchange="toggleSelectAllProcs(this.checked)" title="全选"></td><td colspan="10">全选/取消</td></tr>';
+  tbody.innerHTML+=pageProcs.map(function(p,idx){
     var ridx=procs.indexOf(p);
-    return '<tr>'+
-      '<td><input value="'+p.date+'" onchange="updateProcCell('+ridx+',\'date\',this.value)" style="width:100px;padding:2px 4px;font-size:10px;"></td>'+
-      '<td><input value="'+(p.code||'')+'" onchange="updateProcCell('+ridx+',\'code\',this.value)" style="width:85px;padding:2px 4px;font-size:10px;font-family:monospace;"></td>'+
-      '<td><input value="'+(p.size||'')+'" onchange="updateProcCell('+ridx+',\'size\',this.value)" style="width:50px;padding:2px 4px;font-size:10px;"></td>'+
-      '<td><input type="number" value="'+(p.quantity||0)+'" onchange="updateProcCell('+ridx+',\'quantity\',parseInt(this.value)||1);updateProcTotal('+ridx+');" style="width:45px;padding:2px 4px;font-size:10px;"></td>'+
-      '<td><input value="'+(p.note||'')+'" onchange="updateProcCell('+ridx+',\'note\',this.value)" style="width:80px;padding:2px 4px;font-size:10px;"></td>'+
-      '<td style="display:flex;gap:2px;align-items:center;"><input value="'+(p.orderNo||'')+'" onchange="updateProcCell('+ridx+',\'orderNo\',this.value)" style="width:95px;padding:2px 4px;font-size:10px;"><button class="btn btn-outline btn-sm" onclick="trackSingle(\''+(p.orderNo||'')+'\')" style="padding:0 4px;font-size:9px;" title="查物流">📦</button></td>'+
-      '<td><input type="number" value="'+(p.unitPrice||0)+'" onchange="updateProcCell('+ridx+',\'unitPrice\',parseFloat(this.value)||0);updateProcTotal('+ridx+');" style="width:60px;padding:2px 4px;font-size:10px;"></td>'+
+    var checked=window._procSel[p.id]?'checked':'';
+    return '<tr class="proc-row">'+
+      '<td><input type="checkbox" '+checked+' onchange="toggleProcSelect(\''+p.id+'\',this.checked)" style="width:auto;margin:0;"></td>'+
+      '<td><input value="'+p.date+'" onchange="updateProcCell('+ridx+',\'date\',this.value)" style="width:95px;padding:2px 4px;font-size:10px;"></td>'+
+      '<td><input value="'+(p.code||'')+'" onchange="updateProcCell('+ridx+',\'code\',this.value)" style="width:80px;padding:2px 4px;font-size:10px;font-family:monospace;"></td>'+
+      '<td><input value="'+(p.size||'')+'" onchange="updateProcCell('+ridx+',\'size\',this.value)" style="width:45px;padding:2px 4px;font-size:10px;"></td>'+
+      '<td><input type="number" value="'+(p.quantity||0)+'" onchange="updateProcCell('+ridx+',\'quantity\',parseInt(this.value)||1);updateProcTotal('+ridx+');" style="width:40px;padding:2px 4px;font-size:10px;"></td>'+
+      '<td><input value="'+(p.note||'')+'" onchange="updateProcCell('+ridx+',\'note\',this.value)" style="width:75px;padding:2px 4px;font-size:10px;"></td>'+
+      '<td style="display:flex;gap:2px;align-items:center;"><input value="'+(p.orderNo||'')+'" onchange="updateProcCell('+ridx+',\'orderNo\',this.value)" style="width:90px;padding:2px 4px;font-size:10px;"><button class="btn btn-outline btn-sm" onclick="trackSingle(\''+(p.orderNo||'')+'\')" style="padding:0 4px;font-size:9px;" title="查物流">📦</button></td>'+
+      '<td><input type="number" value="'+(p.unitPrice||0)+'" onchange="updateProcCell('+ridx+',\'unitPrice\',parseFloat(this.value)||0);updateProcTotal('+ridx+');" style="width:55px;padding:2px 4px;font-size:10px;"></td>'+
       '<td style="font-weight:700;">¥'+(p.totalAmount||0).toLocaleString()+'</td>'+
-      '<td><input value="'+(p.receipt||'')+'" onchange="updateProcCell('+ridx+',\'receipt\',this.value)" style="width:55px;padding:2px 4px;font-size:10px;"></td>'+
-      '<td><input value="'+(p.payment||'')+'" onchange="updateProcCell('+ridx+',\'payment\',this.value)" style="width:55px;padding:2px 4px;font-size:10px;"></td>'+
+      '<td><input value="'+(p.receipt||'')+'" onchange="updateProcCell('+ridx+',\'receipt\',this.value)" style="width:50px;padding:2px 4px;font-size:10px;"></td>'+
+      '<td><input value="'+(p.payment||'')+'" onchange="updateProcCell('+ridx+',\'payment\',this.value)" style="width:50px;padding:2px 4px;font-size:10px;"></td>'+
       '<td><button class="btn btn-danger btn-sm" data-proc-id="'+p.id+'" style="padding:1px 6px;font-size:10px;">✕</button></td>'+
       '</tr>';
   }).join('');
-  tbody.innerHTML+='<tr style="background:#f0f4ff;font-weight:600;"><td colspan="6" style="text-align:right;">采购总计</td><td></td><td>¥'+totalAmt.toLocaleString()+'</td><td colspan="3"></td></tr>';
+  tbody.innerHTML+='<tr style="background:#f0f4ff;font-weight:600;"><td></td><td colspan="5" style="text-align:right;">采购总计</td><td></td><td>¥'+totalAmt.toLocaleString()+'</td><td colspan="3"></td></tr>';
   var buttons=tbody.querySelectorAll('[data-proc-id]');
   for(var i=0;i<buttons.length;i++){buttons[i].onclick=(function(id){return function(){deleteProcurement(id);};})(buttons[i].getAttribute('data-proc-id'));}
   var pager=document.getElementById('procPager');
