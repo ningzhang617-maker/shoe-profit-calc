@@ -393,6 +393,7 @@ tr:hover td{background:#fafcfd}
           <button class="btn btn-outline btn-sm" onclick="showBackupDialog()" title="备份管理">📦 备份</button>
           <button class="btn btn-outline btn-sm" onclick="importLedgerCSV()" title="导入支付宝/微信CSV账单">📤 导入CSV</button>
           <button class="btn btn-primary btn-sm" onclick="addLedgerRow()">＋ 新增一行</button>
+        <button class="btn btn-outline btn-sm" id="btnBindExcel" onclick="bindLocalExcel()" title="绑定本地Excel，修改自动同步">📂 绑定本地Excel</button>
         </div>
         <div class="card"><div class="table-wrap"><table><thead><tr><th>日期</th><th>星期</th><th>分类</th><th>明细</th><th>金额</th><th>支付方式</th><th>备注</th><th>周次</th><th>操作</th></tr></thead><tbody id="finLedgerBody"></tbody></table></div></div>
         <div class="card" style="margin-top:12px;">
@@ -605,7 +606,7 @@ function backupDB() {
   for (var i = 5; i < keys.length; i++) { localStorage.removeItem(keys[i]); }
   return key;
 }
-function saveDB(db) { backupDB(); localStorage.setItem('dc_data_v3', JSON.stringify(db)); updateTime(); }
+function saveDB(db) { backupDB(); localStorage.setItem('dc_data_v3', JSON.stringify(db)); updateTime(); if(_excelFileHandle)syncLedgerToExcel(); }
 function updateTime() { document.getElementById('tbTime').textContent = new Date().toLocaleTimeString('zh-CN'); }
 function listBackups() {
   var keys = []; for (var i = 0; i < localStorage.length; i++) {
@@ -1604,6 +1605,32 @@ function updateLedgerCell(idx, field, value) {
   }
 }
 
+var _excelFileHandle=null;
+async function bindLocalExcel(){
+  try{
+    var fh=await window.showOpenFilePicker({types:[{description:'Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
+    _excelFileHandle=fh[0];
+    document.getElementById('btnBindExcel').textContent='📂 已绑定Excel';
+    document.getElementById('btnBindExcel').style.background='#e8f5e9';
+    toast('已绑定 '+_excelFileHandle.name+'，修改流水自动同步');
+  }catch(e){toast('绑定失败或已取消');}
+}
+async function syncLedgerToExcel(){
+  if(!_excelFileHandle)return;
+  try{
+    var db=getDB();var ledger=db.finance.ledger||[];
+    // Write xlsx
+    var wb=XLSX.utils.book_new();
+    var rows=[['日期','星期','分类','明细','金额(元)','支付方式','备注','周次']];
+    ledger.forEach(function(e){rows.push([e.date,e.day,e.cat,e.desc,e.amount,e.pay,e.note||'',e.week]);});
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb,ws,'每日流水');
+    var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    var writable=await _excelFileHandle.createWritable();
+    await writable.write(buf);
+    await writable.close();
+  }catch(e){console.error('Excel sync failed:',e);}
+}
 function addLedgerRow() {
   const db = getDB();
   var today = new Date();
