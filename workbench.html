@@ -2499,8 +2499,7 @@ function renderProcurements(){
   // Selection state
   if(!window._procSel)window._procSel={};
   if(!window._procSelAll)window._procSelAll=false;
-  tbody.innerHTML='<tr style="background:#f8f9fa;font-size:10px;"><td><input type="checkbox" id="procSelAll" onchange="toggleSelectAllProcs(this.checked)" title="全选"></td><td colspan="10">全选/取消</td></tr>';
-  tbody.innerHTML+=pageProcs.map(function(p,idx){
+  tbody.innerHTML=pageProcs.map(function(p,idx){
     var ridx=procs.indexOf(p);
     var checked=window._procSel[p.id]?'checked':'';
     return '<tr class="proc-row">'+
