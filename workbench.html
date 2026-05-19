@@ -1506,22 +1506,21 @@ function renderFinLedger() {
     });
   }
 
-  // KPI cards
+  // KPI cards - use filtered ledger for correlation
   var allLedger = db.finance.ledger||[];
-  var totalIn = allLedger.filter(function(i){ return i.amount > 0; }).reduce(function(s,i){ return s + i.amount; }, 0);
-  var totalOut = Math.abs(allLedger.filter(function(i){ return i.amount < 0; }).reduce(function(s,i){ return s + i.amount; }, 0));
-  // This week
-  var thisWeek = Math.floor((new Date() - new Date('2026-05-04')) / 86400000 / 7) + 1;
-  var weekIn = allLedger.filter(function(i){ return i.week === thisWeek && i.amount > 0; }).reduce(function(s,i){ return s + i.amount; }, 0);
-  var weekOut = Math.abs(allLedger.filter(function(i){ return i.week === thisWeek && i.amount < 0; }).reduce(function(s,i){ return s + i.amount; }, 0));
-  // Debt total
-  var debtOut = Math.abs(allLedger.filter(function(i){ return i.cat === '还款债务'; }).reduce(function(s,i){ return s + i.amount; }, 0));
+  // If filters are active, KPIs reflect filtered data; otherwise show this week
+  var hasFilter = (filterDate&&filterDate.value)||(filterWeek&&filterWeek.value)||(filterCat&&filterCat.value)||(filterSearch&&filterSearch.value);
+  var kpiLedger = hasFilter ? ledger : allLedger;
+  var kpiLabel = hasFilter ? '筛选结果' : '全部';
+  var kpiIn = kpiLedger.filter(function(i){ return i.amount > 0; }).reduce(function(s,i){ return s + i.amount; }, 0);
+  var kpiOut = Math.abs(kpiLedger.filter(function(i){ return i.amount < 0; }).reduce(function(s,i){ return s + i.amount; }, 0));
+  var debtTotal = Math.abs(allLedger.filter(function(i){ return i.cat === '还款债务'; }).reduce(function(s,i){ return s + i.amount; }, 0));
 
   document.getElementById('finLedgerKPIs').innerHTML =
-    '<div class="kpi-card"><div class="kpi-label">本周支出</div><div class="kpi-value" style="color:var(--red);">-¥' + weekOut.toLocaleString() + '</div><div class="kpi-sub">W' + thisWeek + ' 共' + allLedger.filter(function(i){ return i.week === thisWeek; }).length + '笔</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">本周收入</div><div class="kpi-value" style="color:var(--green);">+¥' + weekIn.toLocaleString() + '</div><div class="kpi-sub">周净现金流 ¥' + (weekIn - weekOut).toLocaleString() + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">总净现金流</div><div class="kpi-value" style="color:' + (totalIn - totalOut >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + (totalIn - totalOut).toLocaleString() + '</div><div class="kpi-sub">入¥' + totalIn.toLocaleString() + ' / 出¥' + totalOut.toLocaleString() + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">累计债务还款</div><div class="kpi-value" style="color:var(--orange);">¥' + debtOut.toLocaleString() + '</div><div class="kpi-sub">共' + allLedger.filter(function(i){ return i.cat === '还款债务'; }).length + '笔</div></div>';
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">' + kpiLabel + ' 支出</div><div class=\"kpi-value\" style=\"color:var(--red);\">-¥' + kpiOut.toLocaleString() + '</div><div class=\"kpi-sub\">共' + kpiLedger.filter(function(i){return i.amount<0;}).length + '笔</div></div>' +
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">' + kpiLabel + ' 收入</div><div class=\"kpi-value\" style=\"color:var(--green);\">+¥' + kpiIn.toLocaleString() + '</div><div class=\"kpi-sub\">共' + kpiLedger.filter(function(i){return i.amount>0;}).length + '笔</div></div>' +
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">' + kpiLabel + ' 净现金流</div><div class=\"kpi-value\" style=\"color:' + (kpiIn - kpiOut >= 0 ? 'var(--green)' : 'var(--red)') + ';\">¥' + (kpiIn - kpiOut).toLocaleString() + '</div><div class=\"kpi-sub\">入¥' + kpiIn.toLocaleString() + ' / 出¥' + kpiOut.toLocaleString() + '</div></div>' +
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">💳 累计债务</div><div class=\"kpi-value\" style=\"color:var(--orange);\">¥' + debtTotal.toLocaleString() + '</div><div class=\"kpi-sub\">共' + allLedger.filter(function(i){ return i.cat === '还款债务'; }).length + '笔还款</div></div>';
 
   // Charts
   var wkMap = {}; allLedger.forEach(function(i){ var w = 'W' + i.week; if (!wkMap[w]) wkMap[w] = {In: 0, out: 0}; if (i.amount > 0) wkMap[w].In += i.amount; else wkMap[w].out += Math.abs(i.amount); });
