@@ -2211,12 +2211,14 @@ function renderFinSummary() {
   var personalCash = -personalOut;
   var debtCash = -debtOut;
 
+  var totalExpense = bizOut + personalOut + debtOut;
   document.getElementById('finSummaryKPIs').innerHTML =
-    '<div class="kpi-card"><div class="kpi-label">累计销售额</div><div class="kpi-value">¥' + totalRev.toLocaleString() + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">累计利润</div><div class="kpi-value" style="color:' + (totalProfit >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + totalProfit.toLocaleString() + '</div><div class="kpi-sub">利润率 ' + profitMargin.toFixed(1) + '%</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">经营现金流</div><div class="kpi-value" style="color:' + (bizCash >= 0 ? 'var(--green)' : 'var(--red)') + ';">¥' + bizCash.toLocaleString() + '</div><div class="kpi-sub">入¥' + bizIn.toLocaleString() + ' / 出¥' + bizOut.toLocaleString() + '</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">私人消费</div><div class="kpi-value" style="color:var(--red);">¥' + personalOut.toLocaleString() + '</div><div class="kpi-sub">个人消费支出</div></div>' +
-    '<div class="kpi-card"><div class="kpi-label">公司债务</div><div class="kpi-value" style="color:var(--orange);">¥' + debtOut.toLocaleString() + '</div><div class="kpi-sub">还款债务累计</div></div>';
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">累计销售额</div><div class=\"kpi-value\">¥' + totalRev.toLocaleString() + '</div><div class=\"kpi-sub\">' + bills.length + '周 · ' + bills.reduce(function(s,b){return s+b.summary.orders;},0) + '单</div></div>' +
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">累计利润</div><div class=\"kpi-value\" style=\"color:' + (totalProfit >= 0 ? 'var(--green)' : 'var(--red)') + ';\">¥' + totalProfit.toLocaleString() + '</div><div class=\"kpi-sub\">利润率 ' + profitMargin.toFixed(1) + '%</div></div>' +
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">总支出汇总</div><div class=\"kpi-value\" style=\"color:var(--red);\">¥' + totalExpense.toLocaleString() + '</div><div class=\"kpi-sub\">经营 ¥' + bizOut.toLocaleString() + ' · 个人 ¥' + personalOut.toLocaleString() + ' · 债务 ¥' + debtOut.toLocaleString() + '</div></div>' +
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">经营现金流</div><div class=\"kpi-value\" style=\"color:' + (bizCash >= 0 ? 'var(--green)' : 'var(--red)') + ';\">¥' + bizCash.toLocaleString() + '</div><div class=\"kpi-sub\">入¥' + bizIn.toLocaleString() + ' / 出¥' + bizOut.toLocaleString() + '</div></div>' +
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">私人消费</div><div class=\"kpi-value\" style=\"color:var(--red);\">¥' + personalOut.toLocaleString() + '</div><div class=\"kpi-sub\">个人消费支出</div></div>' +
+    '<div class=\"kpi-card\"><div class=\"kpi-label\">公司债务</div><div class=\"kpi-value\" style=\"color:var(--orange);\">¥' + debtOut.toLocaleString() + '</div><div class=\"kpi-sub\">还款债务累计</div></div>';
   // Compare table with more columns
   document.getElementById('finCompareBody').innerHTML = `
     <tr><td><b>销售额</b></td>${bills.map(b=>`<td>¥${b.summary.revenue.toLocaleString()}</td>`).join('')}<td>¥${totalRev.toLocaleString()}</td></tr>
