@@ -1572,6 +1572,43 @@ function renderFinLedger() {
 
   document.getElementById('finLedgerBody').innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px;">暂无流水记录，点「＋ 新增一行」开始记账</td></tr>';
   renderFinWeekSummary();
+  // Feishu-style: right-click menu + keyboard nav on ledger
+  setTimeout(function(){
+    var tbody=document.getElementById('finLedgerBody');
+    if(!tbody)return;
+    var menu=document.getElementById('ctxMenu');
+    var curRow=null, curIdx=-1;
+    // Right-click handler
+    tbody.oncontextmenu=function(e){
+      var tr=e.target.closest('tr');
+      if(!tr)return;
+      var inputs=tr.querySelectorAll('input');
+      if(inputs.length===0)return; // skip subtotal rows
+      e.preventDefault();
+      curRow=tr;
+      var realIdx=-1;
+      tr.querySelectorAll('input').forEach(function(inp){
+        var m=inp.getAttribute('onchange');
+        if(m){var match=m.match(/updateLedgerCell\((\d+)/);if(match)realIdx=parseInt(match[1]);}
+      });
+      curIdx=realIdx;
+      menu.innerHTML='<div style="padding:8px 12px;cursor:pointer;" onclick="addLedgerRowAbove('+realIdx+');hideCtxMenu();">⬆ 在上方插入一行</div><div style="padding:8px 12px;cursor:pointer;" onclick="addLedgerRowBelow('+realIdx+');hideCtxMenu();">⬇ 在下方插入一行</div><div style="border-top:1px solid #eee;padding:8px 12px;cursor:pointer;color:var(--red);" onclick="deleteLedgerRow('+realIdx+');hideCtxMenu();">✕ 删除此行</div>';
+      menu.style.display='block';menu.style.left=e.clientX+'px';menu.style.top=e.clientY+'px';
+    };
+    document.onclick=function(){menu.style.display='none';};window.hideCtxMenu=function(){menu.style.display='none';};
+    // Keyboard: Tab to next cell, Shift+Tab to prev
+    tbody.onkeydown=function(e){
+      if(e.key==='Tab'){
+        e.preventDefault();
+        var inputs=Array.from(tbody.querySelectorAll('input'));
+        var idx=inputs.indexOf(document.activeElement);
+        if(e.shiftKey){idx=(idx-1+inputs.length)%inputs.length;}
+        else{idx=(idx+1)%inputs.length;}
+        inputs[idx].focus();inputs[idx].select();
+      }
+    };
+  },50);
+
 }
 
 function updateLedgerCell(idx, field, value) {
@@ -1638,6 +1675,26 @@ async function syncLedgerToExcel(){
     await writable.write(buf);
     await writable.close();
   }catch(e){console.error('Excel sync failed:',e);}
+}
+function addLedgerRowAbove(idx){
+  var db=getDB();var i=db.finance.ledger[idx];if(!i)return;
+  var today=new Date();var yr=today.getFullYear(),mo=String(today.getMonth()+1).padStart(2,'0'),dy=String(today.getDate()).padStart(2,'0');
+  var days=['周日','周一','周二','周三','周四','周五','周六'];var dayStr=days[today.getDay()];
+  var startDate=new Date(2026,4,4);var todayLocal=new Date(yr,today.getMonth(),today.getDate());
+  var diffDays=Math.floor((todayLocal-startDate)/86400000);
+  var week=Math.max(1,Math.floor(diffDays/7)+1);
+  db.finance.ledger.splice(idx,0,{date:i.date,day:i.day,cat:i.cat,desc:'',amount:0,pay:i.pay,note:'',week:i.week});
+  saveDB(db);renderFinLedger();toast('已在第'+(idx+1)+'行上方插入');
+}
+function addLedgerRowBelow(idx){
+  var db=getDB();var i=db.finance.ledger[idx];if(!i)return;
+  var today=new Date();var yr=today.getFullYear(),mo=String(today.getMonth()+1).padStart(2,'0'),dy=String(today.getDate()).padStart(2,'0');
+  var days=['周日','周一','周二','周三','周四','周五','周六'];var dayStr=days[today.getDay()];
+  var startDate=new Date(2026,4,4);var todayLocal=new Date(yr,today.getMonth(),today.getDate());
+  var diffDays=Math.floor((todayLocal-startDate)/86400000);
+  var week=Math.max(1,Math.floor(diffDays/7)+1);
+  db.finance.ledger.splice(idx+1,0,{date:i.date,day:i.day,cat:i.cat,desc:'',amount:0,pay:i.pay,note:'',week:i.week});
+  saveDB(db);renderFinLedger();toast('已在第'+(idx+1)+'行下方插入');
 }
 function addLedgerRow() {
   const db = getDB();
@@ -3900,6 +3957,9 @@ s2.onerror=function(){console.warn('SheetJS CDN failed');};document.head.appendC
     <button class="btn btn-primary btn-sm" onclick="aiDialogQuick('free')" style="border-radius:20px;">发送</button>
   </div>
 </div>
+
+
+<div id="ctxMenu" style="display:none;position:fixed;z-index:9999;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.15);min-width:160px;padding:4px 0;font-size:12px;"></div>
 
 </body>
 </html>
