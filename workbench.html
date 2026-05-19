@@ -385,7 +385,8 @@ tr:hover td:first-child{background:#f0f4ff}
       <div class="btn-row" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;">
         <button class="btn btn-sm fin-tab-btn active" id="fTabLedger" onclick="switchFinTab('ledger')" style="border-radius:6px 0 0 6px;">📋 记账流水</button>
         <button class="btn btn-sm fin-tab-btn" id="fTabWeekly" onclick="switchFinTab('weekly')" style="border-radius:0;">📅 周账单</button>
-        <button class="btn btn-sm fin-tab-btn" id="fTabSummary" onclick="switchFinTab('summary')" style="border-radius:0 6px 6px 0;">📊 汇总</button>
+        <button class="btn btn-sm fin-tab-btn" id="fTabSummary" onclick="switchFinTab('summary')" style="border-radius:0;">📊 汇总</button>
+        <button class="btn btn-sm fin-tab-btn" id="fTabAdvisor" onclick="switchFinTab('advisor')" style="border-radius:0 6px 6px 0;">💡 财务顾问</button>
         <span style="flex:1;"></span>
         <button class="btn btn-outline btn-sm" onclick="switchModule('fin');uploadFinanceWorkbench()">📤 上传账单</button>
       </div>
@@ -434,6 +435,23 @@ tr:hover td:first-child{background:#f0f4ff}
           <div class="chart-card"><div class="cc-title">📊 月度预估</div><div class="chart-box" id="chartFinMonthly"></div></div>
         </div>
         <div class="card"><div class="card-title">📝 综合分析</div><div id="finSummaryReport" style="font-size:13px;line-height:1.8;"></div></div>
+      </div>
+      <div id="finAdvisorView" class="fin-view">
+        <div class="card">
+          <div class="card-title">💡 财务顾问 <span style="font-size:11px;color:var(--text3);">AI 分析当前财务状况</span></div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+            <button class="btn btn-primary btn-sm" onclick="askAdvisor('health')">🩺 财务健康检查</button>
+            <button class="btn btn-outline btn-sm" onclick="askAdvisor('spend')">💳 我能花多少钱</button>
+            <button class="btn btn-outline btn-sm" onclick="askAdvisor('debt')">📋 还款计划建议</button>
+            <button class="btn btn-outline btn-sm" onclick="askAdvisor('risk')">⚠️ 风险评估</button>
+            <button class="btn btn-outline btn-sm" onclick="askAdvisor('week')">📅 下周预算分配</button>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <input type="text" id="advisorPrompt" placeholder="💬 自由提问：比如'进10双银闪花嫁会不会断现金流'..." style="flex:1;padding:6px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;" onkeydown="if(event.key==='Enter')askAdvisor('free')">
+            <button class="btn btn-primary btn-sm" onclick="askAdvisor('free')">发送</button>
+          </div>
+          <div id="advisorResult" style="font-size:13px;line-height:1.8;white-space:pre-wrap;"></div>
+        </div>
       </div>
     </div>
 
@@ -1469,14 +1487,15 @@ let currentFinTab='ledger';
 function switchFinTab(t) {
   currentFinTab=t;
   document.querySelectorAll('.fin-view').forEach(v=>v.classList.remove('active'));
-  const viewEl = document.getElementById({'ledger':'finLedgerView','weekly':'finWeeklyView','summary':'finSummaryView'}[t]);
+  const viewEl = document.getElementById({'ledger':'finLedgerView','weekly':'finWeeklyView','summary':'finSummaryView','advisor':'finAdvisorView'}[t]);
   if (viewEl) viewEl.classList.add('active');
   document.querySelectorAll('.fin-tab-btn').forEach(b=>b.classList.remove('active'));
-  const btnEl = document.getElementById({'ledger':'fTabLedger','weekly':'fTabWeekly','summary':'fTabSummary'}[t]);
+  const btnEl = document.getElementById({'ledger':'fTabLedger','weekly':'fTabWeekly','summary':'fTabSummary','advisor':'fTabAdvisor'}[t]);
   if (btnEl) btnEl.classList.add('active');
   if (t==='ledger') renderFinLedger();
   if (t==='weekly') renderFinWeekly();
   if (t==='summary') {renderFinSummary();}
+  if (t==='advisor') {}
 }
 function renderFinLedger() {
   const db = getDB(); var ledger = db.finance.ledger||[];
@@ -2183,6 +2202,48 @@ function updateCostFromBill(name, shoeCost, customFee){
   saveDB(db);toast(name+' 成本已更新并保存');
 }
 
+function askAdvisor(type){
+  var db=getDB();var ledger=db.finance.ledger||[];var bills=db.finance.weeklyBills||[];
+  var totalIn=ledger.filter(function(i){return i.amount>0;}).reduce(function(s,i){return s+i.amount;},0);
+  var totalOut=Math.abs(ledger.filter(function(i){return i.amount<0;}).reduce(function(s,i){return s+i.amount;},0));
+  var bizCats=['原鞋','推广','设计','材料','邮费','平台','工作室','其他支出'];
+  var bizOut=Math.abs(ledger.filter(function(i){return i.amount<0&&bizCats.indexOf(i.cat)>=0;}).reduce(function(s,i){return s+i.amount;},0));
+  var personalOut=Math.abs(ledger.filter(function(i){return i.cat==='个人消费';}).reduce(function(s,i){return s+i.amount;},0));
+  var debtOut=Math.abs(ledger.filter(function(i){return i.cat==='还款债务';}).reduce(function(s,i){return s+i.amount;},0));
+  var billsIncome=bills.reduce(function(s,b){return s+(b.summary.netIncome||0);},0);
+  var otherIncome=ledger.filter(function(i){return i.cat==='其他收入';}).reduce(function(s,i){return s+Math.abs(i.amount);},0);
+  // Weekly averages
+  var firstDate=ledger[0]?ledger[0].date:'2026-05-04';
+  var weeks=Math.max(1,Math.ceil((new Date()-new Date(firstDate+'T00:00:00'))/604800000));
+  var weeklyBizOut=Math.round(bizOut/weeks);
+  var weeklyIncome=Math.round((billsIncome+otherIncome)/Math.max(1,bills.length));
+  var cashNow=totalIn-totalOut;
+  var runway=weeklyBizOut>0?Math.floor(Math.abs(cashNow)/weeklyBizOut):99;
+
+  var systemPrompt='你是专业财务顾问，为一个小型定制球鞋商家提供财务分析和建议。用中文回答，简洁专业，像CFO跟老板说话。数据单位是人民币元。';
+  var userPrompt='';
+  if(type==='health'){
+    userPrompt='请做财务健康检查。以下是数据：\\n现金余额: ¥'+cashNow.toLocaleString()+'\\n累计收入: ¥'+totalIn.toLocaleString()+'\\n累计支出: ¥'+totalOut.toLocaleString()+'\\n经营支出(周均): ¥'+weeklyBizOut.toLocaleString()+'\\n累计债务还款: ¥'+debtOut.toLocaleString()+'\\n个人消费: ¥'+personalOut.toLocaleString()+'\\n资金跑道: '+runway+'周\\n卖货收入(来自账单): ¥'+billsIncome.toLocaleString()+'\\n\\n请给：1)健康评分(0-100) 2)最大风险 3)本周最该做的一件事';
+  }else if(type==='spend'){
+    userPrompt='根据我的财务状况，我每周能花多少钱不会出问题？\\n当前现金: ¥'+cashNow.toLocaleString()+'\\n周均经营支出: ¥'+weeklyBizOut.toLocaleString()+'\\n周均收入(卖货+其他): ¥'+weeklyIncome.toLocaleString()+'\\n周均债务还款: ¥'+Math.round(debtOut/weeks).toLocaleString()+'\\n\\n请给出：1)安全支出上限 2)警戒线 3)分项建议(原鞋/推广/设计各能花多少)';
+  }else if(type==='debt'){
+    userPrompt='我需要制定还款计划。\\n累计债务还款: ¥'+debtOut.toLocaleString()+'\\n平均每周还债: ¥'+Math.round(debtOut/weeks).toLocaleString()+'\\n当前现金: ¥'+cashNow.toLocaleString()+'\\n周均收入: ¥'+weeklyIncome.toLocaleString()+'\\n\\n请给出：1)当前还款压力评估 2)合理的周还款额 3)如果资金紧张，优先还哪些、缓还哪些';
+  }else if(type==='risk'){
+    userPrompt='请做风险评估。\\n现金: ¥'+cashNow.toLocaleString()+'\\n周支出: ¥'+weeklyBizOut.toLocaleString()+'\\n周收入: ¥'+weeklyIncome.toLocaleString()+'\\n跑道: '+runway+'周\\n债务: ¥'+debtOut.toLocaleString()+'\\n\\n请分析：1)最大的3个财务风险 2)每个风险的概率和影响 3)应对措施';
+  }else if(type==='week'){
+    userPrompt='帮我做下周预算分配。\\n可用现金: ¥'+cashNow.toLocaleString()+'\\n预计下周收入(卖货): ¥'+Math.round(billsIncome/Math.max(1,bills.length)).toLocaleString()+'\\n周均经营支出: ¥'+weeklyBizOut.toLocaleString()+'\\n\\n请给出：1)下周总预算 2)原鞋/推广/设计/生活各分多少 3)该留多少应急';
+  }else{
+    userPrompt=document.getElementById('advisorPrompt').value;
+    if(!userPrompt.trim())return;
+    userPrompt='我是定制球鞋商家。财务数据：现金¥'+cashNow.toLocaleString()+'，周支出¥'+weeklyBizOut.toLocaleString()+'，周收入¥'+weeklyIncome.toLocaleString()+'。\\n\\n问题：'+userPrompt;
+    document.getElementById('advisorPrompt').value='';
+  }
+  document.getElementById('advisorResult').innerHTML='<div style=\"text-align:center;padding:20px;color:var(--text3);\">🤔 AI 分析中...</div>';
+  callClaudeAPI(systemPrompt,userPrompt,function(err,text){
+    if(err){document.getElementById('advisorResult').innerHTML='<span style=\"color:var(--red);\">调用失败: '+err+'</span>';return;}
+    document.getElementById('advisorResult').innerHTML=text.replace(/\\n/g,'<br>');
+  });
+}
 function renderFinSummary() {
   const db = getDB(); const bills = db.finance.weeklyBills||[]; if (bills.length===0) return;
   const ledger = db.finance.ledger||[];
