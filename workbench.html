@@ -452,7 +452,7 @@ tr:hover td{background:#fafcfd}
       <div class="kpi-grid" id="prodHealthBar" style="margin-bottom:12px;"></div>
       <div id="prodCardView"><div id="prodCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;"></div>
       <div id="prodCardPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div>
-      <div id="prodTableView" style="display:none;"><div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th style="cursor:pointer;" onclick="sortProducts('grade')">等级 ↕</th><th style="cursor:pointer;" onclick="sortProducts('brand')">品牌 ↕</th><th style="cursor:pointer;" onclick="sortProducts('sales')">销售额 ↕</th><th style="cursor:pointer;" onclick="sortProducts('orders')">订单 ↕</th><th style="cursor:pointer;" onclick="sortProducts('conv')">转化 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ret')">退货 ↕</th><th style="cursor:pointer;" onclick="sortProducts('ppu')">单均利 ↕</th><th style="cursor:pointer;" onclick="sortProducts('profit')">总利润 ↕</th><th style="cursor:pointer;" onclick="sortProducts('share')">利润占比 ↕</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
+      <div id="prodTableView" style="display:none;"><div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th>产品名</th><th id="prodThGrade">等级</th><th id="prodThBrand">品牌</th><th>售价</th><th>盈亏线</th><th id="prodThOrders">订单</th><th id="prodThConv">转化</th><th id="prodThRet">退货</th><th>单均利</th><th id="prodThProfit">总利润</th><th>操作</th></tr></thead><tbody id="prodBody"></tbody></table></div>
       <div id="prodPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div></div></div>
     </div>
 
@@ -3373,56 +3373,62 @@ function renderProducts() {
   document.getElementById('prodCount').textContent = totalFiltered+'/'+allCount+' 个活跃产品 (第'+prodPage+'/'+totalPages+'页)';
 
   // Build table
-  var rows = '';
+  var rows = ''; var pData = []; // store product data for event handlers
+  var costRefs = db.costRefs||{};
   pageProducts.forEach(function(p){
+    var cr = costRefs[p.name] || {};
+    var be = (cr.shoeCost||0) + (cr.customFee||0) + 47;
+    var unitPrice = p.orders>0 ? Math.round(p.totalSales/p.orders) : 0;
     var ppu = p._billPPU || p.profitPerUnit || 0;
-    var profitShare = p._profitShare || 0;
-    var trendIcon = p._trend==='up'?'↑':p._trend==='down'?'↓':'→';
-    var trendColor = p._trend==='up'?'var(--green)':p._trend==='down'?'var(--red)':'var(--text3)';
+    var trendIcon = p._trend=='up'?'↑':p._trend=='down'?'↓':'→';
+    var tColor = p._trend=='up'?'var(--green)':p._trend=='down'?'var(--red)':'var(--text3)';
     var retRate = p._retRate||0;
-    var retColor = retRate>25?'var(--red)':retRate>15?'var(--orange)':'var(--text3)';
-    var gradeCls = p.grade==='S'?'tag-green':p.grade==='A'?'tag-blue':p.grade==='B'?'tag-yellow':'tag-red';
-
-    // Urgency row background
-    var rowBg = '';
-    if (p._priority >= 50) rowBg = 'background:#fff0f0;';
-    else if (p._priority >= 30) rowBg = 'background:#fffbf0;';
-
-    // Build insight chips
-    var chips = '';
-    (p._insights||[]).slice(0,2).forEach(function(ins){
-      var icls = ins.level==='danger'?'alert alert-danger':ins.level==='warn'?'alert alert-warn':'';
-      chips += '<span style="font-size:10px;display:inline-block;padding:1px 5px;border-radius:3px;margin-right:3px;'+icls+'">'+ins.text+'</span>';
-    });
-
-    var ops=p._ops||{};
-    var dressLabels={none:'未铺',done:'已铺',optimized:'已优'};
-    var detailLabels={none:'待优',optimized:'已优'};
-    var promoLabels={none:'未推',active:'推广中',paused:'已停'};
-    var dressCls={none:'tag-gray',done:'tag-blue',optimized:'tag-green'};
-    var detailCls={none:'tag-gray',optimized:'tag-green'};
-    var promoCls={none:'tag-gray',active:'tag-green',paused:'tag-yellow'};
-    var drs=ops.dress||'none', dtl=ops.detail||'none', prm=ops.promo||'none';
-
-    rows += '<tr style="'+rowBg+'">'+
-      '<td><b>'+p.name+'</b><div style="margin-top:2px;">'+chips+'</div></td>'+
-      '<td><span class="tag '+gradeCls+'">'+(p.grade||'?')+'级</span></td>'+
+    var rColor = retRate>25?'var(--red)':retRate>15?'var(--orange)':'var(--text3)';
+    var gradeCls = p.grade=='S'?'tag-green':p.grade=='A'?'tag-blue':p.grade=='B'?'tag-yellow':'tag-red';
+    var rowBg = p._priority>=50?'background:#fff0f0;':'';
+    var beColor = unitPrice>be?'background:#e8f5e9;':unitPrice>0?'background:#fce4e4;':'';
+    var chips = ''; (p._insights||[]).slice(0,1).forEach(function(ins){ chips += '<span style="font-size:9px;display:inline-block;padding:1px 4px;border-radius:3px;margin-right:2px;'+(ins.level=='danger'?'background:var(--red-light);color:var(--red);':'')+'">'+ins.text+'</span>'; });
+    var pid = p.id||('p_'+p.name);
+    pData.push({id:pid, be:be, orders:p.orders||0, ppu:ppu, billProfit:p._billProfit||0});
+    rows += '<tr style="'+rowBg+'" data-pid="'+pid+'">'+
+      '<td><b>'+p.name+'</b><div style="margin-top:1px;">'+chips+'</div></td>'+
+      '<td><span class="tag '+gradeCls+' prod-grade" data-pid="'+pid+'" data-grade="'+(p.grade||'C')+'">'+(p.grade||'C')+'级 ▾</span></td>'+
       '<td>'+(p.brand||'--')+'</td>'+
-      '<td><span class="tag '+dressCls[drs]+'" style="cursor:pointer;font-size:10px;" onclick="event.stopPropagation();toggleOpsStatus(\''+p.id+'\',\'dress\')" title="点击切换穿搭状态">'+dressLabels[drs]+'</span></td>'+
-      '<td><span class="tag '+detailCls[dtl]+'" style="cursor:pointer;font-size:10px;" onclick="event.stopPropagation();toggleOpsStatus(\''+p.id+'\',\'detail\')" title="点击切换详情页状态">'+detailLabels[dtl]+'</span></td>'+
-      '<td><span class="tag '+promoCls[prm]+'" style="cursor:pointer;font-size:10px;" onclick="event.stopPropagation();toggleOpsStatus(\''+p.id+'\',\'promo\')" title="点击切换推广状态">'+promoLabels[prm]+'</span></td>'+
-      '<td>¥'+(p.totalSales||0).toLocaleString()+'</td>'+
-      '<td>'+(p.orders||0)+'单 <span style="font-size:10px;color:'+trendColor+';">'+trendIcon+(p._trendChange!==0?Math.abs(p._trendChange):'')+'</span></td>'+
+      '<td style="'+beColor+'padding:2px;"><input type="number" class="prod-price" data-pid="'+pid+'" data-be="'+be+'" data-orders="'+(p.orders||0)+'" value="'+unitPrice+'" style="width:70px;padding:2px 4px;font-size:12px;text-align:center;font-weight:700;border:1px solid #ddd;border-radius:4px;"></td>'+
+      '<td style="font-size:11px;color:var(--text3);text-align:center;">'+(be>47?'¥'+be:'?')+'</td>'+
+      '<td>'+(p.orders||0)+'单 <span style="font-size:10px;color:'+tColor+';">'+trendIcon+(p._trendChange!==0?Math.abs(p._trendChange):'')+'</span></td>'+
       '<td>'+(p.conversion||0).toFixed(1)+'%</td>'+
-      '<td style="color:'+retColor+';font-weight:'+(retRate>25?'700':'400')+';">'+(p.returns||0)+'单 <span style="font-size:10px;">'+retRate.toFixed(0)+'%</span></td>'+
-      '<td style="color:'+(ppu>=0?'var(--green)':'var(--red)')+';font-weight:700;">'+(ppu>=0?'+':'')+'¥'+ppu+'</td>'+
-      '<td style="color:'+(p._billProfit>=0?'var(--green)':'var(--red)')+';font-weight:700;">'+(p._billProfit>=0?'+':'')+'¥'+Math.round(p._billProfit||0).toLocaleString()+'</td>'+
-      '<td style="font-size:10px;color:var(--text2);">'+(profitShare>0?profitShare.toFixed(0)+'%':'--')+'</td>'+
-      '<td><button class="btn btn-outline btn-sm" onclick="editProduct(\''+p.id+'\')" style="padding:2px 6px;font-size:10px;">✏️</button></td>'+
+      '<td style="color:'+rColor+';">'+(p.returns||0)+'单</td>'+
+      '<td class="prod-ppu" data-pid="'+pid+'" style="font-weight:700;color:'+(ppu>=0?'var(--green)':'var(--red)')+';">'+(ppu>=0?'+':'')+'¥'+Math.round(ppu)+'</td>'+
+      '<td class="prod-total" data-pid="'+pid+'" style="font-weight:700;color:'+(p._billProfit>=0?'var(--green)':'var(--red)')+';">'+(p._billProfit>=0?'+':'')+'¥'+Math.round(p._billProfit||0).toLocaleString()+'</td>'+
+      '<td></td>'+
       '</tr>';
   });
-
-  var pb=document.getElementById('prodBody');if(pb)pb.innerHTML = rows || '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:24px;">暂无匹配产品</td></tr>';
+  var pb=document.getElementById('prodBody');if(pb)pb.innerHTML = rows || '<tr><td colspan=\"11\" style=\"text-align:center;color:var(--text3);padding:24px;\">暂无匹配产品</td></tr>';
+  // Attach interactive handlers + sort header clicks
+  setTimeout(function(){
+    // Sort headers
+    ['orders','conv','ret','profit','brand','grade'].forEach(function(f){
+      var el=document.getElementById('prodTh'+f.charAt(0).toUpperCase()+f.slice(1));
+      if(el){el.style.cursor='pointer';el.textContent+=' ↕';el.onclick=function(){sortProducts(f);};}
+    });
+    // Price inputs
+    document.querySelectorAll('.prod-price').forEach(function(inp){ inp.oninput=function(){
+      var pid=this.getAttribute('data-pid');var be=parseFloat(this.getAttribute('data-be'))||0;
+      var orders=parseInt(this.getAttribute('data-orders'))||0;var price=parseFloat(this.value)||0;
+      var ppu=price*0.8-be;var total=ppu*orders;
+      var ppuEl=document.querySelector('.prod-ppu[data-pid=\"'+pid+'\"]');
+      var totalEl=document.querySelector('.prod-total[data-pid=\"'+pid+'\"]');
+      if(ppuEl){ppuEl.textContent=(ppu>=0?'+':'')+'¥'+Math.round(ppu);ppuEl.style.color=ppu>=0?'var(--green)':'var(--red)';}
+      if(totalEl){totalEl.textContent=(total>=0?'+':'')+'¥'+Math.round(total).toLocaleString();totalEl.style.color=total>=0?'var(--green)':'var(--red)';}
+    };});
+    document.querySelectorAll('.prod-grade').forEach(function(el){ el.onclick=function(){
+      var pid=this.getAttribute('data-pid');var cur=this.getAttribute('data-grade');
+      var next={'S':'A','A':'B','B':'C','C':'S'}[cur];
+      var db=getDB();var p=db.products.find(function(x){return x.id===pid;});
+      if(p){p.grade=next;saveDB(db);renderProducts();toast(p.name+' \\u2192 '+next+'级');}
+    };});
+  },50);
 
   // Pagination controls
   var pager = document.getElementById('prodPager');
