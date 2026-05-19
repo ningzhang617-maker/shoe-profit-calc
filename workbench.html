@@ -483,7 +483,7 @@ tr:hover td{background:#fafcfd}
           <button class="btn btn-outline btn-sm" onclick="importProcurements()">📤 导入Excel</button>
           <span style="font-size:12px;color:var(--text3);" id="procCount"></span>
         </div>
-        <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th><input type="checkbox" id="procSelAllHead" onchange="toggleSelectAllProcs(this.checked)" title="全选"></th><th>日期</th><th>货号</th><th>码数</th><th>数量</th><th>备注</th><th>单号</th><th>单价</th><th>总价</th><th>签收</th><th>结账</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table style="min-width:900px;"><thead><tr><th><input type="checkbox" id="procSelAllHead" onchange="toggleSelectAllProcs(this.checked,event)" title="全选|Shift+点选范围"></th><th>日期</th><th>货号</th><th>码数</th><th>数量</th><th>备注</th><th>单号</th><th>单价</th><th>总价</th><th>签收</th><th>结账</th><th>操作</th></tr></thead><tbody id="procBody"></tbody></table></div></div>
         <div id="procSelBar" style="display:none;position:sticky;bottom:0;background:#fffbe6;border:1px solid #f0c040;border-radius:8px;padding:8px 16px;margin-top:8px;font-size:13px;align-items:center;gap:8px;box-shadow:0 -2px 10px rgba(0,0,0,0.1);"></div>
         <div id="procPager" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
       </div>
@@ -2290,10 +2290,25 @@ function importProcurements(){
   };
   input.click();
 }
-var procPage=1, procPageSize=30;
-function toggleProcSelect(id, checked) {
+var procPage=1, procPageSize=30, _procLastChecked=null;
+function toggleProcSelect(id, checked, evt) {
   if(!window._procSel)window._procSel={};
-  if(checked)window._procSel[id]=true;else delete window._procSel[id];
+  // Shift+click range select
+  if(evt&&evt.shiftKey&&_procLastChecked){
+    var cbs=document.querySelectorAll('#procBody input.proc-cb');
+    var start=-1,end=-1;
+    for(var i=0;i<cbs.length;i++){
+      if(cbs[i].getAttribute('data-id')===_procLastChecked)start=i;
+      if(cbs[i].getAttribute('data-id')===id)end=i;
+    }
+    if(start>=0&&end>=0){
+      var from=Math.min(start,end),to=Math.max(start,end);
+      for(var i=from;i<=to;i++){cbs[i].checked=checked;window._procSel[cbs[i].getAttribute('data-id')]=checked;}
+    }
+  } else {
+    if(checked)window._procSel[id]=true;else delete window._procSel[id];
+  }
+  _procLastChecked=id;
   updateProcSelBar();
 }
 function toggleSelectAllProcs(checked) {
@@ -2341,7 +2356,7 @@ function renderProcurements(){
     var ridx=procs.indexOf(p);
     var checked=window._procSel[p.id]?'checked':'';
     return '<tr class="proc-row">'+
-      '<td><input type="checkbox" '+checked+' onchange="toggleProcSelect(\''+p.id+'\',this.checked)" style="width:auto;margin:0;"></td>'+
+      '<td><input type="checkbox" class="proc-cb" data-id="'+p.id+'" '+checked+' onchange="toggleProcSelect(\''+p.id+'\',this.checked,event)" style="width:auto;margin:0;"></td>'+
       '<td><input value="'+p.date+'" onchange="updateProcCell('+ridx+',\'date\',this.value)" style="width:95px;padding:2px 4px;font-size:10px;"></td>'+
       '<td><input value="'+(p.code||'')+'" onchange="updateProcCell('+ridx+',\'code\',this.value)" style="width:80px;padding:2px 4px;font-size:10px;font-family:monospace;"></td>'+
       '<td><input value="'+(p.size||'')+'" onchange="updateProcCell('+ridx+',\'size\',this.value)" style="width:45px;padding:2px 4px;font-size:10px;"></td>'+
