@@ -386,7 +386,7 @@ tr:hover td:first-child{background:#f0f4ff}
         <button class="btn btn-sm fin-tab-btn active" id="fTabLedger" onclick="switchFinTab('ledger')" style="border-radius:6px 0 0 6px;">📋 记账流水</button>
         <button class="btn btn-sm fin-tab-btn" id="fTabWeekly" onclick="switchFinTab('weekly')" style="border-radius:0;">📅 周账单</button>
         <button class="btn btn-sm fin-tab-btn" id="fTabSummary" onclick="switchFinTab('summary')" style="border-radius:0;">📊 汇总</button>
-        <button class="btn btn-sm fin-tab-btn" id="fTabAdvisor" onclick="switchFinTab('advisor')" style="border-radius:0 6px 6px 0;">💡 财务顾问</button>
+        <button class="btn btn-sm fin-tab-btn" id="fTabAdvisor" onclick="switchFinTab('advisor')" style="border-radius:0 6px 6px 0;">🎯 经营决策</button>
         <span style="flex:1;"></span>
         <button class="btn btn-outline btn-sm" onclick="switchModule('fin');uploadFinanceWorkbench()">📤 上传账单</button>
       </div>
@@ -438,23 +438,36 @@ tr:hover td:first-child{background:#f0f4ff}
       </div>
       <div id="finAdvisorView" class="fin-view">
         <div class="kpi-grid" id="advisorKPIs"></div>
+        <div class="card">
+          <div class="card-title">🎮 情景模拟器 <span style="font-size:11px;color:var(--text3);">调整变量，实时看结果</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <button class="btn btn-sm fin-tab-btn active" id="scnSafe" onclick="setScenario('safe')" style="border-radius:6px;">🛡 保守生存</button>
+            <button class="btn btn-sm fin-tab-btn" id="scnGrow" onclick="setScenario('grow')" style="border-radius:6px;">📈 稳健增长</button>
+            <button class="btn btn-sm fin-tab-btn" id="scnBold" onclick="setScenario('bold')" style="border-radius:6px;">🚀 激进破局</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
+            <div><div class="kpi-label">推广预算(¥/周)</div><input type="range" id="simAd" min="0" max="2000" value="300" step="50" oninput="document.getElementById('simAdVal').textContent='¥'+this.value;runSimulation();" style="width:100%;"><span id="simAdVal">¥300</span></div>
+            <div><div class="kpi-label">计划进货(双)</div><input type="range" id="simStock" min="0" max="50" value="10" step="1" oninput="document.getElementById('simStockVal').textContent=this.value+'双';runSimulation();" style="width:100%;"><span id="simStockVal">10双</span></div>
+            <div><div class="kpi-label">预估转化率(%)</div><input type="range" id="simCVR" min="0.1" max="3" value="0.5" step="0.1" oninput="document.getElementById('simCVRVal').textContent=this.value+'%';runSimulation();" style="width:100%;"><span id="simCVRVal">0.5%</span></div>
+            <div><div class="kpi-label">平均售价(¥)</div><input type="range" id="simPrice" min="300" max="1000" value="500" step="10" oninput="document.getElementById('simPriceVal').textContent='¥'+this.value;runSimulation();" style="width:100%;"><span id="simPriceVal">¥500</span></div>
+          </div>
+          <div id="simResult" style="margin-top:10px;font-size:12px;padding:10px 14px;background:#f8fafc;border-radius:8px;line-height:1.8;"></div>
+        </div>
         <div class="chart-row">
           <div class="chart-card"><div class="cc-title">📈 现金流趋势</div><div class="chart-box" id="chartAdvisorCash"></div></div>
-          <div class="chart-card"><div class="cc-title">🍩 支出结构</div><div class="chart-box" id="chartAdvisorPie"></div></div>
+          <div class="chart-card"><div class="cc-title">🎯 风险仪表</div><div class="chart-box" id="chartAdvisorRisk"></div></div>
         </div>
         <div class="card">
-          <div class="card-title">💡 财务顾问 <span style="font-size:11px;color:var(--text3);">AI 分析建议</span></div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
-            <button class="btn btn-primary btn-sm" onclick="askAdvisor('health')">🩺 健康检查</button>
-            <button class="btn btn-outline btn-sm" onclick="askAdvisor('spend')">💳 我能花多少</button>
-            <button class="btn btn-outline btn-sm" onclick="askAdvisor('debt')">📋 还款计划</button>
+          <div class="card-title">🤖 AI 决策建议 <span style="font-size:11px;color:var(--text3);">结构化分析</span></div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <button class="btn btn-primary btn-sm" onclick="askAdvisor('run')">🔍 全面诊断</button>
             <button class="btn btn-outline btn-sm" onclick="askAdvisor('risk')">⚠️ 风险评估</button>
           </div>
           <div style="display:flex;gap:6px;margin-bottom:12px;">
-            <input type="text" id="advisorPrompt" placeholder="💬 自由提问..." style="flex:1;padding:6px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;" onkeydown="if(event.key==='Enter')askAdvisor('free')">
+            <input type="text" id="advisorPrompt" placeholder="💬 问：进20双银闪花嫁，3000推广费，能撑住吗？" style="flex:1;padding:6px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;" onkeydown="if(event.key==='Enter')askAdvisor('free')">
             <button class="btn btn-primary btn-sm" onclick="askAdvisor('free')">发送</button>
           </div>
-          <div id="advisorResult" style="font-size:13px;line-height:1.8;white-space:pre-wrap;min-height:60px;color:var(--text2);">点击上方按钮，AI 会基于你的实际数据给出分析。</div>
+          <div id="advisorResult" style="font-size:13px;line-height:1.8;min-height:60px;color:var(--text2);">点击「全面诊断」获取当前经营状况的结构化分析报告。</div>
         </div>
       </div>
     </div>
@@ -1499,7 +1512,7 @@ function switchFinTab(t) {
   if (t==='ledger') renderFinLedger();
   if (t==='weekly') renderFinWeekly();
   if (t==='summary') {renderFinSummary();}
-  if (t==='advisor') {renderAdvisorData();}
+  if (t==='advisor') {renderAdvisorData();setTimeout(function(){runSimulation();},200);}
 }
 function renderFinLedger() {
   const db = getDB(); var ledger = db.finance.ledger||[];
@@ -2206,6 +2219,45 @@ function updateCostFromBill(name, shoeCost, customFee){
   saveDB(db);toast(name+' 成本已更新并保存');
 }
 
+var _simScenario='grow';
+function setScenario(s){
+  _simScenario=s;
+  document.querySelectorAll('#finAdvisorView .fin-tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById(s==='safe'?'scnSafe':s==='grow'?'scnGrow':'scnBold').classList.add('active');
+  var v={safe:{ad:200,stock:5,cvr:0.3,price:400},grow:{ad:300,stock:10,cvr:0.5,price:500},bold:{ad:800,stock:20,cvr:1.0,price:600}}[s];
+  document.getElementById('simAd').value=v.ad;document.getElementById('simAdVal').textContent='¥'+v.ad;
+  document.getElementById('simStock').value=v.stock;document.getElementById('simStockVal').textContent=v.stock+'双';
+  document.getElementById('simCVR').value=v.cvr;document.getElementById('simCVRVal').textContent=v.cvr+'%';
+  document.getElementById('simPrice').value=v.price;document.getElementById('simPriceVal').textContent='¥'+v.price;
+  runSimulation();
+}
+function runSimulation(){
+  var db=getDB();var ledger=db.finance.ledger||[];var bills=db.finance.weeklyBills||[];
+  // Current state
+  var cash=ledger.filter(function(i){return i.amount>0;}).reduce(function(s,i){return s+i.amount;},0)-Math.abs(ledger.filter(function(i){return i.amount<0;}).reduce(function(s,i){return s+i.amount;},0));
+  var bizCats=['原鞋','推广','设计','材料','邮费','平台','工作室','其他支出'];
+  var wkOut=Math.round(Math.abs(ledger.filter(function(i){return i.amount<0&&bizCats.indexOf(i.cat)>=0;}).reduce(function(s,i){return s+i.amount;},0))/Math.max(1,Math.ceil((new Date()-new Date('2026-05-04'))/604800000)));
+  // Sim inputs
+  var ad=parseInt(document.getElementById('simAd').value)||0;
+  var stock=parseInt(document.getElementById('simStock').value)||0;
+  var cvr=parseFloat(document.getElementById('simCVR').value)||0;
+  var price=parseInt(document.getElementById('simPrice').value)||0;
+  var avgCost=250; // rough avg shoe cost
+  var estOrders=Math.round(stock*cvr/100);
+  var estRevenue=estOrders*price*0.8;
+  var estCost=stock*avgCost+ad;
+  var estProfit=estRevenue-estCost;
+  var newCash=cash+estProfit;
+  var runway=newCash>0&&(wkOut+ad)>0?Math.floor(newCash/(wkOut+ad)):99;
+  // Risk level
+  var riskLevel=runway>=8?'低':runway>=4?'中':runway>=2?'高':'极高';
+  var riskColor=runway>=8?'var(--green)':runway>=4?'var(--orange)':'var(--red)';
+  document.getElementById('simResult').innerHTML=
+    '<div style=\"display:flex;gap:16px;flex-wrap:wrap;align-items:center;\"><div><b>情景推演结果</b></div><div>预计订单: <b>'+estOrders+'单</b></div><div>预计收入: <b>¥'+estRevenue.toLocaleString()+'</b></div><div>变动成本: <b>¥'+estCost.toLocaleString()+'</b></div><div>边际利润: <b style=\"color:'+(estProfit>=0?'var(--green)':'var(--red)')+';\">'+(estProfit>=0?'+':'')+'¥'+estProfit.toLocaleString()+'</b></div><div>资金跑道: <b style=\"color:'+riskColor+';\">'+runway+'周</b></div><div>风险等级: <b style=\"color:'+riskColor+';\">'+riskLevel+'</b></div></div>';
+  // Risk gauge
+  var gaugeVal=Math.min(100,Math.max(0,Math.round((1-runway/20)*100)));
+  renderChart('chartAdvisorRisk',{series:[{type:'gauge',startAngle:210,endAngle:-30,center:['50%','60%'],radius:'90%',min:0,max:100,splitNumber:10,axisLine:{lineStyle:{color:[[0.3,'#34c759'],[0.6,'#ff9500'],[1,'#ff3b30']],width:20}},pointer:{length:'70%',width:6,itemStyle:{color:'auto'}},detail:{valueAnimation:true,formatter:'{value}%',fontSize:16,offsetCenter:[0,'80%']},data:[{value:gaugeVal,name:riskLevel}]}]});
+}
 function renderAdvisorData(){
   var db=getDB();var ledger=db.finance.ledger||[];var bills=db.finance.weeklyBills||[];
   // Key metrics
@@ -2240,42 +2292,34 @@ function askAdvisor(type){
   var db=getDB();var ledger=db.finance.ledger||[];var bills=db.finance.weeklyBills||[];
   var totalIn=ledger.filter(function(i){return i.amount>0;}).reduce(function(s,i){return s+i.amount;},0);
   var totalOut=Math.abs(ledger.filter(function(i){return i.amount<0;}).reduce(function(s,i){return s+i.amount;},0));
+  var cash=totalIn-totalOut;
   var bizCats=['原鞋','推广','设计','材料','邮费','平台','工作室','其他支出'];
   var bizOut=Math.abs(ledger.filter(function(i){return i.amount<0&&bizCats.indexOf(i.cat)>=0;}).reduce(function(s,i){return s+i.amount;},0));
-  var personalOut=Math.abs(ledger.filter(function(i){return i.cat==='个人消费';}).reduce(function(s,i){return s+i.amount;},0));
   var debtOut=Math.abs(ledger.filter(function(i){return i.cat==='还款债务';}).reduce(function(s,i){return s+i.amount;},0));
+  var personalOut=Math.abs(ledger.filter(function(i){return i.cat==='个人消费';}).reduce(function(s,i){return s+i.amount;},0));
+  var firstDate=ledger.length>0?ledger[0].date:'2026-05-04';
+  var weeks=Math.max(1,Math.ceil((new Date()-new Date(firstDate+'T00:00:00'))/604800000));
+  var wkBurn=Math.round(bizOut/weeks);
+  var runway=wkBurn>0?Math.floor(Math.abs(cash)/wkBurn):99;
   var billsIncome=bills.reduce(function(s,b){return s+(b.summary.netIncome||0);},0);
   var otherIncome=ledger.filter(function(i){return i.cat==='其他收入';}).reduce(function(s,i){return s+Math.abs(i.amount);},0);
-  // Weekly averages
-  var firstDate=ledger[0]?ledger[0].date:'2026-05-04';
-  var weeks=Math.max(1,Math.ceil((new Date()-new Date(firstDate+'T00:00:00'))/604800000));
-  var weeklyBizOut=Math.round(bizOut/weeks);
-  var weeklyIncome=Math.round((billsIncome+otherIncome)/Math.max(1,bills.length));
-  var cashNow=totalIn-totalOut;
-  var runway=weeklyBizOut>0?Math.floor(Math.abs(cashNow)/weeklyBizOut):99;
-
-  var systemPrompt='你是专业财务顾问，为一个小型定制球鞋商家提供财务分析和建议。用中文回答，简洁专业，像CFO跟老板说话。数据单位是人民币元。';
+  var simAd=document.getElementById('simAd');var simStock=document.getElementById('simStock');
+  var curAd=simAd?parseInt(simAd.value)||0:300;
+  var curStock=simStock?parseInt(simStock.value)||0:10;
+  var sysPrompt='你是虚拟CFO。职责：利润最大化+风险最小化。输出三段式：【诊断】【风险评估】【建议】。量化每个结论。关键结论**加粗**。';
+  var dataContext='财务快照：现金¥'+cash.toLocaleString()+' 周支出¥'+wkBurn.toLocaleString()+' 跑道'+runway+'周 债务¥'+debtOut.toLocaleString()+' 账单收入¥'+billsIncome.toLocaleString()+' 模拟：推广¥'+curAd+'/周 进货'+curStock+'双。';
   var userPrompt='';
-  if(type==='health'){
-    userPrompt='请做财务健康检查。以下是数据：\\n现金余额: ¥'+cashNow.toLocaleString()+'\\n累计收入: ¥'+totalIn.toLocaleString()+'\\n累计支出: ¥'+totalOut.toLocaleString()+'\\n经营支出(周均): ¥'+weeklyBizOut.toLocaleString()+'\\n累计债务还款: ¥'+debtOut.toLocaleString()+'\\n个人消费: ¥'+personalOut.toLocaleString()+'\\n资金跑道: '+runway+'周\\n卖货收入(来自账单): ¥'+billsIncome.toLocaleString()+'\\n\\n请给：1)健康评分(0-100) 2)最大风险 3)本周最该做的一件事';
-  }else if(type==='spend'){
-    userPrompt='根据我的财务状况，我每周能花多少钱不会出问题？\\n当前现金: ¥'+cashNow.toLocaleString()+'\\n周均经营支出: ¥'+weeklyBizOut.toLocaleString()+'\\n周均收入(卖货+其他): ¥'+weeklyIncome.toLocaleString()+'\\n周均债务还款: ¥'+Math.round(debtOut/weeks).toLocaleString()+'\\n\\n请给出：1)安全支出上限 2)警戒线 3)分项建议(原鞋/推广/设计各能花多少)';
-  }else if(type==='debt'){
-    userPrompt='我需要制定还款计划。\\n累计债务还款: ¥'+debtOut.toLocaleString()+'\\n平均每周还债: ¥'+Math.round(debtOut/weeks).toLocaleString()+'\\n当前现金: ¥'+cashNow.toLocaleString()+'\\n周均收入: ¥'+weeklyIncome.toLocaleString()+'\\n\\n请给出：1)当前还款压力评估 2)合理的周还款额 3)如果资金紧张，优先还哪些、缓还哪些';
-  }else if(type==='risk'){
-    userPrompt='请做风险评估。\\n现金: ¥'+cashNow.toLocaleString()+'\\n周支出: ¥'+weeklyBizOut.toLocaleString()+'\\n周收入: ¥'+weeklyIncome.toLocaleString()+'\\n跑道: '+runway+'周\\n债务: ¥'+debtOut.toLocaleString()+'\\n\\n请分析：1)最大的3个财务风险 2)每个风险的概率和影响 3)应对措施';
-  }else if(type==='week'){
-    userPrompt='帮我做下周预算分配。\\n可用现金: ¥'+cashNow.toLocaleString()+'\\n预计下周收入(卖货): ¥'+Math.round(billsIncome/Math.max(1,bills.length)).toLocaleString()+'\\n周均经营支出: ¥'+weeklyBizOut.toLocaleString()+'\\n\\n请给出：1)下周总预算 2)原鞋/推广/设计/生活各分多少 3)该留多少应急';
-  }else{
-    userPrompt=document.getElementById('advisorPrompt').value;
-    if(!userPrompt.trim())return;
-    userPrompt='我是定制球鞋商家。财务数据：现金¥'+cashNow.toLocaleString()+'，周支出¥'+weeklyBizOut.toLocaleString()+'，周收入¥'+weeklyIncome.toLocaleString()+'。\\n\\n问题：'+userPrompt;
+  if(type==='run'){userPrompt=dataContext+'请做全面诊断。三段式输出。';}
+  else if(type==='risk'){userPrompt=dataContext+'风险评估：分析资金链断裂/债务/经营亏损3大风险，各给概率和影响。';}
+  else{
+    var q=document.getElementById('advisorPrompt').value;if(!q.trim())return;
+    userPrompt=dataContext+'经营者问：'+q+'。请按三段式输出。';
     document.getElementById('advisorPrompt').value='';
   }
-  document.getElementById('advisorResult').innerHTML='<div style=\"text-align:center;padding:20px;color:var(--text3);\">🤔 AI 分析中...</div>';
-  callClaudeAPI(systemPrompt,userPrompt,function(err,text){
-    if(err){document.getElementById('advisorResult').innerHTML='<span style=\"color:var(--red);\">调用失败: '+err+'</span>';return;}
-    document.getElementById('advisorResult').innerHTML=text.replace(/\\n/g,'<br>');
+  document.getElementById('advisorResult').innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);">🤔 AI 分析中...</div>';
+  callClaudeAPI(sysPrompt,userPrompt,function(err,text){
+    if(err){document.getElementById('advisorResult').innerHTML='<span style="color:var(--red);">调用失败: '+err+'</span>';return;}
+    document.getElementById('advisorResult').innerHTML=text.replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   });
 }
 function renderFinSummary() {
